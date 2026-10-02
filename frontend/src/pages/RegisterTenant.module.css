@@ -1,0 +1,836 @@
+/* ========================================================
+   CSS MODULE: REGISTRO DE RESTAURANTE (ONBOARDING SAAS)
+   ======================================================== */
+
+.registerPage {
+  height: 100%;
+  min-height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+              #f8fafc;
+  padding: 2.5rem 1rem 4rem 1rem;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  transition: background-color 0.25s ease;
+  font-family: inherit;
+}
+
+.registerPage::-webkit-scrollbar {
+  width: 8px;
+}
+
+.registerPage::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.registerPage::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 4px;
+}
+
+.registerPage::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+.registerCard {
+  max-width: 44rem;
+  width: 100%;
+  margin: 0 auto;
+  flex-shrink: 0;
+  background-color: #ffffff;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+/* Encabezado */
+.registerHeader {
+  background-color: #ffffff;
+  padding: 2.5rem 2.5rem 1.5rem 2.5rem;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.brandTitleContainer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.brandNeo {
+  font-family: var(--font-orbitron, sans-serif);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #4f46e5;
+  font-size: 2.4rem;
+}
+
+.brandFood {
+  font-family: var(--font-manrope, sans-serif);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #10b981;
+  font-size: 2.4rem;
+}
+
+.saasBadge {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(16, 185, 129, 0.15));
+  color: #4338ca;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  vertical-align: middle;
+}
+
+.registerTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.registerSubtitle {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+/* Cuerpo */
+.registerBody {
+  padding: 2rem 2.5rem;
+}
+
+.registerError {
+  background-color: #fef2f2;
+  border-left: 4px solid #ef4444;
+  padding: 0.875rem 1.25rem;
+  margin-bottom: 1.75rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.registerErrorText {
+  color: #b91c1c;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.registerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Secciones del Formulario */
+.formSection {
+  background-color: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.15rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sectionIcon {
+  color: #4f46e5;
+}
+
+.sectionTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+  .registerBody {
+    padding: 1.5rem 1.25rem;
+  }
+  .registerHeader {
+    padding: 2rem 1.25rem 1rem 1.25rem;
+  }
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.fieldLabel {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.fieldHelp {
+  font-size: 0.725rem;
+  color: #94a3b8;
+  margin-top: 0.15rem;
+}
+
+/* Inputs */
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 0.875rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  padding: 0.65rem 0.875rem 0.65rem 2.5rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  border-radius: 0.65rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.input:focus {
+  border-color: #4f46e5;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.slugPrefix {
+  position: absolute;
+  left: 0.875rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  pointer-events: none;
+  font-family: monospace;
+}
+
+.slugInput {
+  padding-left: 5.4rem !important;
+  font-family: monospace;
+  font-weight: 600;
+  color: #4338ca;
+}
+
+.passwordInput {
+  padding-right: 2.75rem;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.35rem;
+  transition: color 0.15s ease;
+}
+
+.passwordToggle:hover {
+  color: #0f172a;
+}
+
+/* Banner de Características */
+.featuresBanner {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(16, 185, 129, 0.06));
+  border: 1px solid rgba(79, 70, 229, 0.15);
+  border-radius: 0.85rem;
+  padding: 1rem 1.25rem;
+}
+
+.featuresHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.sparkleIcon {
+  color: #4f46e5;
+}
+
+.featuresTitle {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #312e81;
+}
+
+.featuresList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.checkIcon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+/* Botón de Registro */
+.submitBtn {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5, #10b981);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  transition: all 0.2s ease;
+}
+
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Pie de Tarjeta */
+.registerFooter {
+  padding: 1.25rem 2rem;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.loginRedirectText {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.loginRedirectLink {
+  color: #4f46e5;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.loginRedirectLink:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+.securityTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Pie General */
+.pageFooter {
+  margin-top: 1.75rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.pageFooterAuthor {
+  color: #64748b;
+}
+
+/* ========================================================
+   SELECTOR DE MODALIDAD (PRUEBA VS PLAN DE PAGO)
+   ======================================================== */
+.modeSelector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.modeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid #e2e8f0;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  gap: 0.35rem;
+}
+
+.modeBtn:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.modeBtnActive {
+  border-color: #4f46e5;
+  background-color: #f5f3ff;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+.modeBtnTrialActive {
+  border-color: #10b981;
+  background-color: #ecfdf5;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.modeTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.modeSubtitle {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* TABS DE CICLO DE FACTURACIÓN (MENSUAL, SEMESTRAL, ANUAL) */
+.cycleSelector {
+  display: flex;
+  background-color: #e2e8f0;
+  padding: 0.25rem;
+  border-radius: 0.65rem;
+  margin-bottom: 1.25rem;
+  gap: 0.25rem;
+}
+
+.cycleTab {
+  flex: 1;
+  padding: 0.55rem 0.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: transparent;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.cycleTab:hover {
+  color: #1e293b;
+}
+
+.cycleTabActive {
+  background-color: #ffffff;
+  color: #4f46e5;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.discountPill {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* GRID DE PLANES */
+.planCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+}
+
+@media (max-width: 680px) {
+  .planCardsGrid {
+    grid-template-columns: 1fr;
+  }
+  .modeSelector {
+    grid-template-columns: 1fr;
+  }
+}
+
+.planCard {
+  border: 2px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background-color: #ffffff;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.planCard:hover {
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+}
+
+.planCardActive {
+  border-color: #4f46e5;
+  background: linear-gradient(180deg, #f5f3ff 0%, #ffffff 100%);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.15);
+}
+
+.planCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.planCardName {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.planCardRadio {
+  accent-color: #4f46e5;
+  width: 1rem;
+  height: 1rem;
+}
+
+.planCardPriceContainer {
+  margin-bottom: 0.65rem;
+}
+
+.planCardPrice {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.planCardPricePeriod {
+  font-size: 0.725rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.planCardTotalBilled {
+  font-size: 0.7rem;
+  color: #059669;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+.planCardLimits {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.6rem;
+  margin-top: auto;
+  font-size: 0.775rem;
+  color: #475569;
+}
+
+.planCardLimitItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.planCardLimitIcon {
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+
+/* ========================================================
+   VISTA: PAGO PENDIENTE DE VERIFICACIÓN (CONFIRMACIÓN)
+   ======================================================== */
+.pendingPaymentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.pendingHeaderNotice {
+  text-align: center;
+  padding: 1rem;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pendingNoticeIcon {
+  color: #d97706;
+}
+
+.pendingNoticeTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #92400e;
+}
+
+.pendingNoticeSubtitle {
+  font-size: 0.85rem;
+  color: #b45309;
+  line-height: 1.4;
+  max-width: 30rem;
+}
+
+.pendingSummaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .pendingSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaryBox {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  padding: 1rem;
+}
+
+.summaryBoxTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.summaryRow:last-child {
+  border-bottom: none;
+}
+
+.summaryLabel {
+  color: #64748b;
+}
+
+.summaryValue {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.totalToPayBox {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  color: #ffffff;
+  border-radius: 0.85rem;
+  padding: 1.25rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.totalToPayLabel {
+  font-size: 0.8rem;
+  color: #c7d2fe;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.totalToPayAmount {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.totalToPayCycle {
+  font-size: 0.8rem;
+  color: #e0e7ff;
+}
+
+/* Medios de Pago */
+.bankAccountsCard {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  padding: 1.15rem;
+}
+
+.bankAccountsTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bankAccountList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.bankAccountItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  background-color: #f8fafc;
+  border-radius: 0.65rem;
+  border: 1px solid #f1f5f9;
+}
+
+.bankAccountInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.bankAccountName {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.bankAccountNumber {
+  font-size: 0.85rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.whatsappActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.95rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #25d366, #128c7e);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  transition: all 0.2s ease;
+}
+
+.whatsappActionBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.45);
+}
+
+.returnLoginBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  border-radius: 0.65rem;
+  background-color: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.returnLoginBtn:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+

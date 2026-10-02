@@ -1,0 +1,211 @@
+/* ========================================================
+   CSS MODULE: BOTONES (BUTTON)
+   ======================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Variantes */
+.primary {
+  background: linear-gradient(135deg, #4F46E5, #10B981);
+  color: #ffffff;
+  box-shadow: 0 4px 12px var(--primary-shadow);
+}
+
+.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4F46E5, #10B981);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--primary-shadow);
+}
+
+.secondary {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
+.danger {
+  background-color: var(--danger);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.danger:hover:not(:disabled) {
+  background-color: var(--danger-hover);
+}
+
+.success {
+  background-color: var(--success);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+
+.success:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.outline {
+  background-color: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.outline:hover:not(:disabled) {
+  background-color: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+.ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.ghost:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+/* Tamaños */
+.sm {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border-radius: var(--radius-lg);
+}
+
+.iconOnly {
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+/* Compatibilidad Global */
+:global(.neo-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+:global(.neo-btn:active) {
+  transform: translateY(1px);
+}
+
+:global(.neo-btn:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+:global(.neo-btn-primary) {
+  background: linear-gradient(135deg, #4F46E5, #10B981);
+  color: #ffffff;
+  box-shadow: 0 4px 12px var(--primary-shadow);
+}
+:global(.neo-btn-primary:hover:not(:disabled)) {
+  background: linear-gradient(135deg, #4F46E5, #10B981);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px var(--primary-shadow);
+}
+
+:global(.neo-btn-secondary) {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+:global(.neo-btn-secondary:hover:not(:disabled)) {
+  background-color: var(--bg-hover);
+}
+
+:global(.neo-btn-danger) {
+  background-color: var(--danger);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+:global(.neo-btn-danger:hover:not(:disabled)) {
+  background-color: var(--danger-hover);
+}
+
+:global(.neo-btn-success) {
+  background-color: var(--success);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+:global(.neo-btn-success:hover:not(:disabled)) {
+  background-color: #059669;
+}
+
+:global(.neo-btn-outline) {
+  background-color: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+:global(.neo-btn-outline:hover:not(:disabled)) {
+  background-color: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+:global(.neo-btn-ghost) {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+:global(.neo-btn-ghost:hover:not(:disabled)) {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+:global(.neo-btn-sm) {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+:global(.neo-btn-lg) {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border-radius: var(--radius-lg);
+}
+
+:global(.neo-btn-icon-only) {
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+}

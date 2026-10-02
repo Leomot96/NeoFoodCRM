@@ -1,0 +1,346 @@
+/* ========================================================
+   CSS MODULE: PÁGINA DE DASHBOARD
+   ======================================================== */
+
+.dashboardContainer,
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.dashboardHeader,
+.dashboard-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .dashboardHeader,
+  .dashboard-header {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.dashboardTitle,
+.dashboard-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.dashboardSubtitle,
+.dashboard-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.dashboardActions,
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cashStatusBadge,
+.cash-status-badge {
+  padding: 0.4rem 0.875rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.cashStatusBadge.open,
+.cash-status-badge.open {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.cashStatusBadge.closed,
+.cash-status-badge.closed {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.dashboardRefreshBtn,
+.dashboard-refresh-btn {
+  padding: 0.625rem;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+  transition: all 0.15s ease;
+}
+
+.dashboardRefreshBtn:hover,
+.dashboard-refresh-btn:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+.dashboardErrorBanner,
+.dashboard-error-banner {
+  padding: 1rem;
+  background-color: var(--warning-bg);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--warning-text);
+  font-size: 0.875rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboardKpiGrid,
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .dashboardKpiGrid,
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboardKpiGrid,
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.dashboardMainGrid,
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboardMainGrid,
+  .dashboard-main-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.dashboardSidePanels,
+.dashboard-side-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dashboardPanelCard,
+.dashboard-panel-card {
+  background-color: var(--bg-surface, #ffffff);
+  border-radius: 1rem;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1.5px solid #cbd5e1;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboardPanelHeader,
+.dashboard-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.dashboardPanelTitle,
+.dashboard-panel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dashboardPanelLink,
+.dashboard-panel-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.dashboardPanelLink:hover,
+.dashboard-panel-link:hover {
+  text-decoration: underline;
+}
+
+.lowStockList,
+.low-stock-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.lowStockItem,
+.low-stock-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem;
+  background-color: var(--danger-bg);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.75rem;
+}
+
+.lowStockBadge,
+.low-stock-badge {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.15);
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.topProductsList,
+.top-products-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.topProductItem,
+.top-product-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  transition: background-color 0.15s ease;
+}
+
+.topProductItem:hover,
+.top-product-item:hover {
+  background-color: var(--bg-subtle);
+}
+
+.topProductRank,
+.top-product-rank {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background-color: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* Compatibilidad Global */
+.dashboard-container { display: flex; flex-direction: column; gap: 2rem; width: 100%; }
+.dashboard-header { display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; }
+@media (min-width: 640px) { .dashboard-header { flex-direction: row; align-items: center; } }
+.dashboard-title { font-size: 1.75rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.025em; line-height: 1.2; }
+.dashboard-subtitle { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem; }
+.dashboard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.cash-status-badge { padding: 0.4rem 0.875rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.75rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; }
+.cash-status-badge.open { background-color: var(--success-bg); color: var(--success-text); border-color: rgba(16, 185, 129, 0.3); }
+.cash-status-badge.closed { background-color: var(--danger-bg); color: var(--danger-text); border-color: rgba(239, 68, 68, 0.3); }
+.dashboard-refresh-btn { padding: 0.625rem; background-color: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-secondary); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--card-shadow); transition: all 0.15s ease; }
+.dashboard-refresh-btn:hover { background-color: var(--bg-subtle); color: var(--text-main); }
+.dashboard-error-banner { padding: 1rem; background-color: var(--warning-bg); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--warning-text); font-size: 0.875rem; border-radius: 1rem; display: flex; align-items: center; justify-content: space-between; }
+.dashboard-kpi-grid { display: grid; grid-template-columns: repeat(1, 1fr); gap: 1.25rem; }
+@media (min-width: 640px) { .dashboard-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .dashboard-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+.dashboard-main-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+@media (min-width: 1024px) { .dashboard-main-grid { grid-template-columns: 2fr 1fr; } }
+.dashboard-side-panels { display: flex; flex-direction: column; gap: 1.5rem; }
+.dashboard-panel-card { background-color: var(--bg-surface, #ffffff); border-radius: 1rem; box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04); border: 1.5px solid #cbd5e1; padding: 1.25rem; display: flex; flex-direction: column; }
+.dashboard-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.dashboard-panel-title { font-size: 1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; }
+.dashboard-panel-link { font-size: 0.75rem; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 0.25rem; text-decoration: none; cursor: pointer; background: none; border: none; }
+.dashboard-panel-link:hover { text-decoration: underline; }
+.low-stock-list { list-style: none; display: flex; flex-direction: column; gap: 0.625rem; }
+.low-stock-item { display: flex; justify-content: space-between; align-items: center; padding: 0.625rem; background-color: var(--danger-bg); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 0.75rem; }
+.low-stock-badge { font-size: 0.75rem; font-weight: 900; color: var(--danger); background-color: rgba(239, 68, 68, 0.15); padding: 0.15rem 0.5rem; border-radius: 0.5rem; flex-shrink: 0; }
+.top-products-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+.top-product-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 0.75rem; transition: background-color 0.15s ease; }
+.top-product-item:hover { background-color: var(--bg-subtle); }
+.top-product-rank { width: 1.75rem; height: 1.75rem; border-radius: 0.5rem; background-color: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; flex-shrink: 0; }
+
+/* Mini Paginación para Tarjetas del Dashboard */
+.miniPagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
+.miniPaginationControls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.miniPaginationBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background-color: var(--bg-surface, #ffffff);
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.miniPaginationBtn:hover:not(:disabled) {
+  background-color: var(--bg-subtle, #f8fafc);
+  color: var(--primary, #4f46e5);
+  border-color: var(--primary, #4f46e5);
+}
+
+.miniPaginationBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

@@ -1,0 +1,64 @@
+/* ========================================================
+   CSS MODULE: LOGOTIPO Y MARCA (BRAND)
+   ======================================================== */
+
+.brandNeo {
+  font-family: var(--font-orbitron);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+.brandFood {
+  font-family: var(--font-manrope);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--secondary);
+  margin-left: 1px;
+}
+
+:global(.dark) .brandNeo {
+  color: var(--primary-light);
+}
+
+:global(.dark) .brandFood {
+  color: var(--secondary-light);
+}
+
+.textGradient {
+  background: var(--brand-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Compatibilidad Global */
+:global(.brand-neo) {
+  font-family: var(--font-orbitron);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+:global(.brand-food) {
+  font-family: var(--font-manrope);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--secondary);
+  margin-left: 1px;
+}
+
+:global(.dark .brand-neo) {
+  color: var(--primary-light);
+}
+
+:global(.dark .brand-food) {
+  color: var(--secondary-light);
+}
+
+:global(.text-gradient) {
+  background: var(--brand-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

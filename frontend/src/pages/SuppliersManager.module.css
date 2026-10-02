@@ -1,0 +1,109 @@
+/* ========================================================
+   CSS MODULE: GESTIÓN DE PROVEEDORES
+   ======================================================== */
+
+.suppliersPage,
+.suppliers-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.suppliersHeader,
+.suppliers-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.suppliersTitle,
+.suppliers-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.suppliersSubtitle,
+.suppliers-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.supplierContactInfo,
+.supplier-contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.supplierContactItem,
+.supplier-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.suppliersControls,
+.suppliers-controls {
+  display: flex;
+  width: 100%;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .suppliersControls,
+  .suppliers-controls {
+    width: auto;
+  }
+}
+
+.suppliersSearchBox,
+.suppliers-search-box {
+  position: relative;
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .suppliersSearchBox,
+  .suppliers-search-box {
+    width: 16rem;
+  }
+}
+
+.suppliersSearchIcon,
+.suppliers-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.suppliersSearchInput,
+.suppliers-search-input {
+  width: 100%;
+  padding: 0.55rem 1rem 0.55rem 2.25rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-md, 0.5rem);
+  background-color: var(--bg-surface, #ffffff);
+  color: var(--text-main);
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.suppliersSearchInput:focus,
+.suppliers-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}

@@ -1,0 +1,343 @@
+/* ========================================================
+   ESTILOS COMPONENTES EXTERNOS (DATEPICKER)
+   ======================================================== */
+@import './styles/components/datepicker.css';
+
+/* ========================================================
+   IDENTIDAD DE MARCA Y LOGOTIPO NEOFOOD
+   NEO -> Orbitron (#4F46E5) | FOOD -> Manrope (#10B981)
+   ======================================================== */
+.brand-neo {
+  font-family: var(--font-orbitron);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+.brand-food {
+  font-family: var(--font-manrope);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--secondary);
+  margin-left: 1px;
+}
+
+
+/* ========================================================
+  UTILIDADES Y ESTILOS GLOBALES
+   ======================================================== */
+.text-gradient {
+  background: var(--brand-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.surface-elevated {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+}
+
+.interactive-surface {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.interactive-surface:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-focus);
+}
+
+/* ========================================================
+   SISTEMA DE TABLAS GLOBAL (NEO-TABLE)
+   ======================================================== */
+.neo-table-card {
+  background-color: var(--bg-surface, #ffffff);
+  border-radius: var(--radius-xl, 1rem);
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  width: 100%;
+}
+
+.neo-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.neo-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--text-main, #0f172a);
+}
+
+.neo-table thead {
+  background-color: #1e293b !important;
+  border-bottom: 2px solid var(--primary, #4f46e5) !important;
+}
+
+.neo-table th {
+  padding: 0.875rem 1.25rem;
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid var(--primary, #4f46e5) !important;
+  white-space: nowrap;
+}
+
+.neo-table td {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-main, #0f172a);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  vertical-align: middle;
+}
+
+.neo-table tbody tr {
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.neo-table tbody tr:hover {
+  background-color: var(--bg-subtle, #f8fafc);
+}
+
+.neo-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ========================================================
+   SISTEMA DE MODALES GLOBAL (NEO-MODAL)
+   Encabezados estilo tabla (#1e293b) con diseño llamativo
+   ======================================================== */
+.neo-modal-backdrop,
+.neo-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  padding: 1rem !important;
+  overflow-y: auto !important;
+  animation: modalFadeIn 0.2s ease-out !important;
+}
+
+.neo-modal {
+  width: 100% !important;
+  background-color: var(--bg-surface, #ffffff) !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: var(--radius-xl, 1.25rem) !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(15, 23, 42, 0.08) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 90vh !important;
+  animation: modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.neo-modal-header {
+  padding: 1.25rem 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background-color: #1e293b !important;
+  border-bottom: 2px solid var(--primary, #4f46e5) !important;
+  color: #ffffff !important;
+  flex-shrink: 0 !important;
+}
+
+.neo-modal-title {
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.65rem !important;
+  margin: 0 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.neo-modal-title svg {
+  color: #818cf8 !important;
+}
+
+.neo-modal-close-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #94a3b8 !important;
+  padding: 0.4rem !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  cursor: pointer !important;
+  font-size: 0.875rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.neo-modal-close-btn:hover {
+  color: #ffffff !important;
+  background-color: rgba(239, 68, 68, 0.3) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  transform: scale(1.05) !important;
+}
+
+.neo-modal-body {
+  padding: 1.5rem !important;
+  overflow-y: auto !important;
+  flex: 1 !important;
+  background-color: var(--bg-surface, #ffffff) !important;
+}
+
+.neo-modal-footer {
+  padding: 1rem 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 0.75rem !important;
+  border-top: 1.5px solid var(--border-color, #e2e8f0) !important;
+  background-color: var(--bg-subtle, #f8fafc) !important;
+  flex-shrink: 0 !important;
+}
+
+/* ========================================================
+   FORMULARIOS Y CAMPOS (SECCIONES SEPARADAS E INPUTS LLAMATIVOS)
+   ======================================================== */
+.neo-form-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.45rem !important;
+  padding: 0.85rem 1rem !important;
+  background-color: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+  margin-bottom: 0.85rem !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.neo-form-group:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05) !important;
+}
+
+.neo-form-group:focus-within {
+  border-color: rgba(79, 70, 229, 0.5) !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1), 0 3px 8px rgba(15, 23, 42, 0.06) !important;
+}
+
+.neo-label {
+  font-size: 0.75rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: #475569 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  margin-bottom: 0.15rem !important;
+}
+
+/* Inputs de texto, número, fecha, etc. */
+.neo-input,
+.neo-select,
+.neo-textarea,
+input[type="text"].neo-input,
+input[type="number"].neo-input,
+input[type="email"].neo-input,
+input[type="password"].neo-input {
+  width: 100% !important;
+  padding: 0.65rem 0.875rem !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 0.625rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  outline: none !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), inset 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.neo-input:hover,
+.neo-select:hover,
+.neo-textarea:hover {
+  border-color: #94a3b8 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+}
+
+.neo-input:focus,
+.neo-select:focus,
+.neo-textarea:focus {
+  border-color: var(--primary, #4f46e5) !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.22), 0 2px 6px rgba(79, 70, 229, 0.1) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* CustomSelect trigger acorde con los inputs */
+.custom-select-trigger,
+button[class*="CustomSelect_trigger"] {
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 0.625rem !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.custom-select-trigger:hover,
+button[class*="CustomSelect_trigger"]:hover {
+  border-color: #94a3b8 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+}
+
+.custom-select-trigger:focus,
+.custom-select-trigger.is-open,
+button[class*="CustomSelect_trigger"]:focus,
+button[class*="CustomSelect_trigger"][class*="isOpen"] {
+  border-color: var(--primary, #4f46e5) !important;
+  box-shadow: 0 0 0 3.5px rgba(79, 70, 229, 0.22) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Botones de acción icono */
+.neo-action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.neo-action-icon-btn:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.neo-action-icon-btn.danger:hover {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}

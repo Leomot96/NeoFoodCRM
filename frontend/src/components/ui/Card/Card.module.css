@@ -1,0 +1,66 @@
+/* ========================================================
+   CSS MODULE: TARJETAS Y SUPERFICIES (CARD)
+   ======================================================== */
+
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--transition-normal), border-color var(--transition-normal), transform var(--transition-fast);
+}
+
+.card:hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+.surfaceElevated {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+}
+
+.interactiveSurface {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.interactiveSurface:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-focus);
+}
+
+/* Compatibilidad Global */
+:global(.neo-card) {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--radius-lg);
+  transition: box-shadow var(--transition-normal), border-color var(--transition-normal), transform var(--transition-fast);
+}
+
+:global(.neo-card:hover) {
+  box-shadow: var(--card-shadow-hover);
+}
+
+:global(.surface-elevated) {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+}
+
+:global(.interactive-surface) {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+:global(.interactive-surface:hover) {
+  background-color: var(--surface-hover);
+  border-color: var(--border-focus);
+}

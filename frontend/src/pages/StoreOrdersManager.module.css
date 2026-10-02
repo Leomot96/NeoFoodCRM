@@ -1,0 +1,522 @@
+/* ========================================================
+   CSS MODULE: GESTIÓN DE PEDIDOS TIENDA VIRTUAL (NEOFOOD)
+   ======================================================== */
+
+.managerContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.headerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.headerTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main, #0f172a);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.headerSubtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted, #64748b);
+  margin: 0;
+}
+
+/* TARJETAS KPI */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .kpiGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .kpiGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.kpiCard {
+  background-color: var(--bg-surface, #ffffff);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 1rem;
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.kpiInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.kpiLabel {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpiValue {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.kpiIconBox {
+  width: 44px;
+  height: 44px;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* TABS DE VISTA */
+.tabsBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.segmentedTabs {
+  display: flex;
+  gap: 0.5rem;
+  background-color: var(--bg-subtle, #f8fafc);
+  padding: 0.35rem;
+  border-radius: 0.875rem;
+  border: 1.5px solid #cbd5e1;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 0.625rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tabBtn:hover {
+  color: #0f172a;
+}
+
+.tabBtnActive {
+  background-color: #ffffff !important;
+  color: #4f46e5 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  border: 1px solid #cbd5e1;
+}
+
+.tabBadge {
+  font-size: 0.725rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.tabBtnActive .tabBadge {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.refreshBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 0.625rem;
+  font-size: 0.825rem;
+  font-weight: 700;
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refreshBtn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* GRID DE PEDIDOS ACTIVOS */
+.activeOrdersGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .activeOrdersGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .activeOrdersGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.orderCard {
+  background-color: #ffffff;
+  border-radius: 1.15rem;
+  border: 1.5px solid #cbd5e1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s ease;
+}
+
+.orderCard:hover {
+  box-shadow: 0 10px 20px -3px rgba(15, 23, 42, 0.08);
+}
+
+.orderCardPending {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 1px #fbbf24;
+}
+
+.orderCardHeader {
+  padding: 1rem 1.15rem;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.orderNumberRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.orderNumberBadge {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.orderTypeBadge {
+  font-size: 0.725rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.4rem;
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.orderTimeText {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.orderCardBody {
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  flex: 1;
+}
+
+.customerBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background-color: #f8fafc;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #f1f5f9;
+}
+
+.customerNameRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.customerName {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.whatsappChatBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.5rem;
+  background-color: #dcfce7;
+  color: #15803d;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.whatsappChatBtn:hover {
+  background-color: #bbf7d0;
+}
+
+.customerAddress {
+  font-size: 0.775rem;
+  color: #475569;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  line-height: 1.35;
+}
+
+.orderItemsBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.orderItemLine {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.orderItemQty {
+  font-weight: 800;
+  color: #4f46e5;
+  margin-right: 0.35rem;
+}
+
+.orderItemDetails {
+  font-size: 0.725rem;
+  color: #64748b;
+  margin-left: 1.25rem;
+}
+
+.orderNotesAlert {
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.775rem;
+  color: #92400e;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.orderCardFooter {
+  padding: 1rem 1.15rem;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.orderTotalRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.orderTotalLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.orderTotalAmount {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.orderActionsRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.actionBtnPrimary {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  background-color: #4f46e5;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.actionBtnPrimary:hover {
+  background-color: #4338ca;
+}
+
+.actionBtnSuccess {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  background-color: #10b981;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.actionBtnSuccess:hover {
+  background-color: #059669;
+}
+
+.actionBtnInvoice {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.actionBtnInvoice:hover {
+  background-color: #e2e8f0;
+}
+
+.actionBtnCancel {
+  padding: 0.55rem;
+  border-radius: 0.625rem;
+  background-color: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  cursor: pointer;
+}
+
+.actionBtnCancel:hover {
+  background-color: #fee2e2;
+}
+
+/* HISTORIAL TABLA */
+.historyCard {
+  background-color: var(--bg-surface, #ffffff);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 1.15rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.filterBar {
+  padding: 1rem 1.25rem;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.filterLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.searchInput {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.625rem;
+  border: 1.5px solid #cbd5e1;
+  font-size: 0.85rem;
+  outline: none;
+  min-width: 240px;
+}
+
+.historyTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.historyTable th {
+  background-color: #1e293b;
+  color: #ffffff;
+  padding: 0.85rem 1rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.historyTable td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.historyTable tr:hover td {
+  background-color: #f8fafc;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}

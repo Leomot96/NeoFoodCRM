@@ -1,0 +1,167 @@
+/* ========================================================
+   CSS MODULE: GESTIÓN E HISTORIAL DE FACTURAS
+   ======================================================== */
+
+.invoicesPage,
+.invoices-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.invoicesHeader,
+.invoices-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .invoicesHeader,
+  .invoices-header {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.invoicesTitle,
+.invoices-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.invoicesSubtitle,
+.invoices-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.invoicesTotalBox,
+.invoices-total-box {
+  text-align: right;
+}
+
+.invoicesTotalLabel,
+.invoices-total-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.invoicesTotalValue,
+.invoices-total-value {
+  font-size: 1.875rem;
+  font-weight: 900;
+  color: var(--primary);
+}
+
+/* Barra de Filtros */
+.invoicesFiltersCard,
+.invoices-filters-card {
+  background-color: var(--bg-surface, #ffffff);
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-xl, 1rem);
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+  position: relative;
+  z-index: 10;
+}
+
+.invoicesFilterCol,
+.invoices-filter-col {
+  flex: 1;
+  min-width: 180px;
+}
+
+.invoicesFilterLabel,
+.invoices-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+/* Badges de Método de Pago */
+.badgePayment,
+.badge-payment {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badgePaymentCash,
+.badge-payment.cash {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.badgePaymentCredit,
+.badge-payment.credit {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+/* Modales de Factura */
+.invoiceDetailGrid,
+.invoice-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  background-color: var(--bg-subtle);
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.invoiceProductRow,
+.invoice-product-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed var(--border-color);
+  margin-bottom: 0.75rem;
+}
+
+.invoiceBadgeVariation,
+.invoice-badge-variation {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: var(--primary);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.invoiceBadgeAddition,
+.invoice-badge-addition {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  font-size: 0.75rem;
+  font-weight: 500;
+}

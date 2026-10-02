@@ -1,0 +1,315 @@
+/* ========================================================
+   CSS MODULE: PRODUCT FORM (MODAL CREAR / EDITAR PRODUCTO)
+   ======================================================== */
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modalWindow {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.25), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
+  width: 100%;
+  max-width: 58rem;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modalHeader {
+  border-bottom: 1.5px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.modalHeaderTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Tabs */
+.tabsNav {
+  display: flex;
+  padding: 0.5rem 1.5rem 0;
+  gap: 0.75rem;
+  overflow-x: auto;
+}
+
+.tabBtn {
+  padding: 0.65rem 1rem;
+  border: none;
+  background: transparent;
+  border-bottom: 2.5px solid transparent;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tabBtn:hover {
+  color: #0f172a;
+}
+
+.tabBtnActive {
+  color: var(--primary, #4f46e5);
+  border-bottom-color: var(--primary, #4f46e5);
+}
+
+/* Form Body */
+.modalBody {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Recuadros por cada campo */
+.formFieldBox {
+  background-color: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease;
+}
+
+.formFieldBox:focus-within {
+  border-color: var(--primary, #4f46e5);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  background-color: #ffffff;
+}
+
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #334155;
+}
+
+/* Inputs & Form Elements */
+.inputField,
+.fieldInput {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 0.625rem !important;
+  color: #0f172a !important;
+  font-size: 0.875rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.inputField:focus,
+.fieldInput:focus {
+  border-color: var(--primary, #4f46e5) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+}
+
+.inputField::placeholder {
+  color: #94a3b8;
+}
+
+/* Secciones y Tarjetas */
+.sectionCard {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.875rem !important;
+  padding: 1.25rem !important;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.optionCard {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #f8fafc !important;
+  border-radius: 0.75rem !important;
+  padding: 0.75rem !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.15s ease;
+}
+
+.optionCard:hover {
+  border-color: #94a3b8 !important;
+}
+
+.recipeItemCard,
+.additionItemCard {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  border-radius: 0.75rem !important;
+  padding: 0.875rem !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.discountModeGroup {
+  display: flex;
+  gap: 0.35rem;
+  background-color: #e2e8f0;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5e1;
+}
+
+.discountModeBtn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.discountModeBtn.active {
+  background-color: #ffffff;
+  color: var(--primary, #4f46e5);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Scoped rules applied to any standard inputs inside modalBody */
+.modalBody input[type="text"],
+.modalBody input[type="number"],
+.modalBody textarea {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 0.625rem !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modalBody input[type="text"]:focus,
+.modalBody input[type="number"]:focus,
+.modalBody textarea:focus {
+  border-color: var(--primary, #4f46e5) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+  outline: none !important;
+}
+
+/* Specific section frame classes */
+.comboSection {
+  border: 1.5px solid #fcd34d !important;
+  background-color: #fffbeb !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.directSaleSection {
+  border: 1.5px solid #93c5fd !important;
+  background-color: #eff6ff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.recipeItem,
+.additionItem {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.modifierGroupCard {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.optionItemRow {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.expandedOptionPanel {
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Image Upload Component */
+.imageDropZone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  width: 100%;
+}
+
+.imageDropZone:hover {
+  border-color: var(--primary, #4f46e5);
+  background-color: #f8fafc;
+}
+
+.imagePreviewBox {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.85rem 1rem;
+  background-color: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.imagePreviewThumb {
+  width: 5.25rem;
+  height: 5.25rem;
+  border-radius: 0.625rem;
+  object-fit: cover;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.imagePreviewInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.imageActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+

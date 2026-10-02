@@ -1,0 +1,190 @@
+/* ========================================================
+   CSS MODULE: TABLAS DE DATOS (TABLE)
+   ======================================================== */
+
+.card {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  width: 100%;
+}
+
+.responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table thead {
+  background-color: #1e293b;
+  border-bottom: 2px solid var(--primary, #4f46e5);
+}
+
+.table th {
+  padding: 0.875rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  border-bottom: 2px solid var(--primary, #4f46e5);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.table tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.textRight {
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.actionIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.actionIconBtn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.actionIconBtn.danger:hover {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Compatibilidad Global */
+:global(.neo-table-card) {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  width: 100%;
+}
+
+:global(.neo-table-responsive) {
+  width: 100%;
+  overflow-x: auto;
+}
+
+:global(.neo-table) {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+:global(.neo-table thead) {
+  background-color: #1e293b;
+  border-bottom: 2px solid var(--primary, #4f46e5);
+}
+
+:global(.neo-table th) {
+  padding: 0.875rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  border-bottom: 2px solid var(--primary, #4f46e5);
+  white-space: nowrap;
+}
+
+:global(.neo-table td) {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+:global(.neo-table tbody tr) {
+  transition: background-color var(--transition-fast);
+}
+
+:global(.neo-table tbody tr:hover) {
+  background-color: var(--bg-subtle);
+}
+
+:global(.neo-table tbody tr:last-child td) {
+  border-bottom: none;
+}
+
+:global(.neo-table th.text-center),
+:global(.neo-table td.text-center) {
+  text-align: center;
+}
+
+:global(.neo-table th.text-right),
+:global(.neo-table td.text-right) {
+  text-align: right;
+}
+
+:global(.neo-table-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+:global(.neo-action-icon-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+:global(.neo-action-icon-btn:hover) {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+:global(.neo-action-icon-btn.danger:hover) {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+}

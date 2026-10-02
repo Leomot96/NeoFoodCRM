@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules/
+*/node_modules/
+
+# Environment variables & secrets (CRÍTICO: nunca subir credenciales a GitHub)
+.env
+.env.production
+.env.staging
+.env.local
+.env.*.local
+*.env
+Backend/.env
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+
+# User uploads / media (para no saturar el repositorio con imágenes locales)
+Backend/uploads/products/*
+!Backend/uploads/products/.gitkeep
+Backend/uploads/store/*
+!Backend/uploads/store/.gitkeep
+
+# Scratch / temporary scripts
+Backend/scratch_*.js
