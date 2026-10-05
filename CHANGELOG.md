@@ -3,6 +3,23 @@
 Todos los cambios relevantes de este proyecto quedan documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) y usa versionado [Semántico](https://semver.org/lang/es/).
 
+## [1.7.6] — 2026-10-05
+
+### Añadido
+
+#### Landing Page Comercial Pública & Catálogo de Precios
+- **Página de Aterrizaje Ejecutiva (`/` y `/landing`):** Nueva landing page pública de alta conversión desarrollada 100% en CSS modular nativo, alineada a la identidad de marca de NeoFood (`Orbitron`, `Plus Jakarta Sans`, `#4f46e5` índigo y `#10b981` esmeralda).
+- **Anuncio de Período de Prueba Gratuito (7 Días):** Cintillo superior con animación sutil destacando la prueba gratuita sin necesidad de ingresar tarjeta de crédito.
+- **Selector de Ciclos de Facturación & Matriz de Precios:** Selector dinámico de periodicidad (*Mensual*, *Semestral* y *Anual* con 17% de ahorro y 2 meses gratis). Presentación detallada de los planes comercializables (*Emprendedor*, *Profesional / Restaurante*, *Cadenas / Franquicias*) con límites de mesas, usuarios, productos e insumos.
+- **Showcase Interactivo de Módulos:** Hero section con ventana de previsualización interactiva con pestañas para alternar vistas de *Punto de Venta (POS)*, *Cocina (KDS)*, *Tienda WhatsApp*, *Caja & Turnos* y *Métricas en Vivo*.
+- **Spotlight de Tienda Virtual WhatsApp:** Sección dedicada a la carta digital interactiva para comensales con generación instantánea del pedido y despacho directo a WhatsApp con 0% de comisiones por venta.
+- **Integración Fluida con Onboarding (`/registro`):** Enlaces directos desde los planes comerciales que transportan la selección mediante parámetros de consulta (`?plan=[slug]&mode=[trial|paid]&cycle=[monthly|semiannual|annual]`), preseleccionando automáticamente el plan y activando el interruptor de prueba gratuita en `RegisterTenant.jsx`.
+- **Enrutamiento Inteligente en `App.jsx` (`RootRoute`):** Los visitantes anónimos que entran a la raíz `/` acceden de inmediato a la Landing Page comercial; los usuarios autenticados son dirigidos de forma transparente al Dashboard. Ruta fija `/landing` disponible permanentemente.
+- **Enlaces de Retorno y Navegación Cruzada:** Botones "← Volver a la página principal" y "← Conoce más sobre NeoFood" añadidos en las páginas de Registro (`RegisterTenant.jsx`) y de Inicio de Sesión (`Login.jsx`).
+- **Sección de Preguntas Frecuentes (FAQ) & Garantía:** Acordeón expandible con dudas operativas clave (migración de datos, impresoras térmicas, sin contratos de permanencia) y acceso a asesoría humana vía WhatsApp.
+
+---
+
 ## [1.7.5] — 2026-10-03
 
 ### Añadido

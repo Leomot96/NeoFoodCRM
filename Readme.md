@@ -3,7 +3,7 @@
 <div align="center">
 
 ![NeoFood Banner](https://img.shields.io/badge/NeoFood-SaaS%20%26%20POS-4f46e5?style=for-the-badge&logoColor=white)
-![Version](https://img.shields.io/badge/Versi%C3%B3n-1.7.5-10b981?style=for-the-badge)
+![Version](https://img.shields.io/badge/Versi%C3%B3n-1.7.6-10b981?style=for-the-badge)
 ![MultiTenant](https://img.shields.io/badge/Arquitectura-Multi--Tenant-blueviolet?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Estado-Producci%C3%B3n-blue?style=for-the-badge)
 ![Author](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
@@ -16,6 +16,7 @@
 
 [Manual de Usuario](MANUAL_DE_USUARIO.md) •
 [Certificado de Autoría](CERTIFICATE.md) •
+[Novedades v1.7.6](#-novedades-de-la-versión-176) •
 [Novedades v1.7.5](#-novedades-de-la-versión-175) •
 [Novedades v1.7.0](#-novedades-de-la-versión-170) •
 [Módulos](#-módulos-del-sistema) •
@@ -50,6 +51,20 @@ Diseñado bajo principios de **arquitectura modular limpia**, **100% CSS Nativo*
 - 📊 **Módulo de Reportes & Exportación PDF:** Generación institucional en PDF de reportes diarios de caja, consolidados mensuales y facturas de venta con el servicio centralizado `reportPdfService`.
 - 🛡️ **Seguridad y Permisos:** Autenticación robusta con JSON Web Tokens (JWT), refresh tokens, hash Bcrypt, política estricta de contraseñas seguras multicriterio y control de acceso basado en roles (*SuperAdmin*, *Administrador*, *Cajero*, *Mesero*).
 - 📦 **Componentes de Alto Nivel:** Modales elegantes con fondo difuminado (`backdrop-filter`), formularios con feedback táctil y selectores interactivos (`CustomSelect`) con buscador reactivo superior.
+
+---
+
+## 🆕 Novedades de la Versión 1.7.6
+
+### Landing Page Comercial Pública & Planes de Suscripción
+1. **Landing Page Ejecutiva de Alta Conversión (`/` y `/landing`):** Portal de bienvenida comercial de última generación con estética oscura NeoFood (`Orbitron`, `Plus Jakarta Sans`, acentos `#4f46e5` y `#10b981`), animaciones CSS puras y adaptación 100% responsiva (móvil, tablet, escritorio).
+2. **Cintillo y Anuncio de Prueba Gratuita (7 Días):** Banner superior dinámico y botones de llamado a la acción invitando a probar el sistema durante 7 días completos sin necesidad de ingresar tarjeta de crédito.
+3. **Selector Dinámico de Ciclos de Facturación:** Pestañas interactivas para visualizar precios en modo *Mensual*, *Semestral* y *Anual* (con un 17% de descuento / 2 meses gratis), con desglose transparente de límites por plan: mesas, usuarios, productos de venta e insumos de inventario.
+4. **Hero Interactivo con Pestañas Operativas:** Demostración en vivo dentro de una ventana de sistema simulada que permite explorar pantallas de *POS*, *Cocina (KDS)*, *Tienda WhatsApp*, *Caja & Turnos* y *Métricas en Vivo*.
+5. **Spotlight de Tienda Virtual con Pedidos a WhatsApp:** Presentación en detalle del catálogo digital con maqueta de smartphone, previsualización de pedidos en burbuja de chat y destaque de 0% comisiones por transacción.
+6. **Enrutamiento Inteligente Multi-Estado (`RootRoute`):** Navegación que diferencia a los visitantes no autenticados (que ven la Landing Page en `/`) de los usuarios con sesión activa (que ingresan directamente a su panel operativo).
+7. **Onboarding Directo Preseleccionado:** Botones de contratación y prueba que enlazan con `/registro?plan=...&mode=...&cycle=...`, rellenando el plan seleccionado y el modo prueba en el formulario de creación de restaurante.
+8. **Preguntas Frecuentes (FAQ) & Garantía:** Acordeón con respuestas a las inquietudes más comunes de los restauranteros y canal de asistencia humana vía WhatsApp.
 
 ---
 

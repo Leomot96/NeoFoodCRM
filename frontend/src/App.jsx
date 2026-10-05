@@ -1,11 +1,14 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
 // Layout y Login
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import RegisterTenant from './pages/RegisterTenant';
+
+// Landing Page Comercial
+const LandingPage = lazy(() => import('./pages/Landing/LandingPage'));
 
 // Importación Lazy correcta para el Dashboard completo (Exportación por defecto)
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -28,19 +31,34 @@ const Cocina = lazy(() => import('./pages/Cocina'));
 const Produccion = lazy(() => import('./pages/Production/ProductionManager'));
 
 const LoadingFallback = () => (
-  <div className="flex justify-center items-center h-full">
+  <div className="flex justify-center items-center h-full min-h-[300px]">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
   </div>
 );
 
-const ProtectedRoute = ({ children }) => {
-  const { user } = useAuth();
-  return user ? children : <Navigate to="/login" replace />;
-};
-
 const PublicRoute = ({ children }) => {
   const { user } = useAuth();
   return !user ? children : <Navigate to="/" replace />;
+};
+
+// Enrutador raíz inteligente: Si no está autenticado, "/" muestra la Landing Page comercial.
+// Si está autenticado, muestra el MainLayout con el Dashboard de su restaurante.
+const RootRoute = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  if (!user) {
+    if (location.pathname === '/') {
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <LandingPage />
+        </Suspense>
+      );
+    }
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <MainLayout />;
 };
 
 const App = () => {
@@ -48,12 +66,14 @@ const App = () => {
     <BrowserRouter>
       <Routes>
         {/* Rutas Públicas */}
+        <Route path="/landing" element={<Suspense fallback={<LoadingFallback />}><LandingPage /></Suspense>} />
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/registro" element={<PublicRoute><RegisterTenant /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><RegisterTenant /></PublicRoute>} />
         <Route path="/tienda/:slug" element={<Suspense fallback={<LoadingFallback />}><StoreFront /></Suspense>} />
 
-        <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+        {/* Sistema Interno CRM & POS */}
+        <Route path="/" element={<RootRoute />}>
           <Route index element={<Suspense fallback={<LoadingFallback />}><Dashboard /></Suspense>} />
           <Route path="ventas" element={<Suspense fallback={<LoadingFallback />}><Ventas /></Suspense>} />
           <Route path="cocina" element={<Suspense fallback={<LoadingFallback />}><Cocina /></Suspense>} />

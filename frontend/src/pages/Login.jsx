@@ -29,6 +29,22 @@ const Login = () => {
     <div className={styles.loginPage}>
       <div className={styles.loginCard}>
         <div className={styles.loginHeader}>
+          <div style={{ marginBottom: '0.75rem', textAlign: 'center' }}>
+            <Link
+              to="/landing"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8rem',
+                color: '#4f46e5',
+                textDecoration: 'none',
+                fontWeight: 600
+              }}
+            >
+              ← Conoce más sobre NeoFood
+            </Link>
+          </div>
           <h2 className={styles.loginTitle}>
             <span className={styles.loginTitleNeo1}>Neo</span>
             <span className={styles.loginTitleFood1}>FOOD</span>

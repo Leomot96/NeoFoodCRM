@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import {
@@ -89,6 +89,24 @@ const RegisterTenant = () => {
 
   // Pantalla de confirmación de pago pendiente
   const [pendingPaymentInfo, setPendingPaymentInfo] = useState(null);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const planParam = searchParams.get('plan');
+    const modeParam = searchParams.get('mode');
+    const cycleParam = searchParams.get('cycle');
+
+    if (planParam && ['basic', 'pro', 'enterprise'].includes(planParam.toLowerCase())) {
+      setSelectedPlanCode(planParam.toLowerCase());
+    }
+    if (modeParam && ['trial', 'paid'].includes(modeParam.toLowerCase())) {
+      setRegistrationMode(modeParam.toLowerCase());
+    }
+    if (cycleParam && ['monthly', 'semiannual', 'annual'].includes(cycleParam.toLowerCase())) {
+      setBillingCycle(cycleParam.toLowerCase());
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -224,6 +242,22 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
         
         {/* Cabecera */}
         <div className={styles.registerHeader}>
+          <div style={{ marginBottom: '0.85rem' }}>
+            <Link
+              to="/landing"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8rem',
+                color: '#4f46e5',
+                textDecoration: 'none',
+                fontWeight: 600
+              }}
+            >
+              ← Volver a la página principal
+            </Link>
+          </div>
           <div className={styles.brandTitleContainer}>
             <span className={styles.brandNeo}>Neo</span>
             <span className={styles.brandFood}>FOOD</span>
