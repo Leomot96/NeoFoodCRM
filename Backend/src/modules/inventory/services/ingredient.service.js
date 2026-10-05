@@ -11,20 +11,46 @@ class IngredientService {
       throw error;
     }
 
- return await prisma.ingredient.create({
+  return await prisma.ingredient.create({
       data: {
         name: data.name,
         unit: data.unit || 'Unidad',
         minStock: data.minStock ? parseFloat(data.minStock) : 0,
         currentStock: 0, // Siempre arranca en 0. Las compras aumentan este valor.
-        costPerUnit: 0 // Lo inicializamos en 0 (opcional, pero buena práctica)
+        costPerUnit: 0, // Lo inicializamos en 0 (opcional, pero buena práctica)
+        isManufactured: data.isManufactured || false,
+        recipeIngredients: data.recipeIngredients && data.recipeIngredients.length > 0 ? {
+          create: data.recipeIngredients.map(r => ({
+            inputIngredientId: r.inputIngredientId,
+            quantity: r.quantity,
+            unit: r.unit
+          }))
+        } : undefined
       }});
   }
 
   async getAllIngredients() {
-    return await prisma.ingredient.findMany({
+    const list = await prisma.ingredient.findMany({
+      include: {
+        recipeIngredients: {
+          include: {
+            inputIngredient: true
+          }
+        },
+        usedInRecipes: {
+          select: {
+            id: true,
+            outputIngredientId: true
+          }
+        }
+      },
       orderBy: { name: 'asc' },
     });
+
+    return list.map(item => ({
+      ...item,
+      isUsedInProduction: Boolean(item.usedInRecipes && item.usedInRecipes.length > 0)
+    }));
   }
 
   async getIngredientById(id) {
@@ -39,9 +65,27 @@ class IngredientService {
 
   async updateIngredient(id, data) {
     await this.getIngredientById(id);
+    
+    const updateData = { ...data };
+    
+    // Si viene la receta, actualizamos (borramos anteriores y creamos nuevas)
+    if (updateData.recipeIngredients !== undefined) {
+      const recipes = updateData.recipeIngredients;
+      delete updateData.recipeIngredients;
+      
+      updateData.recipeIngredients = {
+        deleteMany: {},
+        create: recipes.map(r => ({
+          inputIngredientId: r.inputIngredientId,
+          quantity: r.quantity,
+          unit: r.unit
+        }))
+      };
+    }
+
     return await prisma.ingredient.update({
       where: { id },
-      data,
+      data: updateData,
     });
   }
 

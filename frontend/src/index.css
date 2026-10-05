@@ -147,6 +147,10 @@
   animation: modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
+.neo-modal-md { max-width: 500px !important; }
+.neo-modal-lg { max-width: 800px !important; }
+.neo-modal-xl { max-width: 1140px !important; }
+
 .neo-modal-header {
   padding: 1.25rem 1.5rem !important;
   display: flex !important;
@@ -270,6 +274,14 @@ input[type="password"].neo-input {
   outline: none !important;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), inset 0 1px 2px rgba(15, 23, 42, 0.02) !important;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Inputs de búsqueda o con icono a la izquierda */
+.neo-search-input,
+input[type="text"].neo-search-input,
+.neo-input-with-icon,
+input[type="text"].neo-input-with-icon {
+  padding-left: 2.75rem !important;
 }
 
 .neo-input:hover,

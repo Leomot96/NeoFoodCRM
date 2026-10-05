@@ -6,7 +6,7 @@
 .dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0.85rem;
   width: 100%;
 }
 
@@ -15,7 +15,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 @media (min-width: 640px) {
@@ -28,18 +28,18 @@
 
 .dashboardTitle,
 .dashboard-title {
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.025em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .dashboardSubtitle,
 .dashboard-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 0.25rem;
+  margin-top: 0.1rem;
 }
 
 .dashboardActions,
@@ -47,18 +47,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .cashStatusBadge,
 .cash-status-badge {
-  padding: 0.4rem 0.875rem;
-  border-radius: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.65rem;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.725rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
@@ -80,11 +80,11 @@
 
 .dashboardRefreshBtn,
 .dashboard-refresh-btn {
-  padding: 0.625rem;
+  padding: 0.5rem;
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  border-radius: 0.75rem;
+  border-radius: 0.65rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,12 +101,12 @@
 
 .dashboardErrorBanner,
 .dashboard-error-banner {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   background-color: var(--warning-bg);
   border: 1px solid rgba(245, 158, 11, 0.3);
   color: var(--warning-text);
-  font-size: 0.875rem;
-  border-radius: 1rem;
+  font-size: 0.8rem;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -116,7 +116,7 @@
 .dashboard-kpi-grid {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
-  gap: 1.25rem;
+  gap: 0.75rem;
 }
 
 @media (min-width: 640px) {
@@ -133,11 +133,242 @@
   }
 }
 
+/* ========================================================
+   BARRA DE BOTONES PRINCIPALES (ACCESOS RÁPIDOS)
+   ======================================================== */
+.quickActionsBar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .quickActionsBar {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .quickActionsBar {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+.quickActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  background-color: var(--bg-surface, #ffffff);
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.75rem;
+  font-size: 0.825rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  user-select: none;
+}
+
+.quickActionIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* --- Colores y temas individuales --- */
+
+/* 1. Venta / POS (Indigo / Royal) */
+.btnPos {
+  background: #f5f3ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+}
+.btnPos .quickActionIconWrap {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+.btnPos:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  border-color: #4338ca;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.28);
+}
+.btnPos:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 2. Mesas (Ámbar / Naranja) */
+.btnTables {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+.btnTables .quickActionIconWrap {
+  background: #ffedd5;
+  color: #ea580c;
+}
+.btnTables:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  border-color: #c2410c;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.28);
+}
+.btnTables:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 3. Cocina (Crimson / Rose) */
+.btnKitchen {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #9f1239;
+}
+.btnKitchen .quickActionIconWrap {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+.btnKitchen:hover {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  border-color: #be123c;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(225, 29, 72, 0.28);
+}
+.btnKitchen:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 4. Inventario (Teal / Cyan) */
+.btnInventory {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  color: #115e59;
+}
+.btnInventory .quickActionIconWrap {
+  background: #ccfbf1;
+  color: #0d9488;
+}
+.btnInventory:hover {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  border-color: #0f766e;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(13, 148, 136, 0.28);
+}
+.btnInventory:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 5. Compras (Purple / Violet) */
+.btnPurchases {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #581c87;
+}
+.btnPurchases .quickActionIconWrap {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+.btnPurchases:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  border-color: #6d28d9;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.28);
+}
+.btnPurchases:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 6. Producción (Gold / Amber) */
+.btnProduction {
+  background: #fefce8;
+  border-color: #fef08a;
+  color: #854d0e;
+}
+.btnProduction .quickActionIconWrap {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+.btnProduction:hover {
+  background: linear-gradient(135deg, #ca8a04 0%, #a16207 100%);
+  border-color: #a16207;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(202, 138, 4, 0.28);
+}
+.btnProduction:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 7. Caja (Emerald / Green) */
+.btnCash {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+.btnCash .quickActionIconWrap {
+  background: #d1fae5;
+  color: #059669;
+}
+.btnCash:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  border-color: #047857;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(5, 150, 105, 0.28);
+}
+.btnCash:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 8. Tienda Virtual (Sky / Blue) */
+.btnStore {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #075985;
+}
+.btnStore .quickActionIconWrap {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+.btnStore:hover {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border-color: #0369a1;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(2, 132, 199, 0.28);
+}
+.btnStore:hover .quickActionIconWrap {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
 .dashboardMainGrid,
 .dashboard-main-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: 0.85rem;
 }
 
 @media (min-width: 1024px) {
@@ -151,16 +382,16 @@
 .dashboard-side-panels {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.75rem;
 }
 
 .dashboardPanelCard,
 .dashboard-panel-card {
   background-color: var(--bg-surface, #ffffff);
-  border-radius: 1rem;
+  border-radius: 0.85rem;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   border: 1.5px solid #cbd5e1;
-  padding: 1.25rem;
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
 }
@@ -170,7 +401,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .dashboardPanelTitle,

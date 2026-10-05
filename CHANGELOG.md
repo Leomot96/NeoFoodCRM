@@ -3,6 +3,53 @@
 Todos los cambios relevantes de este proyecto quedan documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) y usa versionado [Semántico](https://semver.org/lang/es/).
 
+## [1.7.5] — 2026-10-03
+
+### Añadido
+
+#### Dashboard Ejecutivo & Accesos Rápidos
+- **Barra de Accesos Rápidos Temáticos:** Insertada entre las tarjetas de KPIs y el diagrama con 7 botones principales ergonómicos (Venta / POS, Cocina, Tienda Virtual, Caja, Inventario, Producción, Compras) con paleta de color propia y micro-interacciones hover.
+- **Diseño sin Scroll Vertical:** Altura del gráfico de ventas optimizada a 295px y paneles laterales de Alertas y Top Platillos sincronizados con paginación integrada para visualización ejecutiva completa en una sola pantalla.
+
+#### Rediseño Estructural de la Barra Lateral (Sidebar)
+- **Navegación Agrupada por Dominios Operativos:** Menú organizado en 4 bloques funcionales con títulos sutiles y divisores (*Operaciones*, *Inventario & Stock*, *Finanzas & Reportes*, *Administración*) manteniendo el acceso en 1 solo clic.
+- **Logotipo Oficial en el Pie de la Sidebar:** El pie de la barra lateral ahora muestra el logotipo oficial del restaurante en un recuadro de 42x42px con bordes suaves, junto al nombre del usuario y del establecimiento.
+- **Hover Dinámico de Alta Visibilidad:** Efecto hover interactivo con fondo índigo suave (`#ede9fe`), texto e icono en color primario (`#4f46e5`), desplazamiento sutil a la derecha (`translateX(4px)`) y escalado de icono.
+- **Icono Distintivo para Clientes:** Asignación del icono `UserCheck` en la sidebar para diferenciar el directorio de clientes del de usuarios.
+
+#### Filtros de Búsqueda, Limpieza y Mantenimiento de Datos
+- **Buscador Reactivo en Selectores (`CustomSelect`):** Campo de búsqueda sticky superior con autoenfoque y filtrado en tiempo real en todos los desplegables del sistema.
+- **Regla de Exclusión de Insumos Internos:** En `ProductForm`, las materias primas usadas para fabricar insumos elaborados quedan excluidas de la selección de ingredientes directos para venta.
+- **Limpieza de Archivos en Disco (`fileCleaner`):** Borrado físico automático en el servidor (`fs.unlinkSync`) de fotos de productos, logotipos y banners anteriores al ser sustituidos o eliminados.
+- **Buscadores y Paginación:** Barras de búsqueda en vivo en *Catálogo de Ventas*, *Categorías* y buscador con filtro de estado y paginador en *Producción*.
+- **Restablecimiento Limpio de Base de Datos (`npm run seed:clean`):** Script automatizado (`reset_clean_db.js`) para vaciar todo el historial transaccional de pruebas, purgar archivos huérfanos de uploads y resembrar únicamente las cuentas maestras de Super Administrador (`admin@neofood.com`) y Tienda de Demostración (`demo@neofood.com`) con sus métodos de pago, mesas y configuraciones iniciales.
+
+#### Seguridad & Política de Contraseñas Seguras
+- **Validador Multicriterio de Contraseñas (`passwordValidator.js`):** Implementación integral en Backend y Frontend de validación estricta de contraseñas exigiendo 5 requisitos simultáneos: mínimo 8 caracteres, al menos una mayúscula (`A-Z`), una minúscula (`a-z`), un número (`0-9`) y un carácter especial (`[^A-Za-z0-9]`).
+- **Protección en Onboarding y Gestión de Usuarios:** Integrado de manera obligatoria en `registerTenant`, `registerUser`, `createUser` y `updateUser`.
+- **Checklist Dinámico en Vivo en Frontend:** Asistente interactivo en los formularios de Onboarding (`RegisterTenant.jsx`) y de Administración de Personal (`UsersManager.jsx`) que valida y resalta visualmente en verde cada regla conforme el usuario escribe.
+- **Alternancia de Visibilidad (`Eye`/`EyeOff`):** Botón integrado en los campos de contraseña para revelar u ocultar la clave al digitarla de forma segura.
+
+### Corregido
+- **Menú Móvil (Hamburguesa):** Corregido el bug donde el menú móvil no se desplegaba y la pantalla quedaba oscura al abrirse el backdrop. Se unificaron los selectores de apertura en CSS Modules (`.layoutSidebarOpen`, `.isOpen`, `.is-open`) forzando `transform: translateX(0) !important;` e incorporando el botón de cierre `X` en la cabecera móvil.
+
+---
+
+## [1.7.0] — 2026-10-03
+
+### Añadido
+
+#### Módulo de Producción y Recetas (Sub-Recetas)
+- **Gestión de Elaborados (Insumos Elaborados):** Nueva propiedad `isManufactured` en el inventario para diferenciar la Materia Prima directa de los productos elaborados internamente (ej. Salsas, Masas).
+- **Recetario Base (Fórmulas):** Creación de recetas exactas para los productos elaborados indicando qué materias primas se requieren y sus proporciones para un rendimiento (yield) específico.
+- **Órdenes de Producción (Lotes):** Nuevo módulo para registrar la producción de lotes. Al registrar una producción, el sistema descuenta automáticamente la materia prima del inventario.
+- **Costeo Automático (CMP):** Al completar una orden de producción, el sistema suma el costo de los insumos utilizados y recalcula automáticamente el Costo Medio Ponderado (CMP) del insumo elaborado, garantizando la precisión del costo de inventario a lo largo del tiempo.
+- **Interfaz de Producción:** Nueva vista en el frontend para gestionar el historial de producción, visualizar el detalle de insumos usados por lote y crear nuevas órdenes con un diseño limpio y alineado al estándar de Neofood.
+- **Pestañas de Inventario:** Separación visual en el módulo de Inventario entre "Materias Primas" y "Productos para Producción" mediante pestañas, mejorando el orden del catálogo.
+
+### Modificado
+- **Separación de Responsabilidades:** El modelo `Product` ahora está dedicado 100% al catálogo de ventas (POS), mientras que `Ingredient` asume el 100% del control de stock físico e inventariable, preparando el terreno para el descargo de inventario por ventas (Fase 4).
+
 ---
 
 ## [1.6.0] — 2026-10-02

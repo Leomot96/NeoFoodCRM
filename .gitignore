@@ -46,3 +46,7 @@ Backend/uploads/store/*
 
 # Scratch / temporary scripts
 Backend/scratch_*.js
+
+# Respaldos de base de datos (contienen datos de clientes/usuarios)
+Backend/backups/
+*.bak

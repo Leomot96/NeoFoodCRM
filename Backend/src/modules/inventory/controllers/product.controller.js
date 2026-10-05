@@ -60,6 +60,22 @@ class ProductController {
       next(error);
     }
   }
+
+  async deleteImage(req, res, next) {
+    try {
+      const { imageUrl } = req.body;
+      if (imageUrl) {
+        const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+        deleteUploadedFile(imageUrl);
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Foto de producto eliminada correctamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new ProductController();

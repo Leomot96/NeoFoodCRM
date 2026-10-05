@@ -4,7 +4,8 @@ import { useInventory } from '../hooks/useInventory';
 import ProductForm from '../components/inventory/ProductForm';
 import CategoryForm from '../components/inventory/CategoryForm';
 import IngredientsList from './Inventory/IngredientsList'; // <-- Importamos la vista de bodega
-import { Plus, Edit2, Trash2, Package, AlertTriangle, Layers, Database, ShoppingBag, Store, Image as ImageIcon } from 'lucide-react';
+import CustomSelect from '../components/ui/CustomSelect';
+import { Plus, Edit2, Trash2, Package, AlertTriangle, Layers, Database, ShoppingBag, Store, Image as ImageIcon, Search, X } from 'lucide-react';
 import { Pagination } from '../components/ui';
 import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './Inventario.module.css';
@@ -26,14 +27,40 @@ const Inventario = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
 
-  // Estados de paginación
+  // Estados de búsqueda y filtros
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('ALL');
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+
+  // Estados de paginación independientes
   const [productsPage, setProductsPage] = useState(1);
   const [categoriesPage, setCategoriesPage] = useState(1);
-  const pageSize = 6;
+  const productsPageSize = 6;
+  const categoriesPageSize = 8;
 
   const availableProducts = products.filter(p => p.isAvailable !== false);
-  const paginatedProducts = availableProducts.slice((productsPage - 1) * pageSize, productsPage * pageSize);
-  const paginatedCategories = categories.slice((categoriesPage - 1) * pageSize, categoriesPage * pageSize);
+
+  // Filtrado reactivo de productos
+  const filteredProducts = availableProducts.filter(p => {
+    const matchSearch = !productSearchTerm.trim() || 
+      p.name.toLowerCase().includes(productSearchTerm.toLowerCase().trim()) ||
+      (p.description && p.description.toLowerCase().includes(productSearchTerm.toLowerCase().trim())) ||
+      (p.category?.name && p.category.name.toLowerCase().includes(productSearchTerm.toLowerCase().trim()));
+    const matchCategory = productCategoryFilter === 'ALL' || p.categoryId === productCategoryFilter;
+    return matchSearch && matchCategory;
+  });
+  const paginatedProducts = filteredProducts.slice((productsPage - 1) * productsPageSize, productsPage * productsPageSize);
+
+  // Filtrado reactivo de categorías
+  const filteredCategories = categories.filter(c => {
+    if (!categorySearchTerm.trim()) return true;
+    const term = categorySearchTerm.toLowerCase().trim();
+    return (
+      c.name.toLowerCase().includes(term) ||
+      (c.description && c.description.toLowerCase().includes(term))
+    );
+  });
+  const paginatedCategories = filteredCategories.slice((categoriesPage - 1) * categoriesPageSize, categoriesPage * categoriesPageSize);
 
   const handleOpenProductModal = (product = null) => {
     setEditingProduct(product);
@@ -129,11 +156,6 @@ const Inventario = () => {
               <Plus size={18} /> Nueva Categoría
             </button>
           )}
-          {activeTab === 'ingredients' && (
-            <button onClick={() => navigate('/compras')} className="neo-btn neo-btn-success">
-              <Store size={18} /> Digitar Compra
-            </button>
-          )}
         </div>
       </div>
 
@@ -164,6 +186,80 @@ const Inventario = () => {
       {/* CONTENIDO DINÁMICO SEGÚN LA PESTAÑA */}
       {activeTab === 'products' && (
         <div className={styles.invCard}>
+          {/* BARRA DE BÚSQUEDA Y FILTRO DE PRODUCTOS */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid var(--border-color, #e2e8f0)',
+            backgroundColor: 'var(--bg-surface, #ffffff)'
+          }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '220px', maxWidth: '380px' }}>
+                <Search
+                  size={18}
+                  style={{
+                    position: 'absolute',
+                    left: '0.875rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted, #94a3b8)',
+                    pointerEvents: 'none',
+                    zIndex: 1
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Buscar producto por nombre o descripción..."
+                  value={productSearchTerm}
+                  onChange={(e) => {
+                    setProductSearchTerm(e.target.value);
+                    setProductsPage(1);
+                  }}
+                  className="neo-input neo-search-input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ minWidth: '200px' }}>
+                <CustomSelect
+                  value={productCategoryFilter}
+                  onChange={(val) => {
+                    setProductCategoryFilter(val);
+                    setProductsPage(1);
+                  }}
+                  options={[
+                    { value: 'ALL', label: 'Todas las Categorías' },
+                    ...categories.map(c => ({ value: c.id, label: c.name }))
+                  ]}
+                  placeholder="Filtrar por categoría..."
+                />
+              </div>
+
+              {(productSearchTerm || productCategoryFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProductSearchTerm('');
+                    setProductCategoryFilter('ALL');
+                    setProductsPage(1);
+                  }}
+                  className="neo-btn neo-btn-ghost text-xs"
+                  style={{ padding: '0.4rem 0.75rem' }}
+                >
+                  <X size={14} /> Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'producto encontrado' : 'productos encontrados'}
+            </div>
+          </div>
+
           <div className={styles.invTableWrapper}>
             <table className={styles.invTable}>
               <thead>
@@ -256,15 +352,8 @@ const Inventario = () => {
                     <td>
                       {product.isCombo ? (
                         <span className={`${styles.invBadge} ${styles.invBadgeAmber}`}>
-                          Combo Multiproducto
+                          ⭐ Combo Multiproducto
                         </span>
-                      ) : product.trackStock ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, color: product.stock <= 5 ? '#ef4444' : '#10b981' }}>
-                            {product.stock} unds
-                          </span>
-                          {product.stock <= 5 && <AlertTriangle size={16} style={{ color: '#ef4444' }} title="Stock Bajo" />}
-                        </div>
                       ) : (
                         <span className={`${styles.invBadge} ${styles.invBadgePrimary}`}>
                           Por Receta
@@ -293,13 +382,21 @@ const Inventario = () => {
                     </td>
                   </tr>
                 ))}
-                {availableProducts.length === 0 && (
+                {filteredProducts.length === 0 && (
                   <tr>
                     <td colSpan="5" style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                         <ShoppingBag size={36} style={{ opacity: 0.4 }} />
-                        <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>No hay productos en el menú</p>
-                        <p style={{ fontSize: '0.75rem', margin: 0 }}>Registra tus platos, bebidas o combos para comenzar a vender.</p>
+                        <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                          {productSearchTerm || productCategoryFilter !== 'ALL'
+                            ? 'No se encontraron productos con los filtros aplicados'
+                            : 'No hay productos en el menú'}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', margin: 0 }}>
+                          {productSearchTerm || productCategoryFilter !== 'ALL'
+                            ? 'Prueba modificando la búsqueda o seleccionando otra categoría.'
+                            : 'Registra tus platos, bebidas o combos para comenzar a vender.'}
+                        </p>
                       </div>
                     </td>
                   </tr>
@@ -309,8 +406,8 @@ const Inventario = () => {
           </div>
           <Pagination
             currentPage={productsPage}
-            totalItems={availableProducts.length}
-            pageSize={pageSize}
+            totalItems={filteredProducts.length}
+            pageSize={productsPageSize}
             onPageChange={setProductsPage}
             itemName="productos"
           />
@@ -319,6 +416,64 @@ const Inventario = () => {
 
       {activeTab === 'categories' && (
         <div className={styles.invCard}>
+          {/* BARRA DE BÚSQUEDA DE CATEGORÍAS */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid var(--border-color, #e2e8f0)',
+            backgroundColor: 'var(--bg-surface, #ffffff)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, maxWidth: '380px' }}>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <Search
+                  size={18}
+                  style={{
+                    position: 'absolute',
+                    left: '0.875rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted, #94a3b8)',
+                    pointerEvents: 'none',
+                    zIndex: 1
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Buscar categoría..."
+                  value={categorySearchTerm}
+                  onChange={(e) => {
+                    setCategorySearchTerm(e.target.value);
+                    setCategoriesPage(1);
+                  }}
+                  className="neo-input neo-search-input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              {categorySearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategorySearchTerm('');
+                    setCategoriesPage(1);
+                  }}
+                  className="neo-btn neo-btn-ghost text-xs"
+                  style={{ padding: '0.4rem 0.75rem' }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>
+              {filteredCategories.length} {filteredCategories.length === 1 ? 'categoría encontrada' : 'categorías encontradas'}
+            </div>
+          </div>
+
           <div className={styles.invTableWrapper}>
             <table className={styles.invTable}>
               <thead>
@@ -341,13 +496,17 @@ const Inventario = () => {
                     </td>
                   </tr>
                 ))}
-                {categories.length === 0 && (
+                {filteredCategories.length === 0 && (
                   <tr>
                     <td colSpan="3" style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                         <Layers size={36} style={{ opacity: 0.4 }} />
-                        <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>No hay categorías registradas</p>
-                        <p style={{ fontSize: '0.75rem', margin: 0 }}>Crea categorías como Hamburguesas, Bebidas o Entradas para organizar el catálogo.</p>
+                        <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                          {categorySearchTerm ? 'No se encontraron categorías coincidentes' : 'No hay categorías registradas'}
+                        </p>
+                        <p style={{ fontSize: '0.75rem', margin: 0 }}>
+                          {categorySearchTerm ? 'Intenta con otro término de búsqueda.' : 'Crea categorías como Hamburguesas, Bebidas o Entradas para organizar el catálogo.'}
+                        </p>
                       </div>
                     </td>
                   </tr>
@@ -357,8 +516,8 @@ const Inventario = () => {
           </div>
           <Pagination
             currentPage={categoriesPage}
-            totalItems={categories.length}
-            pageSize={pageSize}
+            totalItems={filteredCategories.length}
+            pageSize={categoriesPageSize}
             onPageChange={setCategoriesPage}
             itemName="categorías"
           />

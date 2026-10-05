@@ -59,12 +59,29 @@ class PurchaseService {
           }
         });
 
-        // Actualizar el stock actual del ingrediente (y el último costo unitario si se desea)
+        const ing = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
+        const oldStock = parseFloat(ing.currentStock || 0);
+        const oldAvgCost = parseFloat(ing.averageCost || ing.costPerUnit || ing.lastCost || 0);
+        
+        const newStock = oldStock + item.quantity;
+        let newAvgCost = item.unitCost;
+        if (newStock > 0) {
+            // Evitar stocks negativos arruinando el CMP: Si venía de negativo, asume el nuevo costo
+            if (oldStock <= 0) {
+                newAvgCost = item.unitCost;
+            } else {
+                newAvgCost = ((oldStock * oldAvgCost) + (item.quantity * item.unitCost)) / newStock;
+            }
+        }
+
+        // Actualizar el stock actual del ingrediente y los costos (CMP y último costo)
         await tx.ingredient.update({
           where: { id: item.ingredientId },
           data: { 
             currentStock: { increment: item.quantity },
-            costPerUnit: item.unitCost // Actualiza al precio de la compra más reciente
+            lastCost: item.unitCost,
+            averageCost: newAvgCost,
+            costPerUnit: item.unitCost // Mantenemos compatibilidad con campos legacy
           }
         });
       }

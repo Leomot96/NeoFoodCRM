@@ -1,4 +1,5 @@
 const prisma = require('../../../config/prisma');
+const MovementService = require('../../inventory/services/movement.service');
 
 class SaleService {
   
@@ -158,6 +159,8 @@ class SaleService {
         : [];
       const validAdditionsMap = new Map(validAdditions.map(a => [a.id, a.name]));
 
+      const costedDetails = await MovementService.processSaleInventoryAndCost(processedDetails, invoiceNumber, effectiveTenantId, userId, tx);
+
       const newSale = await tx.sale.create({
         data: {
           invoiceNumber,
@@ -170,12 +173,14 @@ class SaleService {
           cashSessionId: activeSession.id,
           customerId: customerId || null,
           details: {
-            create: details.map(item => {
+            create: costedDetails.map(item => {
               const detailData = {
                 productId: item.productId || item.product?.id,
                 quantity: parseInt(item.quantity, 10),
                 unitPrice: parseFloat(item.unitPrice || item.finalPrice),
                 subtotal: parseInt(item.quantity, 10) * parseFloat(item.unitPrice || item.finalPrice),
+                unitCost: item.unitCost || 0,
+                totalCost: item.totalCost || 0,
                 notes: item.notes
               };
 
@@ -239,147 +244,6 @@ class SaleService {
             cashSessionId: activeSession.id
           }
         });
-      }
-
-      // 5. Descuento Inteligente de Inventario (Receta, Adiciones, Variedades y Combos)
-      for (let i = 0; i < processedDetails.length; i++) {
-        const pd = processedDetails[i];
-        const rawItem = details[i];
-
-        // A. Descuento de Receta Base del Producto
-        if (pd.trackStock) {
-          await tx.product.update({ where: { id: pd.id }, data: { stock: { decrement: pd.quantity } } });
-        } else if (pd.ingredients && pd.ingredients.length > 0) {
-          for (const prodIng of pd.ingredients) {
-            const totalQty = parseFloat(prodIng.quantity) * pd.quantity;
-            await tx.inventoryMovement.create({
-              data: {
-                tenantId: effectiveTenantId,
-                ingredientId: prodIng.ingredientId,
-                userId,
-                type: 'OUT',
-                quantity: totalQty,
-                reason: `Venta ${invoiceNumber} (${pd.name})`
-              }
-            });
-            await tx.ingredient.update({
-              where: { id: prodIng.ingredientId },
-              data: { currentStock: { decrement: totalQty } }
-            });
-          }
-        }
-
-        // B. Descuento de Adiciones (Extras como Tocineta, Queso, etc.)
-        const additionsList = rawItem?.additions || [];
-        for (const add of additionsList) {
-          const additionId = add.additionId || add.id;
-          if (additionId) {
-            const prodAdd = await tx.productAddition.findUnique({ where: { id: additionId } });
-            if (prodAdd && prodAdd.ingredientId && prodAdd.quantity) {
-              const addMultiplier = parseInt(add.quantity || 1, 10);
-              const totalAddQty = parseFloat(prodAdd.quantity) * addMultiplier * pd.quantity;
-              await tx.inventoryMovement.create({
-                data: {
-                  tenantId: effectiveTenantId,
-                  ingredientId: prodAdd.ingredientId,
-                  userId,
-                  type: 'OUT',
-                  quantity: totalAddQty,
-                  reason: `Venta ${invoiceNumber} (Adición: ${prodAdd.name})`
-                }
-              });
-              await tx.ingredient.update({
-                where: { id: prodAdd.ingredientId },
-                data: { currentStock: { decrement: totalAddQty } }
-              });
-            }
-          }
-        }
-
-        // C. Descuento de Variedades / Bases / Opciones (Pan, Plátano, Picada, o Productos de Combo)
-        const variationsList = rawItem?.variations || rawItem?.modifiers || [];
-        for (const v of variationsList) {
-          const variationId = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.id);
-          if (variationId) {
-            const opt = await tx.productModifierOption.findUnique({
-              where: { id: variationId },
-              include: {
-                ingredients: { include: { ingredient: true } },
-                linkedProduct: { include: { ingredients: true } }
-              }
-            });
-
-            if (opt) {
-              // 1. Si la variedad tiene un insumo directo (ej: Pan o Plátano)
-              if (opt.ingredientId && opt.quantity) {
-                const totalVarQty = parseFloat(opt.quantity) * pd.quantity;
-                await tx.inventoryMovement.create({
-                  data: {
-                    tenantId: effectiveTenantId,
-                    ingredientId: opt.ingredientId,
-                    userId,
-                    type: 'OUT',
-                    quantity: totalVarQty,
-                    reason: `Venta ${invoiceNumber} (Variedad: ${opt.name})`
-                  }
-                });
-                await tx.ingredient.update({
-                  where: { id: opt.ingredientId },
-                  data: { currentStock: { decrement: totalVarQty } }
-                });
-              }
-
-              // 2. Si la variedad tiene múltiples insumos (ej: Picada -> Papas + Plátano)
-              if (opt.ingredients && opt.ingredients.length > 0) {
-                for (const optIng of opt.ingredients) {
-                  const totalOptIngQty = parseFloat(optIng.quantity) * pd.quantity;
-                  await tx.inventoryMovement.create({
-                    data: {
-                      tenantId: effectiveTenantId,
-                      ingredientId: optIng.ingredientId,
-                      userId,
-                      type: 'OUT',
-                      quantity: totalOptIngQty,
-                      reason: `Venta ${invoiceNumber} (Variedad: ${opt.name} -> ${optIng.ingredient?.name || 'Insumo'})`
-                    }
-                  });
-                  await tx.ingredient.update({
-                    where: { id: optIng.ingredientId },
-                    data: { currentStock: { decrement: totalOptIngQty } }
-                  });
-                }
-              }
-
-              // 3. Si la variedad está ligada a un Producto completo (ej: Combo -> Hamburguesa Extrema)
-              if (opt.linkedProduct) {
-                if (opt.linkedProduct.trackStock) {
-                  await tx.product.update({
-                    where: { id: opt.linkedProduct.id },
-                    data: { stock: { decrement: pd.quantity } }
-                  });
-                } else if (opt.linkedProduct.ingredients && opt.linkedProduct.ingredients.length > 0) {
-                  for (const linkedIng of opt.linkedProduct.ingredients) {
-                    const totalLinkedQty = parseFloat(linkedIng.quantity) * pd.quantity;
-                    await tx.inventoryMovement.create({
-                      data: {
-                        tenantId: effectiveTenantId,
-                        ingredientId: linkedIng.ingredientId,
-                        userId,
-                        type: 'OUT',
-                        quantity: totalLinkedQty,
-                        reason: `Venta ${invoiceNumber} (Combo: ${pd.name} -> ${opt.linkedProduct.name})`
-                      }
-                    });
-                    await tx.ingredient.update({
-                      where: { id: linkedIng.ingredientId },
-                      data: { currentStock: { decrement: totalLinkedQty } }
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
       }
 
       return newSale;

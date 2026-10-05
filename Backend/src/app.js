@@ -21,6 +21,7 @@ const invoicesRoutes = require('./modules/invoices/invoices.route'); // <-- Nuev
 const saasRoutes = require('./modules/saas/saas.routes');
 const storeRoutes = require('./modules/store/store.routes');
 const kitchenRoutes = require('./modules/kitchen/kitchen.routes');
+const productionRoutes = require('./modules/production/routes/production.routes');
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use(`${API_PREFIX}/invoices`, invoicesRoutes); // <-- Nuevo
 app.use(`${API_PREFIX}/saas`, saasRoutes);
 app.use(`${API_PREFIX}/store`, storeRoutes);
 app.use(`${API_PREFIX}/kitchen`, kitchenRoutes);
+app.use(`${API_PREFIX}/production`, productionRoutes);
 
 // Manejo de rutas no encontradas (404)
 app.all('*', (req, res, next) => {

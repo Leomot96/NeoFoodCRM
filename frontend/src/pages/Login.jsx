@@ -144,7 +144,7 @@ const Login = () => {
       <footer className={styles.loginPageFooter}>
         <p><span className={styles.loginTitleNeo}>NEO</span><span className={styles.loginTitleFood}>FOOD</span> &bull; Sistema Integral de Gestión Gastronómica</p>
         <p className={styles.loginFooterCopy}>
-          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v 1.5.0
+          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v 1.7.5
         </p>
         <p className={styles.loginFooterAuthor}>
           Diseñado por <strong>Leonardo Ramirez</strong>

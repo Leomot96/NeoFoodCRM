@@ -1,4 +1,6 @@
 const prisma = require('../../../config/prisma');
+const MovementService = require('../../inventory/services/movement.service');
+const { deleteUploadedFile } = require('../../../utils/fileCleaner');
 
 class StoreService {
 
@@ -368,6 +370,15 @@ class StoreService {
   }
 
   async updateLogo(tenantId, logoUrl) {
+    const existing = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { logoUrl: true }
+    });
+
+    if (existing?.logoUrl && existing.logoUrl !== logoUrl) {
+      deleteUploadedFile(existing.logoUrl);
+    }
+
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { logoUrl }
@@ -376,6 +387,15 @@ class StoreService {
   }
 
   async deleteLogo(tenantId) {
+    const existing = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { logoUrl: true }
+    });
+
+    if (existing?.logoUrl) {
+      deleteUploadedFile(existing.logoUrl);
+    }
+
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { logoUrl: null }
@@ -384,6 +404,15 @@ class StoreService {
   }
 
   async updateBanner(tenantId, bannerUrl) {
+    const existing = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { bannerUrl: true }
+    });
+
+    if (existing?.bannerUrl && existing.bannerUrl !== bannerUrl) {
+      deleteUploadedFile(existing.bannerUrl);
+    }
+
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { bannerUrl }
@@ -392,6 +421,15 @@ class StoreService {
   }
 
   async deleteBanner(tenantId) {
+    const existing = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { bannerUrl: true }
+    });
+
+    if (existing?.bannerUrl) {
+      deleteUploadedFile(existing.bannerUrl);
+    }
+
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { bannerUrl: null }
@@ -543,7 +581,7 @@ class StoreService {
       include: {
         details: {
           include: {
-            product: true
+            product: { include: { ingredients: true } }
           }
         },
         sale: true
@@ -622,6 +660,19 @@ class StoreService {
     const invoiceNumber = `FE-WEB-${order.orderNumber}-${randomSuffix.toString().slice(0, 2)}`;
 
     return await prisma.$transaction(async (tx) => {
+      // 1. Preparar detalles para el MovementService
+      const processedDetails = order.details.map(d => {
+        return {
+          ...d,
+          modifiers: typeof d.modifiers === 'string' ? JSON.parse(d.modifiers) : (d.modifiers || []),
+          additions: typeof d.additions === 'string' ? JSON.parse(d.additions) : (d.additions || [])
+        };
+      });
+
+      // 2. Calcular costos y deducir inventario unificado
+      const costedDetails = await MovementService.processSaleInventoryAndCost(processedDetails, invoiceNumber, tenantId, userId, tx);
+
+      // 3. Crear la venta con los costos inyectados
       const sale = await tx.sale.create({
         data: {
           tenantId,
@@ -634,9 +685,9 @@ class StoreService {
           discount: 0,
           finalAmount: order.totalAmount,
           details: {
-            create: order.details.map(d => {
-              const mods = typeof d.modifiers === 'string' ? JSON.parse(d.modifiers) : (d.modifiers || []);
-              const adds = typeof d.additions === 'string' ? JSON.parse(d.additions) : (d.additions || []);
+            create: costedDetails.map(d => {
+              const mods = d.modifiers || [];
+              const adds = d.additions || [];
               const descParts = [];
               if (mods.length > 0) descParts.push(mods.map(m => `${m.modifierName}: ${m.optionName}`).join(', '));
               if (adds.length > 0) descParts.push(adds.map(a => `+ ${a.name}`).join(', '));
@@ -648,6 +699,8 @@ class StoreService {
                 quantity: d.quantity,
                 unitPrice: d.unitPrice,
                 subtotal: d.subtotal,
+                unitCost: d.unitCost || 0,
+                totalCost: d.totalCost || 0,
                 notes: finalNotes
               };
             })
@@ -660,16 +713,6 @@ class StoreService {
         where: { id: order.id },
         data: { status: 'DELIVERED' }
       });
-
-      // Descontar inventario si el producto tiene control de stock
-      for (const d of order.details) {
-        if (d.product?.trackStock) {
-          await tx.product.update({
-            where: { id: d.productId },
-            data: { stock: { decrement: d.quantity } }
-          });
-        }
-      }
 
       return sale;
     });

@@ -3,24 +3,26 @@
 <div align="center">
 
 ![NeoFood Banner](https://img.shields.io/badge/NeoFood-SaaS%20%26%20POS-4f46e5?style=for-the-badge&logoColor=white)
-![Version](https://img.shields.io/badge/Versi%C3%B3n-1.6.0-10b981?style=for-the-badge)
+![Version](https://img.shields.io/badge/Versi%C3%B3n-1.7.5-10b981?style=for-the-badge)
 ![MultiTenant](https://img.shields.io/badge/Arquitectura-Multi--Tenant-blueviolet?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Estado-Producci%C3%B3n-blue?style=for-the-badge)
-![Author](https://img.shields.io/badge/Dise%C3%B1ado%20por-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
+![Author](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
+[![Manual](https://img.shields.io/badge/Manual-de%20Usuario-0284c7?style=for-the-badge)](MANUAL_DE_USUARIO.md)
+[![Certificado](https://img.shields.io/badge/Certificado-de%20Autor%C3%ADa-amber?style=for-the-badge)](CERTIFICATE.md)
 
 <br/>
 
-**Plataforma Cloud SaaS Multi-Tenant de Punto de Venta (POS), Tienda Virtual Pública con Pedidos por WhatsApp, Pantalla de Cocina (KDS), Control de Caja y Turnos, Gestión de Inventario e Insumos, Compras, Proveedores, Facturación y Reportes Financieros en PDF para restaurantes, cafeterías, bares y cadenas gastronómicas.**
+**Plataforma Cloud SaaS Multi-Tenant de Punto de Venta (POS), Tienda Virtual Pública con Pedidos por WhatsApp, Pantalla de Cocina (KDS), Control de Caja y Turnos, Gestión de Inventario e Insumos, Sub-recetas y Producción, Compras, Proveedores, Facturación y Reportes Financieros en PDF para restaurantes, cafeterías, bares y cadenas gastronómicas.**
 
-[Características](#-características-del-sistema) •
-[Novedades v1.6.0](#-novedades-de-la-versión-160) •
-[Novedades v1.5.0](#-novedades-de-la-versión-150) •
+[Manual de Usuario](MANUAL_DE_USUARIO.md) •
+[Certificado de Autoría](CERTIFICATE.md) •
+[Novedades v1.7.5](#-novedades-de-la-versión-175) •
+[Novedades v1.7.0](#-novedades-de-la-versión-170) •
 [Módulos](#-módulos-del-sistema) •
 [Arquitectura](#-arquitectura-y-stack-tecnológico) •
-[Estructura](#-estructura-del-proyecto) •
 [Instalación](#-guía-de-instalación-y-puesta-en-marcha) •
-[Credenciales](#-credenciales-de-acceso) •
-[Créditos](#-créditos)
+[Licencia](LICENSE) •
+[Changelog](CHANGELOG.md)
 
 </div>
 
@@ -30,7 +32,8 @@
 
 **NeoFood** es una plataforma de software de última generación diseñada para automatizar, controlar y elevar la eficiencia operativa de cualquier establecimiento gastronómico. La solución unifica el flujo completo del negocio:
 - Toma ágil de pedidos en salón por mesas y pedidos para llevar.
-- Costeo automático de insumos y materia prima.
+- Costeo automático de insumos y materia prima con sub-recetas y Costo Medio Ponderado (CMP).
+- Tienda virtual pública con horarios semanales de doble jornada y despacho automático a WhatsApp.
 - Control de caja con apertura, cierres ciegos y arqueos detallados.
 - Facturación con emisión de comprobantes en PDF corporativo.
 - Módulo avanzado de reportes diarios y mensuales con descarga documental.
@@ -43,10 +46,48 @@ Diseñado bajo principios de **arquitectura modular limpia**, **100% CSS Nativo*
 
 - ⚡ **Rendimiento Ultrarrápido:** Frontend impulsado por **Vite** y **React 18**, con carga instantánea y optimización de chunks.
 - 🎨 **Diseño Visual Ejecutivo y Cohesivo:** Identidad visual sólida basada en tonos pizarra (`#1e293b`), acento índigo corporativo (`#4f46e5`), degradados esmeralda y tipografías modernas.
-- 🖥️ **Punto de Venta (POS) en Pantalla Completa:** Experiencia sin scroll exterior de ventana; cuadrícula de mesas interactiva, catálogo táctil y carrito con scroll interno confinado.
+- 🖥️ **Punto de Venta (POS) en Pantalla Completa:** Experiencia sin scroll exterior de ventana; cuadrícula interactiva, catálogo táctil y carrito con scroll interno confinado.
 - 📊 **Módulo de Reportes & Exportación PDF:** Generación institucional en PDF de reportes diarios de caja, consolidados mensuales y facturas de venta con el servicio centralizado `reportPdfService`.
-- 🛡️ **Seguridad y Permisos:** Autenticación robusta con JSON Web Tokens (JWT), refresh tokens, hash Bcrypt y control de acceso basado en roles (*Administrador*, *Supervisor*, *Cajero*, *Mesero*).
-- 📦 **Componentes de Alto Nivel:** Modales elegantes con fondo difuminado (`backdrop-filter`), formularios con feedback táctil y selectores interactivos (`CustomSelect`) con portales en el DOM.
+- 🛡️ **Seguridad y Permisos:** Autenticación robusta con JSON Web Tokens (JWT), refresh tokens, hash Bcrypt, política estricta de contraseñas seguras multicriterio y control de acceso basado en roles (*SuperAdmin*, *Administrador*, *Cajero*, *Mesero*).
+- 📦 **Componentes de Alto Nivel:** Modales elegantes con fondo difuminado (`backdrop-filter`), formularios con feedback táctil y selectores interactivos (`CustomSelect`) con buscador reactivo superior.
+
+---
+
+## 🆕 Novedades de la Versión 1.7.5
+
+### Dashboard Ejecutivo & Accesos Rápidos
+1. **Barra de Accesos Rápidos Temáticos:** Insertada entre los KPIs y el diagrama central con 7 botones operativos ergonómicos (Venta / POS, Cocina, Tienda Virtual, Caja, Inventario, Producción, Compras) con paleta de color temática propia y micro-interacciones hover.
+2. **Visualización Sin Scroll Vertical:** Altura del gráfico de ventas optimizada a 295px, tarjetas de métricas compactas y paneles laterales con paginación integrada para garantizar que todo el panel operativo se aprecie completo en una sola pantalla sin scroll.
+
+### Rediseño Estructural de la Barra Lateral (Sidebar)
+3. **Navegación Agrupada por Dominios:** Organización en 4 secciones funcionales (*Operaciones*, *Inventario & Stock*, *Finanzas & Reportes*, *Administración*) con encabezados sutiles y divisores elegantes, manteniendo el acceso a 1 solo clic.
+4. **Logotipo Oficial en Pie de Sidebar:** El recuadro del perfil inferior exhibe el logotipo oficial del restaurante en 42x42px con fallback dinámico, acompañado del nombre del usuario y la sede.
+5. **Hover Dinámico de Alta Visibilidad:** Micro-interacción con fondo índigo suave (`#ede9fe`), texto e icono en color primario (`#4f46e5`), desplazamiento a la derecha (`translateX(4px)`) y escalado de icono.
+6. **Resolución Menú Móvil:** Corrección en selectores CSS Modules para el drawer en pantallas pequeñas y botón ergonómico de cierre `X`.
+
+### Filtros, Reglas de Negocio y Limpieza de Recursos
+7. **Buscador Reactivo en Selectores (`CustomSelect`):** Filtrado en tiempo real con campo sticky y autoenfoque en todos los menús desplegables del sistema.
+8. **Exclusión de Insumos Internos:** En `ProductForm`, las materias primas utilizadas en sub-recetas quedan automáticamente excluidas de la selección directa de ingredientes para platillos finales.
+9. **Limpieza Física de Archivos en Disco (`fileCleaner`):** Supresión física automática de archivos huérfanos e imágenes sustituidas o eliminadas en disco para logos, banners y fotos de productos.
+10. **Buscadores y Paginadores en Módulos:** Búsqueda en vivo en *Catálogo de Ventas*, *Categorías* y buscador con filtro de estados y paginación en *Producción*.
+
+### Seguridad y Política Estricta de Contraseñas
+11. **Validador de Contraseñas Multicriterio (`passwordValidator`):** Verificación obligatoria en Backend y Frontend que exige de forma simultánea: mínimo 8 caracteres, al menos una mayúscula (`A-Z`), una minúscula (`a-z`), un número (`0-9`) y un carácter especial (`[^A-Za-z0-9]`). Protege el onboarding público (`RegisterTenant`) y la gestión de personal (`UsersManager`).
+12. **Checklist Visual Reactivo:** Asistente interactivo en tiempo real en los formularios que guía al usuario marcando en verde cada requisito alcanzado mientras tipea la contraseña.
+13. **Alternancia de Visibilidad (`Eye`/`EyeOff`):** Botón ergonómico para mostrar/ocultar la contraseña al crear cuentas o asignar accesos.
+
+---
+
+## 🆕 Novedades de la Versión 1.7.0
+
+### Módulo de Producción y Costeo Automático (Sub-recetas)
+1. **Gestión de Insumos Elaborados:** Diferenciación entre Materia Prima (comprada) e Insumos Elaborados (creados en cocina, ej. Masas, Salsas).
+2. **Formulación y Recetas:** Capacidad de definir la fórmula exacta (receta) para los elaborados, especificando rendimiento y mermas.
+3. **Órdenes de Producción:** Registro de lotes de producción que descuentan automáticamente la materia prima del inventario central.
+4. **Cálculo de Costo Medio Ponderado (CMP):** Al producir un lote, el sistema consolida el costo real de los insumos usados y recalcula dinámicamente el valor unitario del producto elaborado en el inventario.
+
+### Refactorización de Arquitectura de Inventario
+5. **Separación Catálogo/Stock:** Consolidación de `Product` netamente como artículo de exhibición y venta (POS), y de `Ingredient` como el único responsable del stock físico, simplificando el modelo mental y preparando el terreno para recetas finales de venta.
 
 ---
 
@@ -184,6 +225,7 @@ Esta versión transforma a NeoFood en una plataforma **SaaS Multi-Tenant Cloud**
 | 🧾 **Facturas** | `/facturas` | Historial de comprobantes emitidos, filtro por rango de fechas, visualización detallada y exportación en PDF corporativo. |
 | 📊 **Reportes** | `/reportes` | Analíticas de ventas, comparativas históricas de meses anteriores y descarga en PDF de balances de caja y ventas. |
 | 📦 **Inventario e Insumos** | `/inventario` | Control de materias primas, unidades de medida, costos unitarios, recetas, fotos y selector de visibilidad en tienda. |
+| 🏭 **Producción** | `/produccion` | Formulación de sub-recetas, registro de lotes de producción y cálculo de Costo Medio Ponderado (CMP). |
 | 👑 **Control SuperAdmin SaaS** | `/saas` | Gestión de establecimientos, monitoreo global de facturación, conmutación de estado (Activo/Suspendido) y cambio de planes. |
 | 🛍️ **Compras** | `/compras` | Registro de facturas de compra en modal dedicado, recepción de insumos, historial y actualización automática de inventario. |
 | 🏢 **Proveedores** | `/proveedores` | Directorio con NIT, canales de contacto, barra de búsqueda en vivo y vinculación directa a compras. |
@@ -331,18 +373,16 @@ Neofood 1.2/
 
 ## 🔑 Credenciales de Acceso
 
-El script de inicialización (`seed.js`) genera las siguientes credenciales administrativas por defecto:
+El sistema cuenta con dos cuentas maestras preconfiguradas para pruebas y administración:
 
-| Campo | Valor |
-| :--- | :--- |
-| **URL de Acceso** | `http://localhost:5173/login` |
-| **URL de Registro SaaS** | `http://localhost:5173/registro` |
-| **Correo Electrónico** | `admin@neofood.com` |
-| **Contraseña** | `123456` |
-| **Rol** | `SuperAdmin` (Acceso universal a todas las sedes y panel SaaS) |
+| Rol / Entorno | Usuario | Contraseña | Establecimiento / Acceso |
+| :--- | :--- | :--- | :--- |
+| **Super Administrador** | `admin@neofood.com` | `123456` | Acceso global SaaS (`/saas`) y Sede Principal |
+| **Administrador de Tienda (Demo)** | `demo@neofood.com` | `123456` | Restaurante Demo (`restaurante-demo`) operativo |
 
 > [!TIP]
-> Al iniciar sesión con `admin@neofood.com`, tendrás acceso tanto a la gestión de **NeoFood Sede Principal** como al panel **Admin SaaS (`/saas`)** para supervisar y suspender o reactivar cualquier sede registrada.
+> - **Tienda Virtual QR Demo:** Puedes acceder directamente a la tienda virtual de demostración en `http://localhost:5173/tienda/restaurante-demo`.
+> - **Restablecimiento Limpio:** Para volver a vaciar todas las ventas y dejar la base de datos limpia como nueva en cualquier momento, ejecuta en la carpeta `Backend`: `npm run seed:clean`.
 
 ---
 
@@ -359,12 +399,31 @@ El resultado se compilará en `frontend/dist/` listo para ser servido en producc
 
 ---
 
-## 👨‍💻 Créditos
+## 📜 Documentación, Legalidad y Comunidad
+
+El proyecto cuenta con un ecosistema completo de documentación oficial, directrices operativas y marcos de gobernanza y protección de propiedad intelectual:
+
+| Documento | Descripción | Enlace |
+| :--- | :--- | :--- |
+| **Certificado de Creación y Autoría** | Certificación legal y técnica de autoría de Leonardo Ramirez | [Ver CERTIFICATE.md](CERTIFICATE.md) |
+| **Manual de Usuario Operativo** | Guía visual y de uso módulo por módulo del sistema | [Ver MANUAL_DE_USUARIO.md](MANUAL_DE_USUARIO.md) |
+| **Términos de Licencia Comercial** | Licencia de uso, restricciones y propiedad intelectual | [Ver LICENSE](LICENSE) |
+| **Historial de Versiones (Changelog)** | Registro cronológico y detallado de cada versión y parche | [Ver CHANGELOG.md](CHANGELOG.md) |
+| **Guía de Contribución** | Estándares técnicos, arquitectura y flujo de Pull Requests | [Ver CONTRIBUTING.md](CONTRIBUTING.md) |
+| **Política de Seguridad** | Protocolo de reporte responsable y directrices multi-tenant | [Ver SECURITY.md](SECURITY.md) |
+| **Código de Conducta** | Estándares de convivencia comunitaria (Contributor Covenant v2.1) | [Ver CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+
+---
+
+## 👨‍💻 Autoría y Certificación
 
 <div align="center">
 
-**NeoFood POS & CRM** — Versión 1.5.0 SaaS Cloud Edition  
-Diseñado y Desarrollado por **Leonardo Ramirez**  
+**NeoFood POS & ERP** — Versión **1.7.5 SaaS Cloud Edition**  
+Diseñado, Creado y Arquitectado Exclusivamente por **Leonardo Ramirez**  
+*Autor y Titular de los Derechos Morales y Patrimoniales de la Obra de Software*  
 *Sistema Integral de Gestión Gastronómica &copy; 2026. Todos los derechos reservados.*
+
+[📜 Ver Certificado Oficial de Creación y Propiedad Intelectual](CERTIFICATE.md)
 
 </div>

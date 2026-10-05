@@ -36,21 +36,33 @@ const prisma = basePrisma.$extends({
     $allModels: {
       async findMany({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
-          args.where = { ...args.where, tenantId };
+        const modelLower = model.toLowerCase();
+        // Modelos de configuración de tienda (mesas, métodos de pago) NUNCA se mezclan entre sedes,
+        // incluso para SuperAdmin; cada sede solo ve las suyas.
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
+          if (!args.where || !args.where.tenantId) {
+            args.where = { ...args.where, tenantId };
+          }
         }
         return query(args);
       },
       async findFirst({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
-          args.where = { ...args.where, tenantId };
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
+          if (!args.where || !args.where.tenantId) {
+            args.where = { ...args.where, tenantId };
+          }
         }
         return query(args);
       },
       async findUnique({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
           // Verificar pertenencia al tenant
           const check = await basePrisma[model].findUnique({
             where: args.where,
@@ -64,7 +76,9 @@ const prisma = basePrisma.$extends({
       },
       async findUniqueOrThrow({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
           const check = await basePrisma[model].findUnique({
             where: args.where,
             select: { tenantId: true }
@@ -79,22 +93,34 @@ const prisma = basePrisma.$extends({
       },
       async count({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
-          args.where = { ...args.where, tenantId };
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
+          if (!args.where || !args.where.tenantId) {
+            args.where = { ...args.where, tenantId };
+          }
         }
         return query(args);
       },
       async aggregate({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
-          args.where = { ...args.where, tenantId };
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
+          if (!args.where || !args.where.tenantId) {
+            args.where = { ...args.where, tenantId };
+          }
         }
         return query(args);
       },
       async groupBy({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && !isSuperAdmin() && TENANT_MODELS.includes(model.toLowerCase())) {
-          args.where = { ...args.where, tenantId };
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || ['table', 'paymentmethod'].includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
+          if (!args.where || !args.where.tenantId) {
+            args.where = { ...args.where, tenantId };
+          }
         }
         return query(args);
       },

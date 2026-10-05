@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Search, X } from 'lucide-react';
 import styles from './CustomSelect.module.css';
 
 const CustomSelect = ({ 
@@ -13,6 +13,7 @@ const CustomSelect = ({
   required = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [menuPosition, setMenuPosition] = useState({
     top: 0,
     bottom: 'auto',
@@ -24,8 +25,17 @@ const CustomSelect = ({
   const triggerRef = useRef(null);
   const dropdownMenuRef = useRef(null);
   const selectedItemRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const selectedOption = options.find(opt => opt.value === value) || null;
+
+  // Filtrado reactivo de opciones según el texto de búsqueda
+  const filteredOptions = options.filter(opt => {
+    if (!searchTerm.trim()) return true;
+    const label = String(opt.label || '').toLowerCase();
+    const query = searchTerm.toLowerCase().trim();
+    return label.includes(query);
+  });
 
   // Actualizar posición del dropdown relativo al botón trigger
   const updatePosition = useCallback(() => {
@@ -42,13 +52,13 @@ const CustomSelect = ({
     const viewportWidth = window.innerWidth;
     const spaceBelow = viewportHeight - rect.bottom;
     const spaceAbove = rect.top;
-    const dropdownEstimatedHeight = 220;
+    const dropdownEstimatedHeight = 260;
 
     // Abrir hacia arriba si no hay espacio suficiente abajo y hay más espacio arriba
     const openUpwards = spaceBelow < dropdownEstimatedHeight && spaceAbove > spaceBelow;
 
     let left = rect.left;
-    let width = rect.width;
+    let width = Math.max(rect.width, 220); // Asegura un ancho mínimo legible para el buscador
 
     // Asegurar que no se salga horizontalmente de la pantalla
     if (left + width > viewportWidth - 8) {
@@ -64,9 +74,10 @@ const CustomSelect = ({
     });
   }, []);
 
-  // Recalcular posición al abrir y suscribirse a eventos de resize / scroll
+  // Recalcular posición al abrir y enfocar el input de búsqueda
   useEffect(() => {
     if (isOpen) {
+      setSearchTerm('');
       updatePosition();
 
       const handleScroll = (event) => {
@@ -84,12 +95,15 @@ const CustomSelect = ({
       window.addEventListener('scroll', handleScroll, true);
       window.addEventListener('resize', handleResize);
 
-      // Scroll automático hacia el elemento seleccionado si existe
+      // Enfocar automáticamente el input de búsqueda
       const timer = setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
         if (selectedItemRef.current && dropdownMenuRef.current) {
           selectedItemRef.current.scrollIntoView({ block: 'nearest' });
         }
-      }, 10);
+      }, 50);
 
       return () => {
         clearTimeout(timer);
@@ -138,6 +152,20 @@ const CustomSelect = ({
     setIsOpen(!isOpen);
   };
 
+  const handleSelectOption = (optValue) => {
+    onChange(optValue);
+    setIsOpen(false);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredOptions.length > 0) {
+        handleSelectOption(filteredOptions[0].value);
+      }
+    }
+  };
+
   return (
     <div className={`custom-select-wrapper ${className}`}>
       <button
@@ -158,7 +186,7 @@ const CustomSelect = ({
         />
       </button>
 
-      {/* Hidden input to handle native HTML5 form validation without focus issues */}
+      {/* Input oculto para validación nativa de formularios */}
       <input 
         type="text" 
         value={value || ''} 
@@ -178,12 +206,92 @@ const CustomSelect = ({
             bottom: menuPosition.bottom,
             left: menuPosition.left,
             width: menuPosition.width,
-            zIndex: 999999
+            zIndex: 999999,
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '280px',
+            overflow: 'hidden'
           }}
           onWheel={(e) => e.stopPropagation()}
         >
-          <ul className="custom-select-list" role="listbox">
-            {options.map((option, index) => {
+          {/* Barra de búsqueda interactiva */}
+          <div 
+            style={{ 
+              padding: '0.45rem 0.5rem', 
+              borderBottom: '1px solid var(--border-color, #e2e8f0)',
+              backgroundColor: 'var(--bg-surface, #ffffff)',
+              position: 'sticky',
+              top: 0,
+              zIndex: 2
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+              <Search 
+                size={14} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '0.6rem', 
+                  color: 'var(--text-muted, #94a3b8)',
+                  pointerEvents: 'none'
+                }} 
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Escribe para filtrar..."
+                style={{
+                  width: '100%',
+                  padding: '0.35rem 1.6rem 0.35rem 2rem',
+                  fontSize: '0.8rem',
+                  borderRadius: '0.375rem',
+                  border: '1px solid var(--border-color, #cbd5e1)',
+                  backgroundColor: 'var(--bg-subtle, #f8fafc)',
+                  color: 'var(--text-main, #0f172a)',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    searchInputRef.current?.focus();
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '0.5rem',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted, #94a3b8)',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Lista de opciones filtradas con scroll propio */}
+          <ul 
+            className="custom-select-list" 
+            role="listbox"
+            style={{
+              overflowY: 'auto',
+              flex: 1,
+              margin: 0,
+              padding: '0.25rem 0'
+            }}
+          >
+            {filteredOptions.map((option, index) => {
               const isSelected = value === option.value;
               return (
                 <li
@@ -191,10 +299,7 @@ const CustomSelect = ({
                   ref={isSelected ? selectedItemRef : null}
                   role="option"
                   aria-selected={isSelected}
-                  onClick={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
-                  }}
+                  onClick={() => handleSelectOption(option.value)}
                   className={`custom-select-option ${isSelected ? 'is-selected' : ''}`}
                 >
                   <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -208,9 +313,9 @@ const CustomSelect = ({
                 </li>
               );
             })}
-            {options.length === 0 && (
-              <li className="custom-select-empty">
-                No hay opciones
+            {filteredOptions.length === 0 && (
+              <li className="custom-select-empty" style={{ padding: '1rem', color: 'var(--text-muted, #94a3b8)', textAlign: 'center', fontSize: '0.825rem' }}>
+                {options.length === 0 ? "No hay opciones disponibles" : `No hay resultados para "${searchTerm}"`}
               </li>
             )}
           </ul>

@@ -1,6 +1,7 @@
 const prisma = require('../../../config/prisma');
 const bcrypt = require('bcrypt');
 const { getTenantId } = require('../../../context/tenantContext');
+const { validatePassword } = require('../../../utils/passwordValidator');
 
 class UserService {
   // 1. Obtener todos los roles para el formulario del Frontend
@@ -56,6 +57,13 @@ class UserService {
       throw error;
     }
 
+    const passwordValidation = validatePassword(data.password);
+    if (!passwordValidation.isValid) {
+      const error = new Error(passwordValidation.message);
+      error.statusCode = 400;
+      throw error;
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.password, salt);
 
@@ -84,6 +92,12 @@ class UserService {
     };
 
     if (data.password && data.password.trim() !== '') {
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid) {
+        const error = new Error(passwordValidation.message);
+        error.statusCode = 400;
+        throw error;
+      }
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(data.password, salt);
     }

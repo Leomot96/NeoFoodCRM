@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Shield, UserX, CheckCircle, AlertTriangle, Phone } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Shield, UserX, CheckCircle, AlertTriangle, Phone, Eye, EyeOff } from 'lucide-react';
 import CustomSelect from '../components/ui/CustomSelect';
 import { Pagination } from '../components/ui';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import styles from './UsersManager.module.css';
+import { validatePassword } from '../utils/passwordValidator';
 
 const UsersManager = () => {
   const { user: currentUser } = useAuth();
@@ -13,6 +14,7 @@ const UsersManager = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Estado para modal de confirmación de eliminación
   const [userToDelete, setUserToDelete] = useState(null);
@@ -77,6 +79,7 @@ const UsersManager = () => {
         isActive: true 
       });
     }
+    setShowPassword(false);
     setIsModalOpen(true);
   };
 
@@ -87,6 +90,14 @@ const UsersManager = () => {
     if (!editingUser && isLimitReached) {
       alert(`Has alcanzado el límite de ${maxUsers} usuarios permitidos en tu ${plan?.name || 'plan actual'}.`);
       return;
+    }
+
+    if (!editingUser || (formData.password && formData.password.trim() !== '')) {
+      const passwordValidation = validatePassword(formData.password);
+      if (!passwordValidation.isValid) {
+        alert(passwordValidation.message);
+        return;
+      }
     }
 
     try {
@@ -333,14 +344,66 @@ const UsersManager = () => {
                     <label className="neo-label">
                       Contraseña {editingUser ? <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>(Dejar en blanco para conservar)</span> : '*'}
                     </label>
-                    <input
-                      required={!editingUser}
-                      type="password"
-                      placeholder={editingUser ? '••••••••' : 'Ingresa contraseña'}
-                      value={formData.password}
-                      onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      className="neo-input"
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        required={!editingUser}
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder={editingUser ? '••••••••' : 'Mínimo 8 caracteres (A-Z, a-z, 0-9, @#$)'}
+                        value={formData.password}
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        className="neo-input"
+                        style={{ paddingRight: '2.5rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '0.75rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+
+                    {formData.password && (
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.3rem 0.6rem',
+                        marginTop: '0.4rem',
+                        fontSize: '0.72rem',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '0.375rem',
+                        padding: '0.4rem 0.6rem'
+                      }}>
+                        <span style={{ color: validatePassword(formData.password).checks.length ? '#16a34a' : '#94a3b8', fontWeight: 500 }}>
+                          {validatePassword(formData.password).checks.length ? '✓' : '○'} Mín. 8 caracteres
+                        </span>
+                        <span style={{ color: validatePassword(formData.password).checks.uppercase ? '#16a34a' : '#94a3b8', fontWeight: 500 }}>
+                          {validatePassword(formData.password).checks.uppercase ? '✓' : '○'} Mayúscula (A-Z)
+                        </span>
+                        <span style={{ color: validatePassword(formData.password).checks.lowercase ? '#16a34a' : '#94a3b8', fontWeight: 500 }}>
+                          {validatePassword(formData.password).checks.lowercase ? '✓' : '○'} Minúscula (a-z)
+                        </span>
+                        <span style={{ color: validatePassword(formData.password).checks.number ? '#16a34a' : '#94a3b8', fontWeight: 500 }}>
+                          {validatePassword(formData.password).checks.number ? '✓' : '○'} Número (0-9)
+                        </span>
+                        <span style={{ color: validatePassword(formData.password).checks.special ? '#16a34a' : '#94a3b8', fontWeight: 500 }}>
+                          {validatePassword(formData.password).checks.special ? '✓' : '○'} Especial (!@#$...)
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {editingUser && (

@@ -31,6 +31,12 @@ const inventoryService = {
     });
     return response.data;
   },
+  deleteProductImage: async (imageUrl) => {
+    const response = await api.delete('/inventory/products/image', {
+      data: { imageUrl }
+    });
+    return response.data;
+  },
 
 
    // Categorías

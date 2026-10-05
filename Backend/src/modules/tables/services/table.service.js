@@ -3,8 +3,14 @@ const { getTenantId } = require('../../../context/tenantContext');
 
 class TableService {
   async getAllTables() {
+    const tenantId = getTenantId();
+    const whereClause = { isActive: true };
+    if (tenantId) {
+      whereClause.tenantId = tenantId;
+    }
+
     const tables = await prisma.table.findMany({
-      where: { isActive: true },
+      where: whereClause,
       include: {
         orders: {
           where: {
@@ -86,11 +92,20 @@ class TableService {
     }
 
     return await prisma.table.create({
-      data: { name, isActive: true }
+      data: { name, isActive: true, ...(tenantId ? { tenantId } : {}) }
     });
   }
 
   async deleteTable(id) {
+    const tenantId = getTenantId();
+    if (tenantId) {
+      const exists = await prisma.table.findFirst({
+        where: { id, tenantId }
+      });
+      if (!exists) {
+        throw Object.assign(new Error('Mesa no encontrada en este establecimiento'), { statusCode: 404 });
+      }
+    }
     return await prisma.table.delete({
       where: { id }
     });

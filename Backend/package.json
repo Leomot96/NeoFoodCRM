@@ -1,13 +1,14 @@
 {
   "name": "neofood-backend",
-  "version": "1.6.0",
+  "version": "1.7.5",
   "description": "API REST para CRM de restaurante",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "seed:clean": "node scripts/reset_clean_db.js"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

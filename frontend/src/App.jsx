@@ -25,6 +25,7 @@ const SaasDashboard = lazy(() => import('./pages/SaasDashboard'));
 const StoreFront = lazy(() => import('./pages/StoreFront'));
 const StoreOrdersManager = lazy(() => import('./pages/StoreOrdersManager'));
 const Cocina = lazy(() => import('./pages/Cocina'));
+const Produccion = lazy(() => import('./pages/Production/ProductionManager'));
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-full">
@@ -61,6 +62,7 @@ const App = () => {
           <Route path="facturas" element={<Suspense fallback={<LoadingFallback />}><InvoicesManager /></Suspense>} />
           <Route path="reportes" element={<Suspense fallback={<LoadingFallback />}><Reportes /></Suspense>} />
           <Route path="inventario" element={<Suspense fallback={<LoadingFallback />}><Inventario /></Suspense>} />
+          <Route path="produccion" element={<Suspense fallback={<LoadingFallback />}><Produccion /></Suspense>} />
           <Route path="compras" element={<Suspense fallback={<LoadingFallback />}><Compras /></Suspense>} />
           <Route path="proveedores" element={<Suspense fallback={<LoadingFallback />}><SuppliersManager /></Suspense>} />
           <Route path="usuarios" element={<Suspense fallback={<LoadingFallback />}><Usuarios /></Suspense>} />

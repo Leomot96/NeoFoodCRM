@@ -21,9 +21,12 @@ import {
   Crown,
   ShoppingBag,
   Bell,
-  ChefHat
+  ChefHat,
+  Factory,
+  UserCheck
 } from 'lucide-react';
 import storeService from '../services/store.service';
+import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './MainLayout.module.css';
 
 const MainLayout = () => {
@@ -34,6 +37,22 @@ const MainLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem('sidebar_collapsed') === 'true';
   });
+
+  // Logotipo dinámico del restaurante para el footer de la sidebar
+  const [restaurantLogo, setRestaurantLogo] = useState(user?.tenant?.logoUrl || null);
+
+  useEffect(() => {
+    if (user?.tenant?.logoUrl) {
+      setRestaurantLogo(user.tenant.logoUrl);
+    }
+    storeService.getStoreConfig()
+      .then(cfg => {
+        if (cfg?.logoUrl) {
+          setRestaurantLogo(cfg.logoUrl);
+        }
+      })
+      .catch(() => { });
+  }, [user]);
 
   // Alerta en tiempo real de Pedidos de la Tienda
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
@@ -64,7 +83,7 @@ const MainLayout = () => {
 
       osc.start();
       osc.stop(ctx.currentTime + 0.5);
-    } catch {}
+    } catch { }
   };
 
   // Polling cada 12 segundos para detectar pedidos nuevos de la tienda virtual
@@ -94,39 +113,89 @@ const MainLayout = () => {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Orden estratégico según flujo operativo diario
   const navItems = [
+    // 1. Operación Diaria (Venta, Cocina, Despacho y Caja)
     { path: '/', name: 'Dashboard', icon: LayoutDashboard },
     { path: '/ventas', name: 'Ventas (POS)', icon: ShoppingCart },
     { path: '/cocina', name: 'Cocina', icon: ChefHat },
-    { 
-      path: '/pedidos-tienda', 
-      name: 'Tienda Virtual', 
-      icon: ShoppingBag, 
-      badge: pendingOrdersCount > 0 ? pendingOrdersCount : null 
+    {
+      path: '/pedidos-tienda',
+      name: 'Tienda Virtual',
+      icon: ShoppingBag,
+      badge: pendingOrdersCount > 0 ? pendingOrdersCount : null
     },
     { path: '/caja', name: 'Caja', icon: Wallet },
-    { path: '/facturas', name: 'Facturas', icon: FileText },
-    { path: '/reportes', name: 'Reportes', icon: BarChart3 },
+
+    // 2. Abastecimiento, Existencias y Lotes
     { path: '/inventario', name: 'Inventario', icon: Package },
+    { path: '/produccion', name: 'Producción', icon: Factory },
     { path: '/compras', name: 'Compras', icon: Store },
     { path: '/proveedores', name: 'Proveedores', icon: Building2 },
+
+    // 3. Auditoría y Análisis Financiero
+    { path: '/facturas', name: 'Facturas', icon: FileText },
+    { path: '/reportes', name: 'Reportes', icon: BarChart3 },
+
+    // 4. Gestión y Parámetros
+    { path: '/clientes', name: 'Clientes', icon: UserCheck },
     { path: '/usuarios', name: 'Usuarios', icon: Users },
-    { path: '/clientes', name: 'Clientes', icon: Users },
     { path: '/configuracion', name: 'Configuración', icon: Settings },
   ];
 
   const roleName = typeof user?.role === 'object' ? user?.role?.name : user?.role;
   const isSuperAdmin = roleName === 'SuperAdmin' || roleName === 'SUPERADMIN';
 
-  if (isSuperAdmin) {
-    navItems.push({
-      path: '/saas',
-      name: 'Admin SaaS',
-      icon: Crown
-    });
-  }
+  // Navegación agrupada por dominios operativos del restaurante
+  const navSections = [
+    {
+      id: 'operaciones',
+      title: 'Operaciones',
+      items: [
+        { path: '/', name: 'Dashboard', icon: LayoutDashboard },
+        { path: '/ventas', name: 'Ventas (POS)', icon: ShoppingCart },
+        { path: '/cocina', name: 'Cocina', icon: ChefHat },
+        {
+          path: '/pedidos-tienda',
+          name: 'Tienda Virtual',
+          icon: ShoppingBag,
+          badge: pendingOrdersCount > 0 ? pendingOrdersCount : null
+        },
+        { path: '/caja', name: 'Caja', icon: Wallet },
+      ]
+    },
+    {
+      id: 'stock',
+      title: 'Inventario & Stock',
+      items: [
+        { path: '/inventario', name: 'Inventario', icon: Package },
+        { path: '/produccion', name: 'Producción', icon: Factory },
+        { path: '/compras', name: 'Compras', icon: Store },
+        { path: '/proveedores', name: 'Proveedores', icon: Building2 },
+      ]
+    },
+    {
+      id: 'finanzas',
+      title: 'Finanzas & Reportes',
+      items: [
+        { path: '/facturas', name: 'Facturas', icon: FileText },
+        { path: '/reportes', name: 'Reportes', icon: BarChart3 },
+      ]
+    },
+    {
+      id: 'admin',
+      title: 'Administración',
+      items: [
+        { path: '/clientes', name: 'Clientes', icon: UserCheck },
+        { path: '/usuarios', name: 'Usuarios', icon: Users },
+        { path: '/configuracion', name: 'Configuración', icon: Settings },
+        ...(isSuperAdmin ? [{ path: '/saas', name: 'Admin SaaS', icon: Crown }] : [])
+      ]
+    }
+  ];
 
-  const currentRouteName = navItems.find(item => item.path === location.pathname)?.name || 'NeoFood';
+  const allNavItems = navSections.flatMap(s => s.items);
+  const currentRouteName = allNavItems.find(item => item.path === location.pathname)?.name || 'NeoFood';
 
   return (
     <div className={styles.layoutContainer}>
@@ -140,7 +209,7 @@ const MainLayout = () => {
       )}
 
       {/* Sidebar Retráctil */}
-      <aside className={`${styles.layoutSidebar} ${isSidebarOpen ? styles['is-open'] || styles.isOpen : ''} ${isCollapsed ? styles['is-collapsed'] || styles.isCollapsed : ''}`}>
+      <aside className={`${styles.layoutSidebar} ${isSidebarOpen ? `${styles.layoutSidebarOpen || ''} ${styles.isOpen || ''} ${styles['is-open'] || ''}` : ''} ${isCollapsed ? `${styles.layoutSidebarCollapsed || ''} ${styles.isCollapsed || ''} ${styles['is-collapsed'] || ''}` : ''}`}>
 
         {/* Cabecera Sidebar / Logo */}
         <div className={styles.sidebarHeader}>
@@ -180,50 +249,66 @@ const MainLayout = () => {
           </div>
         </div>
 
-        {/* Navegación Principal */}
+        {/* Navegación Principal Agrupada */}
         <nav className={styles.sidebarNav}>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setIsSidebarOpen(false)}
-              title={isCollapsed ? item.name : undefined}
-              className={({ isActive }) => `${styles.sidebarNavItem} ${isActive ? styles.active : ''} ${isCollapsed ? styles['is-collapsed'] || styles.isCollapsed : ''}`}
-            >
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <item.icon size={20} />
-                {item.badge && isCollapsed && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-6px',
-                    right: '-6px',
-                    width: '8px',
-                    height: '8px',
-                    backgroundColor: '#ef4444',
-                    borderRadius: '50%',
-                    border: '1.5px solid #ffffff'
-                  }}></span>
-                )}
-              </div>
-              {!isCollapsed && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span className={styles.sidebarNavItemText}>{item.name}</span>
-                  {item.badge && (
-                    <span style={{
-                      backgroundColor: '#ef4444',
-                      color: '#ffffff',
-                      fontSize: '0.7rem',
-                      fontWeight: 900,
-                      padding: '0.1rem 0.45rem',
-                      borderRadius: '9999px',
-                      marginLeft: '0.5rem'
-                    }}>
-                      {item.badge}
-                    </span>
-                  )}
+          {navSections.map((section, idx) => (
+            <div key={section.id} className={styles.sidebarNavGroup}>
+              {/* Título de sección o separador */}
+              {!isCollapsed ? (
+                <div className={styles.sidebarSectionHeader}>
+                  <span>{section.title}</span>
                 </div>
+              ) : (
+                idx > 0 && <div className={styles.sidebarSectionDivider} />
               )}
-            </NavLink>
+
+              {/* Items del grupo */}
+              <div className={styles.sidebarGroupItems}>
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsSidebarOpen(false)}
+                    title={isCollapsed ? item.name : undefined}
+                    className={({ isActive }) => `${styles.sidebarNavItem} ${isActive ? styles.active : ''} ${isCollapsed ? styles['is-collapsed'] || styles.isCollapsed : ''}`}
+                  >
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <item.icon size={19} />
+                      {item.badge && isCollapsed && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-6px',
+                          right: '-6px',
+                          width: '8px',
+                          height: '8px',
+                          backgroundColor: '#ef4444',
+                          borderRadius: '50%',
+                          border: '1.5px solid #ffffff'
+                        }}></span>
+                      )}
+                    </div>
+                    {!isCollapsed && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span className={styles.sidebarNavItemText}>{item.name}</span>
+                        {item.badge && (
+                          <span style={{
+                            backgroundColor: '#ef4444',
+                            color: '#ffffff',
+                            fontSize: '0.7rem',
+                            fontWeight: 900,
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '9999px',
+                            marginLeft: '0.5rem'
+                          }}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
@@ -232,14 +317,26 @@ const MainLayout = () => {
 
           {/* Perfil del Usuario */}
           <div className={`${styles.sidebarUser} ${isCollapsed ? styles['is-collapsed'] || styles.isCollapsed : ''}`}>
-            <div className={styles.sidebarUserAvatar}>
-              {user?.name?.charAt(0) || 'U'}
+            <div className={styles.sidebarUserAvatar} title={user?.tenant?.name || 'Logotipo de establecimiento'}>
+              {restaurantLogo ? (
+                <img
+                  src={getFullImageUrl(restaurantLogo)}
+                  alt={user?.tenant?.name || 'Logo'}
+                  className={styles.sidebarTenantLogoImg}
+                />
+              ) : (
+                <span className={styles.sidebarAvatarInitial}>
+                  {user?.tenant?.name?.charAt(0) || user?.name?.charAt(0) || 'R'}
+                </span>
+              )}
             </div>
             {!isCollapsed && (
               <div className={styles.sidebarUserInfo}>
-                <p className={styles.sidebarUserName}>{user?.name || 'Administrador'}</p>
-                <p className={styles.sidebarUserRole}>
-                  {typeof user?.role === 'object' ? user?.role?.name : user?.role || 'Staff'}
+                <p className={styles.sidebarUserName} title={user?.name || 'Usuario'}>
+                  {user?.name || 'Administrador'}
+                </p>
+                <p className={styles.sidebarUserRole} title={user?.tenant?.name || 'Restaurante'}>
+                  {user?.tenant?.name || 'Mi Restaurante'}
                 </p>
               </div>
             )}
@@ -420,7 +517,7 @@ const MainLayout = () => {
             <span className={styles.layoutFooterSep}>•</span>
             <span className={styles.layoutFooterDesc}>Sistema Integral de Gestión Gastronómica</span>
             <span className={styles.layoutFooterSep}>•</span>
-            <span className={styles.layoutFooterVersion}>v 1.5.0</span>
+            <span className={styles.layoutFooterVersion}>v 1.7.5</span>
           </div>
 
           <div className={styles.layoutFooterRight}>

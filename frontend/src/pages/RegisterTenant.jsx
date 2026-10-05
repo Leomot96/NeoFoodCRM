@@ -24,6 +24,7 @@ import {
   Building
 } from 'lucide-react';
 import styles from './RegisterTenant.module.css';
+import { validatePassword } from '../utils/passwordValidator';
 
 const DEFAULT_PLANS = [
   {
@@ -155,8 +156,9 @@ const RegisterTenant = () => {
     e.preventDefault();
     setError('');
 
-    if (formData.password.length < 6) {
-      setError('La contraseña debe contener al menos 6 caracteres');
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      setError(passwordValidation.message);
       return;
     }
 
@@ -618,7 +620,7 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
                       <input
                         type={showPassword ? 'text' : 'password'}
                         required
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder="Mínimo 8 caracteres (A-Z, a-z, 0-9, @#$)"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         className={`${styles.input} ${styles.passwordInput}`}
@@ -632,6 +634,26 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
+
+                    {formData.password && (
+                      <div className={styles.passwordRequirements}>
+                        <span className={`${styles.requirementItem} ${validatePassword(formData.password).checks.length ? styles.requirementMet : ''}`}>
+                          {validatePassword(formData.password).checks.length ? '✓' : '○'} Mínimo 8 caracteres
+                        </span>
+                        <span className={`${styles.requirementItem} ${validatePassword(formData.password).checks.uppercase ? styles.requirementMet : ''}`}>
+                          {validatePassword(formData.password).checks.uppercase ? '✓' : '○'} Mayúscula (A-Z)
+                        </span>
+                        <span className={`${styles.requirementItem} ${validatePassword(formData.password).checks.lowercase ? styles.requirementMet : ''}`}>
+                          {validatePassword(formData.password).checks.lowercase ? '✓' : '○'} Minúscula (a-z)
+                        </span>
+                        <span className={`${styles.requirementItem} ${validatePassword(formData.password).checks.number ? styles.requirementMet : ''}`}>
+                          {validatePassword(formData.password).checks.number ? '✓' : '○'} Número (0-9)
+                        </span>
+                        <span className={`${styles.requirementItem} ${validatePassword(formData.password).checks.special ? styles.requirementMet : ''}`}>
+                          {validatePassword(formData.password).checks.special ? '✓' : '○'} Carácter especial (!@#$...)
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -17,7 +17,11 @@ import {
   Package,
   ArrowRight,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChefHat,
+  Receipt,
+  Factory,
+  Store
 } from 'lucide-react';
 import styles from './Dashboard.module.css';
 
@@ -127,6 +131,86 @@ const Dashboard = () => {
           icon={ShoppingCart}
           colorClass="stat-icon-amber"
         />
+      </div>
+
+      {/* BARRA DE BOTONES PRINCIPALES (ACCESOS RÁPIDOS) */}
+      <div className={styles.quickActionsBar}>
+        <button
+          onClick={() => navigate('/ventas')}
+          className={`${styles.quickActionBtn} ${styles.btnPos}`}
+          title="Abrir punto de venta y registrar pedido"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <ShoppingCart size={17} />
+          </span>
+          <span>Venta / POS</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/cocina')}
+          className={`${styles.quickActionBtn} ${styles.btnKitchen}`}
+          title="Pantalla de pedidos para la cocina (KDS)"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <ChefHat size={17} />
+          </span>
+          <span>Cocina</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/pedidos-tienda')}
+          className={`${styles.quickActionBtn} ${styles.btnStore}`}
+          title="Pedidos en línea de la tienda virtual"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <Store size={17} />
+          </span>
+          <span>Tienda Virtual</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/caja')}
+          className={`${styles.quickActionBtn} ${styles.btnCash}`}
+          title="Apertura, movimientos y arqueo de caja"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <CreditCard size={17} />
+          </span>
+          <span>Caja</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/inventario')}
+          className={`${styles.quickActionBtn} ${styles.btnInventory}`}
+          title="Gestión de productos, insumos y recetas"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <Package size={17} />
+          </span>
+          <span>Inventario</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/produccion')}
+          className={`${styles.quickActionBtn} ${styles.btnProduction}`}
+          title="Lotes de producción y recetas internas"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <Factory size={17} />
+          </span>
+          <span>Producción</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/compras')}
+          className={`${styles.quickActionBtn} ${styles.btnPurchases}`}
+          title="Registrar facturas de proveedores"
+        >
+          <span className={styles.quickActionIconWrap}>
+            <Receipt size={17} />
+          </span>
+          <span>Compras</span>
+        </button>
       </div>
 
       {/* SECCIÓN PRINCIPAL: GRÁFICO + INSIGHTS */}

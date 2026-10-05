@@ -1,4 +1,5 @@
 const prisma = require("../../../config/prisma");
+const { deleteUploadedFile } = require("../../../utils/fileCleaner");
 
 class ProductService {
   // =====================================
@@ -155,6 +156,17 @@ class ProductService {
       modifiers,
       additions,
     } = data;
+
+    // Si viene imageUrl y es distinto al actual, eliminamos la imagen física previa
+    if (imageUrl !== undefined) {
+      const current = await prisma.product.findUnique({
+        where: { id },
+        select: { imageUrl: true }
+      });
+      if (current?.imageUrl && current.imageUrl !== imageUrl) {
+        deleteUploadedFile(current.imageUrl);
+      }
+    }
 
     return await prisma.$transaction(async (tx) => {
       // 1. Borramos las relaciones anteriores

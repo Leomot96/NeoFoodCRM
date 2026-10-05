@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const prisma = require('../../config/prisma');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../../utils/jwt.util');
 const ROLES = require('../../constants/roles');
+const { validatePassword } = require('../../utils/passwordValidator');
 
 class AuthService {
   async loginUser(credentials) {
@@ -89,6 +90,7 @@ class AuthService {
           billingCycle: user.tenant.billingCycle,
           paymentStatus: user.tenant.paymentStatus,
           subscriptionEndsAt: user.tenant.subscriptionEndsAt,
+          logoUrl: user.tenant.logoUrl,
           plan: user.tenant.plan ? {
             name: user.tenant.plan.name,
             code: user.tenant.plan.code,
@@ -167,6 +169,13 @@ class AuthService {
   // Método auxiliar para crear usuarios iniciales (Seed)
   async registerUser(userData) {
     const { email, password, name, phone, roleName } = userData;
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      const error = new Error(passwordValidation.message);
+      error.statusCode = 400;
+      throw error;
+    }
 
     const userExists = await prisma.user.findUnique({ where: { email } });
     if (userExists) {
@@ -258,8 +267,9 @@ class AuthService {
       throw error;
     }
 
-    if (!password || password.length < 6) {
-      const error = new Error('La contraseña debe tener al menos 6 caracteres');
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      const error = new Error(passwordValidation.message);
       error.statusCode = 400;
       throw error;
     }
@@ -371,7 +381,7 @@ class AuthService {
         }
       });
 
-      // Crear Métodos de Pago iniciales
+      // Crear Métodos de Pago iniciales por defecto: Efectivo (activo) y Crédito (inactivo)
       await tx.paymentMethod.create({
         data: {
           tenantId: tenant.id,
@@ -383,18 +393,22 @@ class AuthService {
       await tx.paymentMethod.create({
         data: {
           tenantId: tenant.id,
-          name: 'Transferencia / QR',
-          isActive: true
+          name: 'Crédito',
+          isActive: false
         }
       });
 
-      await tx.paymentMethod.create({
-        data: {
-          tenantId: tenant.id,
-          name: 'Tarjeta Débito / Crédito',
-          isActive: true
-        }
-      });
+      // Crear por defecto exactamente 3 mesas iniciales
+      for (let i = 1; i <= 3; i++) {
+        await tx.table.create({
+          data: {
+            tenantId: tenant.id,
+            name: `Mesa ${i}`,
+            capacity: 4,
+            isActive: true
+          }
+        });
+      }
 
       // Crear Configuraciones iniciales
       const defaultConfigs = [

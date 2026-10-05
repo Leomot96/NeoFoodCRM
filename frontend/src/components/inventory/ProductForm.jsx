@@ -174,6 +174,23 @@ const ProductForm = ({
     }
   }, [initialData, isOpen]);
 
+  // Insumos elegibles para venta y recetas de productos:
+  // Se excluyen los insumos que son materias primas para elaboración interna (ej. Carne de res que se usa para elaborar carne de hamburguesa)
+  const productEligibleIngredients = ingredients.filter((ing) => !ing.isUsedInProduction);
+
+  // Helper para armar opciones de insumos asegurando que si ya tenía un insumo asignado se preserve
+  const getIngredientOptions = (currentSelectedId = null) => {
+    let list = productEligibleIngredients;
+    if (currentSelectedId && !list.some((i) => i.id === currentSelectedId)) {
+      const found = ingredients.find((i) => i.id === currentSelectedId);
+      if (found) list = [found, ...list];
+    }
+    return list.map((ing) => ({
+      value: ing.id,
+      label: `${ing.name} (${ing.unit})${ing.isManufactured ? ' [Elaborado]' : ''}`,
+    }));
+  };
+
   // Manejo de carga de foto del producto
   const handleImageUpload = async (file) => {
     if (!file) return;
@@ -190,10 +207,15 @@ const ProductForm = ({
 
     setImageError("");
     setIsUploadingImage(true);
+    const oldImageToDelete = formData.imageUrl;
 
     try {
       const res = await inventoryService.uploadProductImage(file);
       if (res.success && res.data?.imageUrl) {
+        // Si ya había una imagen asignada en el formulario y se sustituye por otra nueva, borramos la anterior
+        if (oldImageToDelete && oldImageToDelete !== res.data.imageUrl) {
+          inventoryService.deleteProductImage(oldImageToDelete).catch(() => {});
+        }
         setFormData((prev) => ({
           ...prev,
           imageUrl: res.data.imageUrl,
@@ -209,7 +231,14 @@ const ProductForm = ({
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
+    if (formData.imageUrl) {
+      try {
+        await inventoryService.deleteProductImage(formData.imageUrl);
+      } catch (err) {
+        console.warn("No se pudo eliminar la imagen del servidor:", err);
+      }
+    }
     setFormData((prev) => ({ ...prev, imageUrl: "" }));
     setImageError("");
   };
@@ -571,23 +600,65 @@ const ProductForm = ({
                       </p>
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={formData.isCombo}
-                      onChange={(e) =>
-                        setFormData({ ...formData, isCombo: e.target.checked })
-                      }
-                      className="sr-only peer"
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.isCombo}
+                    onClick={() =>
+                      setFormData({ ...formData, isCombo: !formData.isCombo })
+                    }
+                    style={{
+                      position: "relative",
+                      width: "48px",
+                      height: "26px",
+                      borderRadius: "9999px",
+                      backgroundColor: formData.isCombo ? "#f59e0b" : "#cbd5e1",
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      padding: "2px",
+                      display: "flex",
+                      alignItems: "center",
+                      flexShrink: 0,
+                      outline: "none",
+                      boxShadow: formData.isCombo
+                        ? "0 0 0 3px rgba(245, 158, 11, 0.25)"
+                        : "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        backgroundColor: "#ffffff",
+                        borderRadius: "50%",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        transform: formData.isCombo
+                          ? "translateX(22px)"
+                          : "translateX(0px)",
+                        transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                        display: "block",
+                      }}
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                  </label>
+                  </button>
                 </div>
 
                 {/* Switch de Mostrar en Tienda Virtual */}
-                <div className={`md:col-span-2 p-4 rounded-xl flex items-start justify-between gap-4 border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/40 dark:bg-indigo-950/20`}>
+                <div
+                  className={`md:col-span-2 p-4 rounded-xl flex items-start justify-between gap-4 border ${
+                    formData.showInStore
+                      ? "border-indigo-200 bg-indigo-50/60 dark:bg-indigo-950/30"
+                      : "border-gray-200 bg-gray-50/50 dark:bg-gray-800/20"
+                  } transition-colors`}
+                >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 mt-0.5">
+                    <div
+                      className={`p-2 rounded-lg ${
+                        formData.showInStore
+                          ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400"
+                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                      } mt-0.5 transition-colors`}
+                    >
                       <Box size={20} />
                     </div>
                     <div>
@@ -599,17 +670,50 @@ const ProductForm = ({
                       </p>
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={formData.showInStore}
-                      onChange={(e) =>
-                        setFormData({ ...formData, showInStore: e.target.checked })
-                      }
-                      className="sr-only peer"
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.showInStore}
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        showInStore: !formData.showInStore,
+                      })
+                    }
+                    style={{
+                      position: "relative",
+                      width: "48px",
+                      height: "26px",
+                      borderRadius: "9999px",
+                      backgroundColor: formData.showInStore ? "#4f46e5" : "#cbd5e1",
+                      border: "none",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      padding: "2px",
+                      display: "flex",
+                      alignItems: "center",
+                      flexShrink: 0,
+                      outline: "none",
+                      boxShadow: formData.showInStore
+                        ? "0 0 0 3px rgba(79, 70, 229, 0.25)"
+                        : "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        backgroundColor: "#ffffff",
+                        borderRadius: "50%",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                        transform: formData.showInStore
+                          ? "translateX(22px)"
+                          : "translateX(0px)",
+                        transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                        display: "block",
+                      }}
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  </label>
+                  </button>
                 </div>
 
                 <div className={`md:col-span-2 ${styles.formFieldBox}`}>
@@ -784,51 +888,6 @@ const ProductForm = ({
                     placeholder="Breve detalle de los ingredientes o del contenido del combo..."
                   ></textarea>
                 </div>
-
-                {/* Venta Directa (No aplica si es combo) */}
-                {!formData.isCombo && (
-                  <div className={`md:col-span-2 p-4 rounded-xl ${styles.directSaleSection}`}>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.trackStock}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            trackStock: e.target.checked,
-                          })
-                        }
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
-                      />
-                      <div>
-                        <p className="font-bold text-blue-950 dark:text-blue-300 text-sm">
-                          Es producto de venta directa terminada (ej. Gaseosa en
-                          botella, Cerveza)
-                        </p>
-                        <p className="text-xs text-blue-700 dark:text-blue-400">
-                          Marca esto si no se prepara en cocina y deseas
-                          descontar directamente las unidades del producto.
-                        </p>
-                      </div>
-                    </label>
-                    {formData.trackStock && (
-                      <div className="mt-3 pl-7">
-                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                          Stock Actual en Unidades
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={formData.stock}
-                          onChange={(e) =>
-                            setFormData({ ...formData, stock: e.target.value })
-                          }
-                          className="w-40 p-2 bg-white dark:bg-gray-800 border rounded-lg text-sm"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
@@ -881,10 +940,7 @@ const ProductForm = ({
                         onChange={(val) =>
                           updateRecipeItem(idx, "ingredientId", val)
                         }
-                        options={ingredients.map((ing) => ({
-                          value: ing.id,
-                          label: `${ing.name} (${ing.unit})`,
-                        }))}
+                        options={getIngredientOptions(item.ingredientId)}
                         placeholder="Selecciona materia prima..."
                       />
                     </div>
@@ -1257,12 +1313,7 @@ const ProductForm = ({
                                                     val,
                                                   )
                                                 }
-                                                options={ingredients.map(
-                                                  (ing) => ({
-                                                    value: ing.id,
-                                                    label: `${ing.name} (${ing.unit})`,
-                                                  }),
-                                                )}
+                                                options={getIngredientOptions(opt.ingredientId)}
                                                 placeholder="Selecciona insumo de bodega..."
                                               />
                                             </div>
@@ -1342,12 +1393,7 @@ const ProductForm = ({
                                                           val,
                                                         )
                                                       }
-                                                      options={ingredients.map(
-                                                        (ing) => ({
-                                                          value: ing.id,
-                                                          label: `${ing.name} (${ing.unit})`,
-                                                        }),
-                                                      )}
+                                                      options={getIngredientOptions(subIng.ingredientId)}
                                                       placeholder="Selecciona materia prima..."
                                                     />
                                                   </div>
@@ -1537,10 +1583,7 @@ const ProductForm = ({
                             }
                             options={[
                               { value: "", label: "No descontar nada" },
-                              ...ingredients.map((ing) => ({
-                                value: ing.id,
-                                label: `${ing.name} (${ing.unit})`,
-                              })),
+                              ...getIngredientOptions(add.ingredientId),
                             ]}
                             placeholder="No descontar nada"
                           />

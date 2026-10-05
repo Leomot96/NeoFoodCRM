@@ -89,7 +89,8 @@ const PurchaseForm = ({ isOpen = true, onClose, onSuccess, onBack }) => {
         api.get("/inventory/ingredients"),
       ]);
       setSuppliers(suppliersRes.data.data);
-      setIngredients(ingredientsRes.data.data);
+      const rawIngredients = (ingredientsRes.data.data || []).filter(i => !i.isManufactured);
+      setIngredients(rawIngredients);
     } catch (err) {
       setError("Error al cargar datos base. Verifica tu conexión.");
     } finally {

@@ -1,15 +1,28 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class PaymentMethodService {
   async createPaymentMethod(data) {
-    return await prisma.paymentMethod.create({ data });
+    const tenantId = getTenantId();
+    return await prisma.paymentMethod.create({
+      data: {
+        ...data,
+        ...(tenantId && !data.tenantId ? { tenantId } : {})
+      }
+    });
   }
 
   async getAllPaymentMethods() {
     // Quitamos el 'where: { isActive: true }' para que la configuración 
     // pueda ver TODOS los métodos (incluso los inactivos).
     // El POS ya se encarga de mostrar solo los activos.
+    const tenantId = getTenantId();
+    const whereClause = {};
+    if (tenantId) {
+      whereClause.tenantId = tenantId;
+    }
     return await prisma.paymentMethod.findMany({
+      where: whereClause,
       orderBy: { name: 'asc' },
     });
   }

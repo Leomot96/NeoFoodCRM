@@ -39,6 +39,7 @@ const { uploadProductImage } = require('../../middlewares/upload.middleware');
 // =======================
 router.get('/products', productController.getAll);
 router.post('/products/upload-image', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), uploadProductImage.single('image'), productController.uploadImage);
+router.delete('/products/image', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), productController.deleteImage);
 router.get('/products/:id', productController.getById);
 router.post('/products', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), productController.create);
 router.put('/products/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), productController.update);
