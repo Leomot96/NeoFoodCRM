@@ -172,15 +172,59 @@
   gap: 1rem;
 }
 
-@media (max-width: 640px) {
-  .formGrid {
-    grid-template-columns: 1fr;
+@media (max-width: 768px) {
+  .registerPage {
+    padding: 0 0 3.5rem 0 !important;
+    background: #ffffff !important;
   }
-  .registerBody {
-    padding: 1.5rem 1.25rem;
+  .registerCard {
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
   }
   .registerHeader {
-    padding: 2rem 1.25rem 1rem 1.25rem;
+    padding: 1.5rem 1.15rem 1rem 1.15rem !important;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .brandNeo,
+  .brandFood {
+    font-size: 2rem !important;
+  }
+  .registerTitle {
+    font-size: 1.35rem !important;
+  }
+  .registerSubtitle {
+    font-size: 0.825rem !important;
+  }
+  .registerBody {
+    padding: 1.15rem 1rem !important;
+  }
+  .formGrid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+  .formSection {
+    padding: 1.15rem 1rem !important;
+    border-radius: 1rem !important;
+  }
+  .input {
+    font-size: 16px !important;
+    min-height: 2.85rem !important;
+    border-radius: 0.75rem !important;
+  }
+  .submitBtn {
+    min-height: 3.35rem !important;
+    font-size: 0.95rem !important;
+    border-radius: 0.85rem !important;
+    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35) !important;
+  }
+  .cycleSelector {
+    gap: 0.2rem !important;
+  }
+  .cycleTab {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.75rem !important;
   }
 }
 
@@ -542,6 +586,52 @@
   letter-spacing: 0.04em;
 }
 
+/* SELECTOR RÁPIDO MÓVIL (TABS TIPO APP) */
+.mobilePlanTabs {
+  display: none;
+}
+
+.mobilePlanTabBtn {
+  flex: 1;
+  padding: 0.55rem 0.25rem;
+  border-radius: 9999px;
+  border: none;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.mobilePlanTabBtnActive {
+  background: #ffffff;
+  color: #4f46e5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.mobilePlanDots {
+  display: none;
+}
+
+.mobilePlanDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobilePlanDotActive {
+  width: 22px;
+  border-radius: 9999px;
+  background: #4f46e5;
+}
+
 /* GRID DE PLANES */
 .planCardsGrid {
   display: grid;
@@ -550,12 +640,57 @@
   align-items: stretch;
 }
 
-@media (max-width: 900px) {
-  .planCardsGrid {
-    grid-template-columns: 1fr;
+@media (max-width: 768px) {
+  .mobilePlanTabs {
+    display: flex;
+    gap: 0.35rem;
+    background: #f1f5f9;
+    padding: 0.3rem;
+    border-radius: 9999px;
+    margin-bottom: 0.85rem;
   }
+
+  .mobilePlanDots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .planCardsGrid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.85rem;
+    padding: 0.65rem 0.25rem 0.85rem 0.25rem;
+    margin: 0 -0.25rem;
+    scrollbar-width: none;
+  }
+
+  .planCardsGrid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .planCard {
+    flex: 0 0 86% !important;
+    min-width: 86% !important;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    box-sizing: border-box;
+  }
+
   .modeSelector {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 960px) {
+  .planCardsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
   }
 }
 

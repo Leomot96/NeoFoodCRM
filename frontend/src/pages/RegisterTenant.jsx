@@ -433,7 +433,28 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
                   </div>
                 )}
 
-                {/* GRID DE SELECCIÓN DE PLANES CON DETALLE COMPLETO */}
+                {/* SELECTOR RÁPIDO MÓVIL (TABS TIPO APP) */}
+                <div className={styles.mobilePlanTabs}>
+                  {plans.map(p => {
+                    const isSelected = selectedPlanCode === p.code;
+                    return (
+                      <button
+                        key={`tab-${p.code}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlanCode(p.code);
+                          const el = document.getElementById(`plan-card-${p.code}`);
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                        }}
+                        className={`${styles.mobilePlanTabBtn} ${isSelected ? styles.mobilePlanTabBtnActive : ''}`}
+                      >
+                        <span>{p.code === 'basic' ? 'Emprendedor' : p.code === 'pro' ? 'Pro ⭐' : 'Cadenas'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* GRID DE SELECCIÓN DE PLANES CON DETALLE COMPLETO (CARRUSEL EN MÓVIL) */}
                 <div className={styles.planCardsGrid}>
                   {plans.map(p => {
                     const isSelected = selectedPlanCode === p.code;
@@ -442,6 +463,7 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
 
                     return (
                       <div
+                        id={`plan-card-${p.code}`}
                         key={p.code}
                         onClick={() => setSelectedPlanCode(p.code)}
                         className={`${styles.planCard} ${isSelected ? styles.planCardActive : ''}`}
@@ -535,6 +557,23 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
                       </div>
                     );
                   })}
+                </div>
+
+                {/* INDICADORES DE PUNTOS EN MÓVIL */}
+                <div className={styles.mobilePlanDots}>
+                  {plans.map(p => (
+                    <button
+                      type="button"
+                      key={`dot-${p.code}`}
+                      onClick={() => {
+                        setSelectedPlanCode(p.code);
+                        const el = document.getElementById(`plan-card-${p.code}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                      }}
+                      className={`${styles.mobilePlanDot} ${selectedPlanCode === p.code ? styles.mobilePlanDotActive : ''}`}
+                      aria-label={`Ver ${p.name}`}
+                    />
+                  ))}
                 </div>
               </div>
               

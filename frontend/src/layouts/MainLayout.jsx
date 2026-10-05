@@ -589,6 +589,56 @@ const MainLayout = () => {
             </span>
           </div>
         </footer>
+
+        {/* BARRA DE NAVEGACIÓN INFERIOR MÓVIL (TIPO APP NATIVA) */}
+        <nav className={styles.mobileBottomNav} aria-label="Navegación móvil del sistema">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
+          >
+            <LayoutDashboard size={20} />
+            <span>Inicio</span>
+          </NavLink>
+
+          <NavLink
+            to="/ventas"
+            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
+          >
+            <ShoppingCart size={20} />
+            <span>Ventas</span>
+          </NavLink>
+
+          <NavLink
+            to="/cocina"
+            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
+          >
+            <ChefHat size={20} />
+            <span>Cocina</span>
+          </NavLink>
+
+          <NavLink
+            to="/pedidos-tienda"
+            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <ShoppingBag size={20} />
+              {pendingOrdersCount > 0 && (
+                <span className={styles.mobileBadge}>{pendingOrdersCount}</span>
+              )}
+            </div>
+            <span>Tienda</span>
+          </NavLink>
+
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className={`${styles.mobileBottomNavItem} ${isSidebarOpen ? styles.mobileBottomNavActive : ''}`}
+          >
+            <Menu size={20} />
+            <span>Menú</span>
+          </button>
+        </nav>
       </main>
     </div>
   );
