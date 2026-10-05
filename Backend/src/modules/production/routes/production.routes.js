@@ -2,10 +2,12 @@ const express = require('express');
 const router = express.Router();
 const productionController = require('../controllers/production.controller');
 const { protectRoute, restrictTo } = require('../../../middlewares/auth.middleware');
+const { requirePlanFeature } = require('../../../middlewares/planFeature.middleware');
 const ROLES = require('../../../constants/roles');
 
-// Rutas protegidas (todas requieren autenticación)
+// Rutas protegidas (todas requieren autenticación y Plan Pro con recipes: true)
 router.use(protectRoute);
+router.use(requirePlanFeature('recipes', 'Sub-Recetas y Producción'));
 
 router
   .route('/')

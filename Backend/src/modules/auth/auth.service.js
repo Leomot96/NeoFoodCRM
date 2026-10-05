@@ -95,7 +95,9 @@ class AuthService {
             name: user.tenant.plan.name,
             code: user.tenant.plan.code,
             maxTables: user.tenant.plan.maxTables,
-            maxUsers: user.tenant.plan.maxUsers
+            maxUsers: user.tenant.plan.maxUsers,
+            maxBranches: user.tenant.plan.maxBranches,
+            features: user.tenant.plan.features
           } : null
         } : null
       },
@@ -519,7 +521,9 @@ class AuthService {
               name: plan.name,
               code: plan.code,
               maxTables: plan.maxTables,
-              maxUsers: plan.maxUsers
+              maxUsers: plan.maxUsers,
+              maxBranches: plan.maxBranches,
+              features: plan.features
             } : null
           }
         },

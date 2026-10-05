@@ -1,5 +1,6 @@
 const express = require('express');
 const { protectRoute, restrictTo } = require('../../middlewares/auth.middleware');
+const { requirePlanFeature } = require('../../middlewares/planFeature.middleware');
 const ROLES = require('../../constants/roles');
 
 const supplierController = require('./controllers/supplier.controller');
@@ -7,8 +8,9 @@ const purchaseController = require('./controllers/purchase.controller');
 
 const router = express.Router();
 
-// Todo el módulo de compras requiere autenticación
+// Todo el módulo de compras requiere autenticación y Plan Pro con inventory: true
 router.use(protectRoute);
+router.use(requirePlanFeature('inventory', 'Compras y Proveedores'));
 
 // =======================
 // RUTAS DE PROVEEDORES

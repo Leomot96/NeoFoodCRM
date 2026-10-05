@@ -13,42 +13,126 @@ export const SUPPORT_WHATSAPP = '573101234567';
 export const DEFAULT_PLANS = [
   {
     id: 'plan-basic-001',
-    name: 'Plan Básico',
+    name: 'Plan Emprendedor',
     code: 'basic',
-    description: 'Ideal para pequeños cafés, food trucks y panaderías.',
+    description: 'Ideal para cafeterías, dark kitchens y negocios que inician.',
     priceMonthly: 49000,
     priceAnnual: 490000,
-    maxTables: 6,
-    maxUsers: 2,
+    maxTables: 10,
+    maxUsers: 3,
     maxBranches: 1,
-    features: { pos: true, invoicesPdf: true, cashControl: true, inventory: false, analytics: false }
+    features: { pos: true, invoicesPdf: true, cashControl: true, inventory: false, recipes: false, analytics: false, storeWhatsapp: true, kitchenKds: true }
   },
   {
     id: 'plan-pro-001',
-    name: 'Plan Pro',
+    name: 'Plan Profesional',
     code: 'pro',
-    description: 'Para restaurantes en crecimiento con control de insumos y recetas.',
+    description: 'Para restaurantes consolidados que buscan rentabilidad y control.',
     priceMonthly: 89000,
     priceAnnual: 890000,
-    maxTables: 20,
-    maxUsers: 6,
+    maxTables: 25,
+    maxUsers: 8,
     maxBranches: 1,
-    features: { pos: true, invoicesPdf: true, cashControl: true, inventory: true, recipes: true, analytics: true }
+    features: { pos: true, invoicesPdf: true, cashControl: true, inventory: true, recipes: true, analytics: true, storeWhatsapp: true, kitchenKds: true }
   },
   {
     id: 'plan-enterprise-001',
-    name: 'Plan Enterprise',
+    name: 'Cadenas & Franquicias',
     code: 'enterprise',
-    description: 'Capacidad ilimitada, múltiples sedes y soporte prioritario 24/7.',
-    priceMonthly: 149000,
-    priceAnnual: 1490000,
+    description: 'Solución empresarial sin límites para marcas en expansión.',
+    priceMonthly: 159000,
+    priceAnnual: 1590000,
     maxTables: -1,
     maxUsers: -1,
     maxBranches: 5,
     features: {
       pos: true, invoicesPdf: true, cashControl: true, inventory: true,
-      recipes: true, analytics: true, multiBranch: true, prioritySupport: true
+      recipes: true, analytics: true, storeWhatsapp: true, kitchenKds: true,
+      multiBranch: true, prioritySupport: true
     }
+  }
+];
+
+export const PLANS_CATALOG = [
+  {
+    code: 'basic',
+    name: 'Plan Emprendedor',
+    tagline: 'Ideal para cafeterías, dark kitchens y negocios que inician.',
+    badge: null,
+    popular: false,
+    color: '#0ea5e9',
+    monthlyPrice: 49000,
+    annualPrice: 490000,
+    limits: {
+      tables: 'Hasta 10 mesas',
+      users: 'Hasta 3 usuarios concurrentes',
+      branches: '1 Sede / Establecimiento'
+    },
+    included: [
+      'Punto de Venta (POS) en pantalla completa',
+      'Pantalla Digital de Cocina (KDS)',
+      'Tienda Virtual con Pedidos a WhatsApp (0% comisión)',
+      'Control de Caja con Apertura y Cierres Ciegos',
+      'Emisión de Facturas y Tickets en PDF',
+      'Soporte estándar vía WhatsApp'
+    ],
+    notIncluded: [
+      'Inventario de materias primas',
+      'Sub-recetas y producción con costeo CMP',
+      'Órdenes de compra y proveedores',
+      'Analítica avanzada y reportes consolidados'
+    ]
+  },
+  {
+    code: 'pro',
+    name: 'Plan Profesional',
+    tagline: 'Para restaurantes consolidados que buscan rentabilidad y control.',
+    badge: 'MÁS POPULAR',
+    popular: true,
+    color: '#4f46e5',
+    monthlyPrice: 89000,
+    annualPrice: 890000,
+    limits: {
+      tables: 'Hasta 25 mesas',
+      users: 'Hasta 8 usuarios concurrentes',
+      branches: '1 Sede / Establecimiento'
+    },
+    included: [
+      'Todo lo del Plan Emprendedor',
+      'Inventario completo de insumos y materias primas',
+      'Sub-Recetas, fórmulas y producción con costo CMP',
+      'Módulo de Compras y Directorio de Proveedores',
+      'Kárdex de movimientos y alertas de stock crítico',
+      'Analítica y reportes financieros avanzados en PDF',
+      'Soporte prioritario'
+    ],
+    notIncluded: [
+      'Multi-sedes (más de 1 sucursal)'
+    ]
+  },
+  {
+    code: 'enterprise',
+    name: 'Cadenas & Franquicias',
+    tagline: 'Solución empresarial sin límites para marcas en expansión.',
+    badge: 'EMPRESARIAL',
+    popular: false,
+    color: '#10b981',
+    monthlyPrice: 159000,
+    annualPrice: 1590000,
+    limits: {
+      tables: 'Mesas ilimitadas',
+      users: 'Usuarios ilimitados',
+      branches: 'Hasta 5 Sedes incluidas'
+    },
+    included: [
+      'Todo lo del Plan Profesional',
+      'Capacidad ilimitada de mesas y meseros',
+      'Soporte multi-sucursales (hasta 5 sedes)',
+      'Consolidados financieros de toda la cadena',
+      'Onboarding y capacitación personalizada',
+      'Soporte VIP 24/7 y SLA garantizado'
+    ],
+    notIncluded: []
   }
 ];
 

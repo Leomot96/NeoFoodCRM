@@ -1,5 +1,6 @@
 const express = require('express');
 const { protectRoute, restrictTo } = require('../../middlewares/auth.middleware');
+const { requirePlanFeature } = require('../../middlewares/planFeature.middleware');
 const ROLES = require('../../constants/roles');
 
 const categoryController = require('./controllers/category.controller');
@@ -22,15 +23,15 @@ router.put('/categories/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR),
 router.delete('/categories/:id', restrictTo(ROLES.ADMINISTRADOR), categoryController.delete);
 
 // =======================
-// RUTAS DE INGREDIENTES
+// RUTAS DE INGREDIENTES (Requieren Plan Pro o superior)
 // =======================
-router.get('/ingredients/alerts', ingredientController.getAlerts); // Debe ir antes de /:id
-router.get('/ingredients', ingredientController.getAll);
-router.get('/ingredients/:id', ingredientController.getById);
-router.get('/ingredients/:id/kardex', ingredientController.getKardex);
-router.post('/ingredients', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), ingredientController.create);
-router.put('/ingredients/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), ingredientController.update);
-router.delete('/ingredients/:id', restrictTo(ROLES.ADMINISTRADOR), ingredientController.delete);
+router.get('/ingredients/alerts', requirePlanFeature('inventory', 'Alertas de Inventario'), ingredientController.getAlerts); // Debe ir antes de /:id
+router.get('/ingredients', requirePlanFeature('inventory', 'Inventario de Materias Primas'), ingredientController.getAll);
+router.get('/ingredients/:id', requirePlanFeature('inventory', 'Inventario de Materias Primas'), ingredientController.getById);
+router.get('/ingredients/:id/kardex', requirePlanFeature('inventory', 'Kárdex de Movimientos'), ingredientController.getKardex);
+router.post('/ingredients', requirePlanFeature('inventory', 'Inventario de Materias Primas'), restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), ingredientController.create);
+router.put('/ingredients/:id', requirePlanFeature('inventory', 'Inventario de Materias Primas'), restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), ingredientController.update);
+router.delete('/ingredients/:id', requirePlanFeature('inventory', 'Inventario de Materias Primas'), restrictTo(ROLES.ADMINISTRADOR), ingredientController.delete);
 
 const { uploadProductImage } = require('../../middlewares/upload.middleware');
 
@@ -46,8 +47,8 @@ router.put('/products/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), p
 router.delete('/products/:id', restrictTo(ROLES.ADMINISTRADOR), productController.delete);
 
 // =======================
-// RUTAS DE MOVIMIENTOS
+// RUTAS DE MOVIMIENTOS (Requieren Plan Pro o superior)
 // =======================
-router.post('/movements', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), movementController.registerManual);
+router.post('/movements', requirePlanFeature('inventory', 'Movimientos de Inventario'), restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), movementController.registerManual);
 
 module.exports = router;

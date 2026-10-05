@@ -21,43 +21,21 @@ import {
   Send,
   AlertCircle,
   CreditCard,
-  Building
+  Building,
+  Building2,
+  Check,
+  X,
+  Crown
 } from 'lucide-react';
 import styles from './RegisterTenant.module.css';
 import { validatePassword } from '../utils/passwordValidator';
-
-const DEFAULT_PLANS = [
-  {
-    id: 'plan-basic-001',
-    name: 'Plan Básico',
-    code: 'basic',
-    description: 'Ideal para pequeños cafés, food trucks y panaderías.',
-    priceMonthly: 49000,
-    priceAnnual: 490000,
-    maxTables: 6,
-    maxUsers: 2
-  },
-  {
-    id: 'plan-pro-001',
-    name: 'Plan Pro',
-    code: 'pro',
-    description: 'Para restaurantes en crecimiento con control de insumos y recetas.',
-    priceMonthly: 89000,
-    priceAnnual: 890000,
-    maxTables: 20,
-    maxUsers: 6
-  },
-  {
-    id: 'plan-enterprise-001',
-    name: 'Plan Enterprise',
-    code: 'enterprise',
-    description: 'Capacidad ilimitada, múltiples sedes y soporte prioritario 24/7.',
-    priceMonthly: 149000,
-    priceAnnual: 1490000,
-    maxTables: -1,
-    maxUsers: -1
-  }
-];
+import {
+  DEFAULT_PLANS,
+  PLANS_CATALOG,
+  TRIAL_DAYS,
+  formatCOP,
+  calculatePlanCost
+} from '../constants/plans';
 
 const RegisterTenant = () => {
   const { registerTenant } = useAuth();
@@ -155,16 +133,6 @@ const RegisterTenant = () => {
       currency: 'COP',
       maximumFractionDigits: 0
     }).format(amount || 0);
-  };
-
-  // Cálculo del monto total según ciclo
-  const calculatePlanCost = (plan, cycle) => {
-    if (!plan) return 0;
-    const monthly = parseFloat(plan.priceMonthly) || 0;
-    const annual = parseFloat(plan.priceAnnual) || monthly * 10;
-    if (cycle === 'annual') return annual;
-    if (cycle === 'semiannual') return monthly * 6;
-    return monthly;
   };
 
   const currentPlan = plans.find(p => p.code === selectedPlanCode) || plans[0];
@@ -427,58 +395,89 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
                   </button>
                 </div>
 
-                {/* Si elige Plan de Pago, mostramos los ciclos y las tarjetas de plan */}
+                {/* AVISO DE PRUEBA GRATUITA */}
+                {registrationMode === 'trial' && (
+                  <div className={styles.planTrialNotice}>
+                    <Sparkles size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+                    <span>
+                      Estás en modo <strong>Prueba Gratuita de {TRIAL_DAYS} Días</strong>. Elige el plan que deseas probar sin costo ni tarjeta de crédito.
+                    </span>
+                  </div>
+                )}
+
+                {/* SELECTOR DE CICLO (Solo en modo Pago) */}
                 {registrationMode === 'paid' && (
-                  <div>
-                    {/* Selector de Ciclo (Mensual, Semestral, Anual) */}
-                    <div className={styles.cycleSelector}>
-                      <button
-                        type="button"
-                        onClick={() => setBillingCycle('monthly')}
-                        className={`${styles.cycleTab} ${billingCycle === 'monthly' ? styles.cycleTabActive : ''}`}
-                      >
-                        <span>Mensual (1 mes)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBillingCycle('semiannual')}
-                        className={`${styles.cycleTab} ${billingCycle === 'semiannual' ? styles.cycleTabActive : ''}`}
-                      >
-                        <span>Semestral (6 meses)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBillingCycle('annual')}
-                        className={`${styles.cycleTab} ${billingCycle === 'annual' ? styles.cycleTabActive : ''}`}
-                      >
-                        <span>Anual (12 meses)</span>
-                        <span className={styles.discountPill}>Ahorra 2 meses</span>
-                      </button>
-                    </div>
+                  <div className={styles.cycleSelector}>
+                    <button
+                      type="button"
+                      onClick={() => setBillingCycle('monthly')}
+                      className={`${styles.cycleTab} ${billingCycle === 'monthly' ? styles.cycleTabActive : ''}`}
+                    >
+                      <span>Mensual (1 mes)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingCycle('semiannual')}
+                      className={`${styles.cycleTab} ${billingCycle === 'semiannual' ? styles.cycleTabActive : ''}`}
+                    >
+                      <span>Semestral (6 meses)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingCycle('annual')}
+                      className={`${styles.cycleTab} ${billingCycle === 'annual' ? styles.cycleTabActive : ''}`}
+                    >
+                      <span>Anual (12 meses)</span>
+                      <span className={styles.discountPill}>Ahorra 2 meses</span>
+                    </button>
+                  </div>
+                )}
 
-                    {/* Grid de Selección de Planes */}
-                    <div className={styles.planCardsGrid}>
-                      {plans.map(p => {
-                        const isSelected = selectedPlanCode === p.code;
-                        const cost = calculatePlanCost(p, billingCycle);
-                        return (
-                          <div
-                            key={p.code}
-                            onClick={() => setSelectedPlanCode(p.code)}
-                            className={`${styles.planCard} ${isSelected ? styles.planCardActive : ''}`}
-                          >
-                            <div className={styles.planCardHeader}>
-                              <span className={styles.planCardName}>{p.name}</span>
-                              <input
-                                type="radio"
-                                name="planSelection"
-                                checked={isSelected}
-                                onChange={() => setSelectedPlanCode(p.code)}
-                                className={styles.planCardRadio}
-                              />
+                {/* GRID DE SELECCIÓN DE PLANES CON DETALLE COMPLETO */}
+                <div className={styles.planCardsGrid}>
+                  {plans.map(p => {
+                    const isSelected = selectedPlanCode === p.code;
+                    const catalogItem = PLANS_CATALOG.find(cat => cat.code === p.code) || {};
+                    const cost = calculatePlanCost(p, billingCycle);
+
+                    return (
+                      <div
+                        key={p.code}
+                        onClick={() => setSelectedPlanCode(p.code)}
+                        className={`${styles.planCard} ${isSelected ? styles.planCardActive : ''}`}
+                      >
+                        {/* Badge superior si aplica */}
+                        {catalogItem.badge && (
+                          <span className={`${styles.planBadgeHeader} ${catalogItem.popular ? styles.popularPill : styles.enterprisePill}`}>
+                            {catalogItem.badge}
+                          </span>
+                        )}
+
+                        <div className={styles.planCardHeader}>
+                          <span className={styles.planCardName}>{catalogItem.name || p.name}</span>
+                          <input
+                            type="radio"
+                            name="planSelection"
+                            checked={isSelected}
+                            onChange={() => setSelectedPlanCode(p.code)}
+                            className={styles.planCardRadio}
+                          />
+                        </div>
+
+                        {/* Precios según modalidad (Trial vs Pago) */}
+                        <div className={styles.planCardPriceContainer}>
+                          {registrationMode === 'trial' ? (
+                            <div>
+                              <div className={styles.trialPriceZero}>
+                                <span className={styles.planCardPrice}>$0 COP</span>
+                                <span className={styles.trialPill}>7 DÍAS GRATIS</span>
+                              </div>
+                              <div className={styles.trialSubtext}>
+                                Luego {formatCurrency(p.priceMonthly)}/mes si decides continuar
+                              </div>
                             </div>
-
-                            <div className={styles.planCardPriceContainer}>
+                          ) : (
+                            <div>
                               <div className={styles.planCardPrice}>
                                 {billingCycle === 'monthly'
                                   ? formatCurrency(p.priceMonthly)
@@ -497,23 +496,46 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
                                 </div>
                               )}
                             </div>
+                          )}
+                        </div>
 
-                            <div className={styles.planCardLimits}>
-                              <div className={styles.planCardLimitItem}>
-                                <CheckCircle2 size={13} className={styles.planCardLimitIcon} />
-                                <span>{p.maxTables === -1 ? 'Mesas Ilimitadas' : `Hasta ${p.maxTables} mesas`}</span>
-                              </div>
-                              <div className={styles.planCardLimitItem}>
-                                <CheckCircle2 size={13} className={styles.planCardLimitIcon} />
-                                <span>{p.maxUsers === -1 ? 'Usuarios Ilimitados' : `Hasta ${p.maxUsers} usuarios`}</span>
-                              </div>
-                            </div>
+                        {/* Límites operativos */}
+                        <div className={styles.planCardLimits}>
+                          <div className={styles.planCardLimitItem}>
+                            <CheckCircle2 size={13} className={styles.planCardLimitIcon} />
+                            <span>{p.maxTables === -1 ? 'Mesas Ilimitadas' : `Hasta ${p.maxTables} mesas`}</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                          <div className={styles.planCardLimitItem}>
+                            <CheckCircle2 size={13} className={styles.planCardLimitIcon} />
+                            <span>{p.maxUsers === -1 ? 'Usuarios Ilimitados' : `Hasta ${p.maxUsers} usuarios`}</span>
+                          </div>
+                          <div className={styles.planCardLimitItem}>
+                            <Building2 size={13} className={styles.planCardLimitIcon} />
+                            <span>{(p.maxBranches || 1) > 1 ? `Hasta ${p.maxBranches} Sedes incluidas` : '1 Sede / Establecimiento'}</span>
+                          </div>
+                        </div>
+
+                        {/* Desglose de Características Incluidas y Excluidas */}
+                        {catalogItem.included && (
+                          <ul className={styles.planFeatureList}>
+                            {catalogItem.included.map((item, idx) => (
+                              <li key={`inc-${idx}`} className={`${styles.planFeatureItem} ${styles.planFeatureIncluded}`}>
+                                <Check size={12} className={styles.planFeatureCheck} />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                            {catalogItem.notIncluded && catalogItem.notIncluded.map((item, idx) => (
+                              <li key={`exc-${idx}`} className={`${styles.planFeatureItem} ${styles.planFeatureExcluded}`}>
+                                <X size={12} className={styles.planFeatureCross} />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               
               {/* Sección: Datos del Restaurante */}

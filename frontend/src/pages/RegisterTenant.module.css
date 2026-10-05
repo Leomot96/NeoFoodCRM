@@ -645,6 +645,110 @@
   flex-shrink: 0;
 }
 
+.planTrialNotice {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(79, 70, 229, 0.08));
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #065f46;
+  border-radius: 0.65rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.825rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.4;
+}
+
+.planBadgeHeader {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.popularPill {
+  background: linear-gradient(135deg, #4f46e5, #4338ca);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+}
+
+.enterprisePill {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
+.trialPriceZero {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.trialPill {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  font-size: 0.675rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  letter-spacing: 0.03em;
+}
+
+.trialSubtext {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+.planFeatureList {
+  list-style: none;
+  padding: 0;
+  margin: 0.65rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 0.6rem;
+}
+
+.planFeatureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.725rem;
+  line-height: 1.35;
+}
+
+.planFeatureIncluded {
+  color: #334155;
+}
+
+.planFeatureExcluded {
+  color: #94a3b8;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.planFeatureCheck {
+  color: #10b981;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.planFeatureCross {
+  color: #cbd5e1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 /* ========================================================
    VISTA: PAGO PENDIENTE DE VERIFICACIÓN (CONFIRMACIÓN)
    ======================================================== */

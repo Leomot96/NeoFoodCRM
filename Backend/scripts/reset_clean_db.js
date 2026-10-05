@@ -96,30 +96,33 @@ async function main() {
     {
       id: 'plan-basic-001',
       code: 'basic',
-      name: 'Plan Básico',
-      description: 'Ideal para pequeños cafés, food trucks y panaderías.',
+      name: 'Plan Emprendedor',
+      description: 'Ideal para cafeterías, dark kitchens y negocios que inician.',
       priceMonthly: 49000,
       priceAnnual: 490000,
-      maxTables: 6,
-      maxUsers: 2,
+      maxTables: 10,
+      maxUsers: 3,
       maxBranches: 1,
       features: {
         pos: true,
         invoicesPdf: true,
         cashControl: true,
         inventory: false,
-        analytics: false
+        recipes: false,
+        analytics: false,
+        storeWhatsapp: true,
+        kitchenKds: true
       }
     },
     {
       id: 'plan-pro-001',
       code: 'pro',
-      name: 'Plan Pro',
-      description: 'Para restaurantes en crecimiento con control de insumos y recetas.',
+      name: 'Plan Profesional',
+      description: 'Para restaurantes consolidados que buscan rentabilidad y control.',
       priceMonthly: 89000,
       priceAnnual: 890000,
-      maxTables: 20,
-      maxUsers: 6,
+      maxTables: 25,
+      maxUsers: 8,
       maxBranches: 1,
       features: {
         pos: true,
@@ -127,16 +130,18 @@ async function main() {
         cashControl: true,
         inventory: true,
         recipes: true,
-        analytics: true
+        analytics: true,
+        storeWhatsapp: true,
+        kitchenKds: true
       }
     },
     {
       id: 'plan-enterprise-001',
       code: 'enterprise',
-      name: 'Plan Enterprise',
-      description: 'Capacidad ilimitada, múltiples sedes y soporte prioritario 24/7.',
-      priceMonthly: 149000,
-      priceAnnual: 1490000,
+      name: 'Cadenas & Franquicias',
+      description: 'Solución empresarial sin límites para marcas en expansión.',
+      priceMonthly: 159000,
+      priceAnnual: 1590000,
       maxTables: -1,
       maxUsers: -1,
       maxBranches: 5,
@@ -147,6 +152,8 @@ async function main() {
         inventory: true,
         recipes: true,
         analytics: true,
+        storeWhatsapp: true,
+        kitchenKds: true,
         multiBranch: true,
         prioritySupport: true
       }

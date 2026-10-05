@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import storeService from '../services/store.service';
 import { getFullImageUrl } from '../utils/imageUrl';
+import { getPlanFeatures } from '../constants/plans';
+import FeatureLockedView from '../components/ui/FeatureLockedView/FeatureLockedView';
 import styles from './MainLayout.module.css';
 
 const MainLayout = () => {
@@ -146,6 +148,24 @@ const MainLayout = () => {
   const roleName = typeof user?.role === 'object' ? user?.role?.name : user?.role;
   const isSuperAdmin = roleName === 'SuperAdmin' || roleName === 'SUPERADMIN';
 
+  // Capacidades del plan del restaurante
+  const planFeatures = getPlanFeatures(user?.tenant?.plan);
+  const isFeatureLocked = (featureKey) => {
+    if (!featureKey || isSuperAdmin) return false;
+    return planFeatures && planFeatures[featureKey] === false;
+  };
+
+  // Mapeo de rutas que requieren características específicas del plan
+  const ROUTE_FEATURE_REQUIREMENTS = {
+    '/inventario': { key: 'inventory', plan: 'Plan Pro' },
+    '/produccion': { key: 'recipes', plan: 'Plan Pro' },
+    '/compras': { key: 'inventory', plan: 'Plan Pro' },
+    '/proveedores': { key: 'inventory', plan: 'Plan Pro' },
+    '/reportes': { key: 'analytics', plan: 'Plan Pro' }
+  };
+  const currentRouteLock = !isSuperAdmin && ROUTE_FEATURE_REQUIREMENTS[location.pathname];
+  const isCurrentRouteLocked = Boolean(currentRouteLock && planFeatures && planFeatures[currentRouteLock.key] === false);
+
   // Navegación agrupada por dominios operativos del restaurante
   const navSections = [
     {
@@ -168,10 +188,10 @@ const MainLayout = () => {
       id: 'stock',
       title: 'Inventario & Stock',
       items: [
-        { path: '/inventario', name: 'Inventario', icon: Package },
-        { path: '/produccion', name: 'Producción', icon: Factory },
-        { path: '/compras', name: 'Compras', icon: Store },
-        { path: '/proveedores', name: 'Proveedores', icon: Building2 },
+        { path: '/inventario', name: 'Inventario', icon: Package, featureKey: 'inventory' },
+        { path: '/produccion', name: 'Producción', icon: Factory, featureKey: 'recipes' },
+        { path: '/compras', name: 'Compras', icon: Store, featureKey: 'inventory' },
+        { path: '/proveedores', name: 'Proveedores', icon: Building2, featureKey: 'inventory' },
       ]
     },
     {
@@ -179,7 +199,7 @@ const MainLayout = () => {
       title: 'Finanzas & Reportes',
       items: [
         { path: '/facturas', name: 'Facturas', icon: FileText },
-        { path: '/reportes', name: 'Reportes', icon: BarChart3 },
+        { path: '/reportes', name: 'Reportes', icon: BarChart3, featureKey: 'analytics' },
       ]
     },
     {
@@ -286,23 +306,50 @@ const MainLayout = () => {
                           border: '1.5px solid #ffffff'
                         }}></span>
                       )}
+                      {isFeatureLocked(item.featureKey) && isCollapsed && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          width: '8px',
+                          height: '8px',
+                          backgroundColor: '#f59e0b',
+                          borderRadius: '50%',
+                          border: '1.5px solid #ffffff'
+                        }} title="Requiere Plan Pro"></span>
+                      )}
                     </div>
                     {!isCollapsed && (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                         <span className={styles.sidebarNavItemText}>{item.name}</span>
-                        {item.badge && (
-                          <span style={{
-                            backgroundColor: '#ef4444',
-                            color: '#ffffff',
-                            fontSize: '0.7rem',
-                            fontWeight: 900,
-                            padding: '0.1rem 0.45rem',
-                            borderRadius: '9999px',
-                            marginLeft: '0.5rem'
-                          }}>
-                            {item.badge}
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          {isFeatureLocked(item.featureKey) && (
+                            <span style={{
+                              background: 'linear-gradient(135deg, #4f46e5, #059669)',
+                              color: '#ffffff',
+                              fontSize: '0.625rem',
+                              fontWeight: 900,
+                              letterSpacing: '0.05em',
+                              padding: '0.12rem 0.45rem',
+                              borderRadius: '9999px',
+                              boxShadow: '0 1px 3px rgba(79, 70, 229, 0.3)'
+                            }} title="Módulo exclusivo Plan Pro">
+                              PRO
+                            </span>
+                          )}
+                          {item.badge && (
+                            <span style={{
+                              backgroundColor: '#ef4444',
+                              color: '#ffffff',
+                              fontSize: '0.7rem',
+                              fontWeight: 900,
+                              padding: '0.1rem 0.45rem',
+                              borderRadius: '9999px',
+                            }}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     )}
                   </NavLink>
@@ -506,7 +553,14 @@ const MainLayout = () => {
         {/* Contenedor de Páginas */}
         <div className={`${styles.layoutContentView} ${location.pathname === '/ventas' ? styles.isPosView : ''}`}>
           <div className={`${styles.layoutPageBody} ${location.pathname === '/ventas' ? styles.isPosPageBody : ''}`}>
-            <Outlet />
+            {isCurrentRouteLocked ? (
+              <FeatureLockedView
+                featureKey={currentRouteLock.key}
+                planRequired={currentRouteLock.plan}
+              />
+            ) : (
+              <Outlet />
+            )}
           </div>
         </div>
 
@@ -517,7 +571,7 @@ const MainLayout = () => {
             <span className={styles.layoutFooterSep}>•</span>
             <span className={styles.layoutFooterDesc}>Sistema Integral de Gestión Gastronómica</span>
             <span className={styles.layoutFooterSep}>•</span>
-            <span className={styles.layoutFooterVersion}>v 1.7.5</span>
+            <span className={styles.layoutFooterVersion}>v 1.7.6</span>
           </div>
 
           <div className={styles.layoutFooterRight}>
