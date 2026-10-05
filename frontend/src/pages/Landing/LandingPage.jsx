@@ -193,6 +193,14 @@ const LandingPage = () => {
     navigate(`/registro?plan=${planCode}&mode=paid&cycle=${billingCycle}`);
   };
 
+  const scrollToSection = (e, sectionId) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const activeModule = MODULES_SHOWCASE.find(m => m.id === activeTab) || MODULES_SHOWCASE[0];
 
   return (
@@ -201,7 +209,7 @@ const LandingPage = () => {
       <div className={styles.topAnnouncement}>
         <div className={styles.topAnnouncementInner}>
           <span className={styles.announcementBadge}>
-            <Sparkles size={13} /> ¡Lanzamiento v1.7.5!
+            <Sparkles size={13} /> ¡Lanzamiento v1.7.6!
           </span>
           <span className={styles.announcementText}>
             Prueba <strong>NeoFood Gratis por {TRIAL_DAYS} Días</strong> con acceso completo a todos los módulos. Sin tarjeta de crédito.
@@ -225,10 +233,10 @@ const LandingPage = () => {
           </Link>
 
           <nav className={styles.navLinks}>
-            <a href="#modulos" className={styles.navLink}>Módulos</a>
-            <a href="#whatsapp" className={styles.navLink}>Tienda WhatsApp</a>
-            <a href="#precios" className={styles.navLink}>Planes & Precios</a>
-            <a href="#faq" className={styles.navLink}>Preguntas</a>
+            <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} className={styles.navLink}>Módulos</a>
+            <a href="#whatsapp" onClick={(e) => scrollToSection(e, 'whatsapp')} className={styles.navLink}>Tienda WhatsApp</a>
+            <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')} className={styles.navLink}>Planes & Precios</a>
+            <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} className={styles.navLink}>Preguntas</a>
           </nav>
 
           <div className={styles.navActions}>
@@ -275,7 +283,7 @@ const LandingPage = () => {
               <span>Comenzar Prueba Gratuita de {TRIAL_DAYS} Días</span>
               <ArrowRight size={18} />
             </button>
-            <a href="#precios" className={styles.heroSecondaryBtn}>
+            <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')} className={styles.heroSecondaryBtn}>
               <span>Ver Planes y Precios</span>
               <ChevronDown size={17} />
             </a>
@@ -928,12 +936,12 @@ const LandingPage = () => {
             <div className={styles.footerCol}>
               <h4 className={styles.footerColTitle}>Módulos</h4>
               <ul className={styles.footerLinks}>
-                <li><a href="#modulos">Punto de Venta (POS)</a></li>
-                <li><a href="#modulos">Pantalla de Cocina (KDS)</a></li>
-                <li><a href="#whatsapp">Tienda Virtual WhatsApp</a></li>
-                <li><a href="#modulos">Control de Caja y Turnos</a></li>
-                <li><a href="#modulos">Sub-Recetas y Producción</a></li>
-                <li><a href="#modulos">Facturación y Reportes PDF</a></li>
+                <li><a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>Punto de Venta (POS)</a></li>
+                <li><a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>Pantalla de Cocina (KDS)</a></li>
+                <li><a href="#whatsapp" onClick={(e) => scrollToSection(e, 'whatsapp')}>Tienda Virtual WhatsApp</a></li>
+                <li><a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>Control de Caja y Turnos</a></li>
+                <li><a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>Sub-Recetas y Producción</a></li>
+                <li><a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')}>Facturación y Reportes PDF</a></li>
               </ul>
             </div>
 
@@ -942,8 +950,8 @@ const LandingPage = () => {
               <ul className={styles.footerLinks}>
                 <li><Link to="/login">Iniciar Sesión</Link></li>
                 <li><Link to="/registro">Crear Cuenta (Registro)</Link></li>
-                <li><a href="#precios">Planes y Precios</a></li>
-                <li><a href="#faq">Preguntas Frecuentes</a></li>
+                <li><a href="#precios" onClick={(e) => scrollToSection(e, 'precios')}>Planes y Precios</a></li>
+                <li><a href="#faq" onClick={(e) => scrollToSection(e, 'faq')}>Preguntas Frecuentes</a></li>
               </ul>
             </div>
 
@@ -971,9 +979,9 @@ const LandingPage = () => {
               &copy; {new Date().getFullYear()} NeoFood CRM & POS. Todos los derechos reservados. Diseñado para potenciar el sector gastronómico.
             </p>
             <div className={styles.footerLegal}>
-              <span>Versión 1.7.5</span>
+              <span>Versión 1.7.6</span>
               <span>•</span>
-              <a href="#precios">Términos del Servicio</a>
+              <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')}>Términos del Servicio</a>
               <span>•</span>
               <Link to="/login">Portal de Clientes</Link>
             </div>
