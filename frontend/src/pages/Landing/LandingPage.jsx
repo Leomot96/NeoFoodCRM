@@ -209,7 +209,7 @@ const LandingPage = () => {
       <div className={styles.topAnnouncement}>
         <div className={styles.topAnnouncementInner}>
           <span className={styles.announcementBadge}>
-            <Sparkles size={13} /> ¡Lanzamiento v1.7.6!
+            <Sparkles size={13} /> ¡Lanzamiento v1.8.0!
           </span>
           <span className={styles.announcementText}>
             Prueba <strong>NeoFood Gratis por {TRIAL_DAYS} Días</strong> con acceso completo a todos los módulos. Sin tarjeta de crédito.
@@ -717,23 +717,14 @@ const LandingPage = () => {
                   </div>
                 </div>
 
-                {/* Botón Principal: Prueba Gratis */}
+                {/* Botón Principal: Comenzar 7 Días de Prueba con este Plan */}
                 <button
                   onClick={() => handleStartTrial(plan.code)}
                   className={`${styles.planPrimaryBtn} ${isPro ? styles.planPrimaryBtnPro : ''}`}
                 >
                   <Sparkles size={16} />
-                  <span>Probar {TRIAL_DAYS} Días Gratis</span>
+                  <span>Comenzar {TRIAL_DAYS} Días de Prueba</span>
                 </button>
-
-                {/* Botón Secundario: Suscribirse Directo */}
-                <button
-                  onClick={() => handleSelectPaid(plan.code)}
-                  className={styles.planSecondaryBtn}
-                >
-                  Contratar Plan ({billingCycle === 'annual' ? 'Anual' : billingCycle === 'semiannual' ? 'Semestral' : 'Mensual'})
-                </button>
-
                 <div className={styles.pricingDivider}></div>
 
                 {/* Lista de Características */}
@@ -979,11 +970,15 @@ const LandingPage = () => {
               &copy; {new Date().getFullYear()} NeoFood CRM & POS. Todos los derechos reservados. Diseñado para potenciar el sector gastronómico.
             </p>
             <div className={styles.footerLegal}>
-              <span>Versión 1.7.6</span>
+              <span>Versión 1.8.0</span>
               <span>•</span>
-              <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')}>Términos del Servicio</a>
+              <Link to="/terminos">Términos del Servicio</Link>
               <span>•</span>
-              <Link to="/login">Portal de Clientes</Link>
+              <Link to="/privacidad">Privacidad & Habeas Data</Link>
+              <span>•</span>
+              <Link to="/cookies">Cookies</Link>
+              <span>•</span>
+              <Link to="/sla">Garantía SLA</Link>
             </div>
           </div>
         </div>

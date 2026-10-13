@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, AlertTriangle, Plus, Store, Edit2, Trash2, X, Search, ChefHat, ShoppingCart, Factory, Layers } from 'lucide-react';
+import { Package, AlertTriangle, Plus, Store, Edit2, Trash2, X, Search, ChefHat, ShoppingCart, Factory, Layers, RotateCcw, Archive } from 'lucide-react';
 import CustomSelect from '../../components/ui/CustomSelect';
 import { Pagination } from '../../components/ui';
 import api from '../../services/api';
@@ -40,7 +40,7 @@ const IngredientsList = () => {
   const fetchIngredients = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/inventory/ingredients');
+      const response = await api.get('/inventory/ingredients?includeInactive=true');
       setIngredients(response.data.data || []);
     } catch (err) {
       console.error('Error al cargar insumos', err);
@@ -144,10 +144,23 @@ const IngredientsList = () => {
   const handleDelete = async (id, name) => {
     if (!window.confirm(`¿Estás seguro de eliminar el insumo "${name}"?`)) return;
     try {
-      await api.delete(`/inventory/ingredients/${id}`);
+      const res = await api.delete(`/inventory/ingredients/${id}`);
+      if (res.data?.action === 'deactivated') {
+        alert(res.data.message);
+      }
       fetchIngredients();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al eliminar el insumo. Puede estar vinculado a recetas o compras.');
+      alert(err.response?.data?.message || 'Error al eliminar el insumo.');
+    }
+  };
+
+  const handleReactivate = async (id, name) => {
+    try {
+      await api.put(`/inventory/ingredients/${id}`, { isActive: true });
+      alert(`El insumo "${name}" fue reactivado exitosamente.`);
+      fetchIngredients();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al reactivar el insumo.');
     }
   };
 
@@ -182,11 +195,19 @@ const IngredientsList = () => {
     setFormData({ ...formData, recipeIngredients: newRecipe });
   };
 
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'raw' | 'manufactured'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'raw' | 'manufactured' | 'inactive'
+
+  const activeIngredients = ingredients.filter(i => i.isActive !== false);
+  const inactiveIngredients = ingredients.filter(i => i.isActive === false);
 
   const filteredIngredients = ingredients.filter(ing => {
-    if (activeTab === 'raw' && ing.isManufactured) return false;
-    if (activeTab === 'manufactured' && !ing.isManufactured) return false;
+    if (activeTab === 'inactive') {
+      if (ing.isActive !== false) return false;
+    } else {
+      if (ing.isActive === false) return false;
+      if (activeTab === 'raw' && ing.isManufactured) return false;
+      if (activeTab === 'manufactured' && !ing.isManufactured) return false;
+    }
 
     const term = searchTerm.toLowerCase();
     return ing.name.toLowerCase().includes(term) || (ing.unit && ing.unit.toLowerCase().includes(term));
@@ -194,8 +215,9 @@ const IngredientsList = () => {
 
   const paginatedIngredients = filteredIngredients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const rawCount = ingredients.filter(i => !i.isManufactured).length;
-  const manufacturedCount = ingredients.filter(i => i.isManufactured).length;
+  const rawCount = activeIngredients.filter(i => !i.isManufactured).length;
+  const manufacturedCount = activeIngredients.filter(i => i.isManufactured).length;
+  const inactiveCount = inactiveIngredients.length;
 
   return (
     <div className={styles.invCard}>
@@ -222,7 +244,7 @@ const IngredientsList = () => {
           <Layers size={18} />
           <span>Todos los Insumos</span>
           <span style={{ fontSize: '0.75rem', backgroundColor: activeTab === 'all' ? '#e0e7ff' : '#f1f5f9', color: activeTab === 'all' ? '#4338ca' : '#64748b', padding: '0.1rem 0.45rem', borderRadius: '9999px', fontWeight: 700 }}>
-            {ingredients.length}
+            {activeIngredients.length}
           </span>
         </button>
 
@@ -275,6 +297,31 @@ const IngredientsList = () => {
             {manufacturedCount}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('inactive')}
+          style={{
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inactive' ? '2.5px solid #f59e0b' : '2.5px solid transparent',
+            padding: '1rem 0.6rem',
+            color: activeTab === 'inactive' ? '#d97706' : 'var(--text-muted)',
+            fontWeight: activeTab === 'inactive' ? 700 : 500,
+            cursor: 'pointer',
+            fontSize: '0.925rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Archive size={18} />
+          <span>Archivados / Desactivados</span>
+          <span style={{ fontSize: '0.75rem', backgroundColor: activeTab === 'inactive' ? '#fef3c7' : '#f1f5f9', color: activeTab === 'inactive' ? '#b45309' : '#64748b', padding: '0.1rem 0.45rem', borderRadius: '9999px', fontWeight: 700 }}>
+            {inactiveCount}
+          </span>
+        </button>
       </div>
 
       {/* HEADER DE LA BODEGA CON ACCIONES SEGÚN PESTAÑA */}
@@ -299,11 +346,18 @@ const IngredientsList = () => {
                 <span>Elaborados y Subrecetas de Cocina</span>
               </>
             )}
+            {activeTab === 'inactive' && (
+              <>
+                <Archive style={{ color: '#d97706' }} size={22} />
+                <span>Insumos Archivados y Desactivados</span>
+              </>
+            )}
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>
             {activeTab === 'all' && 'Vista integral: conviven los insumos comerciales (salchichas, chorizos, gaseosas) y las preparaciones elaboradas (carnes porcionadas, salsas).'}
             {activeTab === 'raw' && 'Materias primas, empaques, abarrotes y bebidas adquiridas a distribuidores comerciales.'}
             {activeTab === 'manufactured' && 'Preparaciones internas elaboradas a partir de materias primas con costeo automático (CMP).'}
+            {activeTab === 'inactive' && 'Insumos que fueron desactivados para preservar el historial contable y compras. Puedes reactivarlos en cualquier momento.'}
           </p>
         </div>
 
@@ -400,16 +454,22 @@ const IngredientsList = () => {
                 <td colSpan="8" style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                     <Package size={36} style={{ opacity: 0.4 }} />
-                    <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>No se encontraron insumos</p>
-                    <p style={{ fontSize: '0.75rem', margin: 0 }}>Agrega materias primas o digita una compra para comenzar a registrar inventario.</p>
-                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-                      <button onClick={() => openModal()} className="neo-btn neo-btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
-                        <Plus size={14} /> Crear Insumo
-                      </button>
-                      <button onClick={() => setIsPurchaseModalOpen(true)} className="neo-btn neo-btn-success" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
-                        <ShoppingCart size={14} /> Registrar Compra
-                      </button>
-                    </div>
+                    <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                      {activeTab === 'inactive' ? 'No hay insumos archivados' : 'No se encontraron insumos'}
+                    </p>
+                    <p style={{ fontSize: '0.75rem', margin: 0 }}>
+                      {activeTab === 'inactive' ? 'Los insumos que desactives aparecerán aquí para que puedas consultarlos o reactivarlos.' : 'Agrega materias primas o digita una compra para comenzar a registrar inventario.'}
+                    </p>
+                    {activeTab !== 'inactive' && (
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+                        <button onClick={() => openModal()} className="neo-btn neo-btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
+                          <Plus size={14} /> Crear Insumo
+                        </button>
+                        <button onClick={() => setIsPurchaseModalOpen(true)} className="neo-btn neo-btn-success" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
+                          <ShoppingCart size={14} /> Registrar Compra
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -451,7 +511,11 @@ const IngredientsList = () => {
                       {minStock.toLocaleString('es-CO')}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      {isLow ? (
+                      {ing.isActive === false ? (
+                        <span className={styles.invBadge} style={{ backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
+                          Inactivo
+                        </span>
+                      ) : isLow ? (
                         <span className={`${styles.invBadge} ${styles.invBadgeDanger}`}>
                           <AlertTriangle size={13} /> Bajo Stock
                         </span>
@@ -463,22 +527,37 @@ const IngredientsList = () => {
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => openModal(ing)}
-                          className="neo-btn neo-btn-ghost"
-                          style={{ padding: '0.35rem' }}
-                          title="Editar Insumo"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(ing.id, ing.name)}
-                          className="neo-btn neo-btn-ghost"
-                          style={{ padding: '0.35rem', color: '#ef4444' }}
-                          title="Eliminar Insumo"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {ing.isActive === false ? (
+                          <button
+                            type="button"
+                            onClick={() => handleReactivate(ing.id, ing.name)}
+                            className="neo-btn neo-btn-ghost"
+                            style={{ padding: '0.35rem 0.65rem', color: '#059669', backgroundColor: '#ecfdf5', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', border: '1px solid #a7f3d0' }}
+                            title="Reactivar Insumo"
+                          >
+                            <RotateCcw size={13} />
+                            <span>Reactivar</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => openModal(ing)}
+                              className="neo-btn neo-btn-ghost"
+                              style={{ padding: '0.35rem' }}
+                              title="Editar Insumo"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(ing.id, ing.name)}
+                              className="neo-btn neo-btn-ghost"
+                              style={{ padding: '0.35rem', color: '#ef4444' }}
+                              title="Eliminar Insumo"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

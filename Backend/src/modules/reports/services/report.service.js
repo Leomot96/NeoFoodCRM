@@ -75,7 +75,10 @@ class ReportService {
 
   async getInventory() {
     // El inventario no se filtra por fecha, es el stock actual
-    const ingredients = await prisma.ingredient.findMany({ orderBy: { name: 'asc' } });
+    const ingredients = await prisma.ingredient.findMany({ 
+      where: { isActive: true }, 
+      orderBy: { name: 'asc' } 
+    });
     const products = await prisma.product.findMany({ 
       where: { trackStock: true }, 
       orderBy: { name: 'asc' } 

@@ -539,6 +539,7 @@ class SaleService {
 
     // 8. Insumos con bajo stock
     const allIngredients = await prisma.ingredient.findMany({
+      where: { isActive: true },
       orderBy: { currentStock: 'asc' }
     });
     const lowStockItems = allIngredients

@@ -5,7 +5,7 @@ import ProductForm from '../components/inventory/ProductForm';
 import CategoryForm from '../components/inventory/CategoryForm';
 import IngredientsList from './Inventory/IngredientsList'; // <-- Importamos la vista de bodega
 import CustomSelect from '../components/ui/CustomSelect';
-import { Plus, Edit2, Trash2, Package, AlertTriangle, Layers, Database, ShoppingBag, Store, Image as ImageIcon, Search, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, AlertTriangle, Layers, Database, ShoppingBag, Store, Image as ImageIcon, Search, X, RotateCcw } from 'lucide-react';
 import { Pagination } from '../components/ui';
 import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './Inventario.module.css';
@@ -30,6 +30,7 @@ const Inventario = () => {
   // Estados de búsqueda y filtros
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('ALL');
+  const [productStatusFilter, setProductStatusFilter] = useState('ACTIVE'); // 'ACTIVE' | 'INACTIVE' | 'ALL'
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
 
   // Estados de paginación independientes
@@ -38,10 +39,11 @@ const Inventario = () => {
   const productsPageSize = 6;
   const categoriesPageSize = 8;
 
-  const availableProducts = products.filter(p => p.isAvailable !== false);
-
   // Filtrado reactivo de productos
-  const filteredProducts = availableProducts.filter(p => {
+  const filteredProducts = products.filter(p => {
+    if (productStatusFilter === 'ACTIVE' && p.isAvailable === false) return false;
+    if (productStatusFilter === 'INACTIVE' && p.isAvailable !== false) return false;
+
     const matchSearch = !productSearchTerm.trim() || 
       p.name.toLowerCase().includes(productSearchTerm.toLowerCase().trim()) ||
       (p.description && p.description.toLowerCase().includes(productSearchTerm.toLowerCase().trim())) ||
@@ -239,12 +241,29 @@ const Inventario = () => {
                 />
               </div>
 
-              {(productSearchTerm || productCategoryFilter !== 'ALL') && (
+              <div style={{ minWidth: '170px' }}>
+                <CustomSelect
+                  value={productStatusFilter}
+                  onChange={(val) => {
+                    setProductStatusFilter(val);
+                    setProductsPage(1);
+                  }}
+                  options={[
+                    { value: 'ACTIVE', label: 'Activos en Carta' },
+                    { value: 'INACTIVE', label: 'Desactivados / Archivados' },
+                    { value: 'ALL', label: 'Todos los Estados' }
+                  ]}
+                  placeholder="Estado..."
+                />
+              </div>
+
+              {(productSearchTerm || productCategoryFilter !== 'ALL' || productStatusFilter !== 'ACTIVE') && (
                 <button
                   type="button"
                   onClick={() => {
                     setProductSearchTerm('');
                     setProductCategoryFilter('ALL');
+                    setProductStatusFilter('ACTIVE');
                     setProductsPage(1);
                   }}
                   className="neo-btn neo-btn-ghost text-xs"
@@ -315,6 +334,11 @@ const Inventario = () => {
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>{product.name}</p>
+                            {product.isAvailable === false && (
+                              <span className={styles.invBadge} style={{ backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}>
+                                Inactivo
+                              </span>
+                            )}
                             {product.isCombo && (
                               <span className={`${styles.invBadge} ${styles.invBadgeAmber}`}>
                                 ⭐ Combo
@@ -362,22 +386,40 @@ const Inventario = () => {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => handleOpenProductModal(product)}
-                          className="neo-btn neo-btn-ghost"
-                          style={{ padding: '0.35rem' }}
-                          title="Editar"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id, product.name)}
-                          className="neo-btn neo-btn-ghost"
-                          style={{ padding: '0.35rem', color: '#ef4444' }}
-                          title="Desactivar"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {product.isAvailable === false ? (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await editProduct(product.id, { isAvailable: true });
+                              alert(`El producto "${product.name}" fue reactivado exitosamente.`);
+                            }}
+                            className="neo-btn neo-btn-ghost"
+                            style={{ padding: '0.35rem 0.65rem', color: '#059669', backgroundColor: '#ecfdf5', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', border: '1px solid #a7f3d0' }}
+                            title="Reactivar Producto"
+                          >
+                            <RotateCcw size={14} />
+                            <span>Reactivar</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleOpenProductModal(product)}
+                              className="neo-btn neo-btn-ghost"
+                              style={{ padding: '0.35rem' }}
+                              title="Editar"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(product.id, product.name)}
+                              className="neo-btn neo-btn-ghost"
+                              style={{ padding: '0.35rem', color: '#ef4444' }}
+                              title="Desactivar"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -388,14 +430,18 @@ const Inventario = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                         <ShoppingBag size={36} style={{ opacity: 0.4 }} />
                         <p style={{ fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
-                          {productSearchTerm || productCategoryFilter !== 'ALL'
-                            ? 'No se encontraron productos con los filtros aplicados'
-                            : 'No hay productos en el menú'}
+                          {productStatusFilter === 'INACTIVE'
+                            ? 'No hay productos archivados o desactivados'
+                            : (productSearchTerm || productCategoryFilter !== 'ALL'
+                              ? 'No se encontraron productos con los filtros aplicados'
+                              : 'No hay productos en el menú')}
                         </p>
                         <p style={{ fontSize: '0.75rem', margin: 0 }}>
-                          {productSearchTerm || productCategoryFilter !== 'ALL'
-                            ? 'Prueba modificando la búsqueda o seleccionando otra categoría.'
-                            : 'Registra tus platos, bebidas o combos para comenzar a vender.'}
+                          {productStatusFilter === 'INACTIVE'
+                            ? 'Los productos que desactives aparecerán aquí para que puedas consultarlos o reactivarlos en cualquier momento.'
+                            : (productSearchTerm || productCategoryFilter !== 'ALL'
+                              ? 'Prueba modificando la búsqueda o seleccionando otra categoría.'
+                              : 'Registra tus platos, bebidas o combos para comenzar a vender.')}
                         </p>
                       </div>
                     </td>

@@ -3,7 +3,7 @@
 <div align="center">
 
 ![NeoFood Banner](https://img.shields.io/badge/NeoFood-SaaS%20%26%20POS-4f46e5?style=for-the-badge&logoColor=white)
-![Version](https://img.shields.io/badge/Versi%C3%B3n-1.7.6-10b981?style=for-the-badge)
+![Version](https://img.shields.io/badge/Versi%C3%B3n-1.8.0-10b981?style=for-the-badge)
 ![MultiTenant](https://img.shields.io/badge/Arquitectura-Multi--Tenant-blueviolet?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Estado-Producci%C3%B3n-blue?style=for-the-badge)
 ![Author](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
@@ -16,6 +16,7 @@
 
 [Manual de Usuario](MANUAL_DE_USUARIO.md) •
 [Certificado de Autoría](CERTIFICATE.md) •
+[Novedades v1.8.0](#-novedades-de-la-versión-180) •
 [Novedades v1.7.6](#-novedades-de-la-versión-176) •
 [Novedades v1.7.5](#-novedades-de-la-versión-175) •
 [Novedades v1.7.0](#-novedades-de-la-versión-170) •
@@ -51,6 +52,26 @@ Diseñado bajo principios de **arquitectura modular limpia**, **100% CSS Nativo*
 - 📊 **Módulo de Reportes & Exportación PDF:** Generación institucional en PDF de reportes diarios de caja, consolidados mensuales y facturas de venta con el servicio centralizado `reportPdfService`.
 - 🛡️ **Seguridad y Permisos:** Autenticación robusta con JSON Web Tokens (JWT), refresh tokens, hash Bcrypt, política estricta de contraseñas seguras multicriterio y control de acceso basado en roles (*SuperAdmin*, *Administrador*, *Cajero*, *Mesero*).
 - 📦 **Componentes de Alto Nivel:** Modales elegantes con fondo difuminado (`backdrop-filter`), formularios con feedback táctil y selectores interactivos (`CustomSelect`) con buscador reactivo superior.
+
+---
+
+## 🆕 Novedades de la Versión 1.8.0
+
+### Seguridad, Pre-Verificación de Correo (Resend), Onboarding & Centro Legal
+1. **Pre-Verificación de Correo con Código OTP (Resend):** Arquitectura de validación en dos pasos donde el usuario recibe un código de 6 dígitos y valida su correo antes de registrar cualquier restaurante o usuario en la base de datos, erradicando registros basura y spam.
+2. **Defensa Multicapa Anti-Bot & Anti-Spam:**
+   - **Rate Limiting Estricto:** Control de frecuencia por IP en envío de OTP (5 cada 15m), validación (10 cada 15m) y creación de sedes (5 por hora).
+   - **Trampa Honeypot Invisible con Shadow-Drop:** Detección de bots automatizados que simula éxito inmediato sin gastar créditos de Resend ni escribir en la base de datos.
+   - **Filtro de Correos Temporales / Desechables:** Bloqueo automático de servicios como `tempmail`, `10minutemail`, `mailinator`, etc.
+3. **7 Días de Prueba Unificados para Todos los Planes:** Cualquier plan seleccionado (Básico, Pro o Cadenas) otorga automáticamente 7 días de prueba completa. Al expirar los 7 días, todos los datos y configuraciones permanecen intactos, suspendiendo el acceso operativo hasta la activación del plan.
+4. **Rediseño Compacto del Registro (Menos Scroll):** Formulario ergonómico en 2 columnas con reducción radical de espacios y márgenes, ubicando el selector de planes compacto en la parte final justo antes del botón de confirmación.
+5. **Centro Legal Integral & Cumplimiento Normativo (`/legal`):**
+   - **Términos y Condiciones del Servicio (`/terminos`):** Reglas contractuales SaaS, custodia de datos gastronómicos y 0% comisión en pedidos por WhatsApp.
+   - **Política de Privacidad y Habeas Data (`/privacidad`):** Cumplimiento de la Ley 1581 de 2012 / Decreto 1377 de 2013 (Colombia) y estándares GDPR, con aislamiento multi-tenant.
+   - **Política de Cookies (`/cookies`):** Transparencia sobre almacenamiento local y cookies técnicas sin rastreo publicitario invasivo.
+   - **Acuerdo de Nivel de Servicio (`/sla`):** Compromiso de disponibilidad 99.5% y respaldos diarios.
+   - **Banner de Cookies Flotante:** Consentimiento informado no obstructivo con persistencia local.
+6. **Gestión de Usuarios con Contexto de Restaurante (SuperAdmin):** Columna y filtro para identificar a qué restaurante pertenece cada usuario del sistema y selector de sede al crear/editar usuarios.
 
 ---
 
@@ -434,7 +455,7 @@ El proyecto cuenta con un ecosistema completo de documentación oficial, directr
 
 <div align="center">
 
-**NeoFood POS & ERP** — Versión **1.7.5 SaaS Cloud Edition**  
+**NeoFood POS & ERP** — Versión **1.8.0 SaaS Cloud Edition**  
 Diseñado, Creado y Arquitectado Exclusivamente por **Leonardo Ramirez**  
 *Autor y Titular de los Derechos Morales y Patrimoniales de la Obra de Software*  
 *Sistema Integral de Gestión Gastronómica &copy; 2026. Todos los derechos reservados.*

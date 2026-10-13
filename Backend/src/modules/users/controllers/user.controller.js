@@ -10,10 +10,24 @@ exports.getRoles = async (req, res, next) => {
   }
 };
 
+// Obtener todos los restaurantes (para el selector de SuperAdmin)
+exports.getRestaurants = async (req, res, next) => {
+  try {
+    const restaurants = await userService.getRestaurants();
+    res.status(200).json({ success: true, data: restaurants });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Obtener todos los usuarios
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const users = await userService.getAllUsers();
+    const filters = {};
+    if (req.query.tenantId) {
+      filters.tenantId = req.query.tenantId;
+    }
+    const users = await userService.getAllUsers(filters);
     res.status(200).json({ success: true, data: users });
   } catch (error) {
     next(error);

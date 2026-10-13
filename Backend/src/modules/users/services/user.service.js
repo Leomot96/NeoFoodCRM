@@ -1,6 +1,6 @@
 const prisma = require('../../../config/prisma');
 const bcrypt = require('bcrypt');
-const { getTenantId } = require('../../../context/tenantContext');
+const { getTenantId, isSuperAdmin } = require('../../../context/tenantContext');
 const { validatePassword } = require('../../../utils/passwordValidator');
 
 class UserService {
@@ -11,9 +11,27 @@ class UserService {
     });
   }
 
-  // 2. Obtener usuarios (excluyendo password e incluyendo los datos del Rol y Teléfono)
-  async getAllUsers() {
+  // Obtener lista de restaurantes (tenants) para el filtro de SuperAdmin
+  async getRestaurants() {
+    return await prisma.tenant.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true
+      },
+      orderBy: { name: 'asc' }
+    });
+  }
+
+  // 2. Obtener usuarios (excluyendo password e incluyendo los datos del Rol, Teléfono y Establecimiento)
+  async getAllUsers(filters = {}) {
+    const where = {};
+    if (filters.tenantId && filters.tenantId !== 'ALL') {
+      where.tenantId = filters.tenantId;
+    }
+
     return await prisma.user.findMany({
+      where,
       select: { 
         id: true, 
         name: true, 
@@ -22,6 +40,14 @@ class UserService {
         isActive: true, 
         createdAt: true,
         roleId: true,
+        tenantId: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true
+          }
+        },
         role: true // Traemos el objeto del rol relacional
       },
       orderBy: { name: 'asc' }
@@ -30,7 +56,7 @@ class UserService {
 
   // 3. Crear Usuario (ahora valida límite de maxUsers y usa roleId)
   async createUser(data) {
-    const tenantId = getTenantId();
+    const tenantId = (isSuperAdmin() && data.tenantId) ? data.tenantId : getTenantId();
     if (tenantId) {
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
@@ -73,7 +99,8 @@ class UserService {
         email: data.email,
         phone: data.phone ? data.phone.trim() : null,
         password: hashedPassword,
-        roleId: data.roleId
+        roleId: data.roleId,
+        tenantId: tenantId || null
       }
     });
 
@@ -90,6 +117,10 @@ class UserService {
       roleId: data.roleId,
       isActive: data.isActive
     };
+
+    if (isSuperAdmin() && data.tenantId !== undefined) {
+      updateData.tenantId = data.tenantId || null;
+    }
 
     if (data.password && data.password.trim() !== '') {
       const passwordValidation = validatePassword(data.password);
@@ -125,8 +156,8 @@ class UserService {
       throw error;
     }
 
-    // Si la petición viene con contexto de tenant específico, no permitir borrar de otro tenant
-    if (currentTenantId && user.tenantId && user.tenantId !== currentTenantId) {
+    // Si la petición viene con contexto de tenant específico, no permitir borrar de otro tenant a menos que sea SuperAdmin
+    if (currentTenantId && user.tenantId && user.tenantId !== currentTenantId && !isSuperAdmin()) {
       const error = new Error('No tienes permisos para eliminar este usuario');
       error.statusCode = 403;
       throw error;

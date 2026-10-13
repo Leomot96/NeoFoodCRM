@@ -247,6 +247,7 @@ model Ingredient {
   unitPurchase              String?                    
   purchaseFactor            Decimal?                   @db.Decimal(14, 4)
   isManufactured            Boolean                    @default(false)
+  isActive                  Boolean                    @default(true)
 
   products                  ProductIngredient[]
   purchaseDetail            PurchaseDetail[]
@@ -800,4 +801,21 @@ enum ProductionStatus {
   PENDING
   COMPLETED
   CANCELLED
+}
+
+// ==========================================
+// PRE-VERIFICACIÓN DE CORREO (ANTI-SPAM)
+// ==========================================
+model EmailVerification {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  token     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_verifications")
 }

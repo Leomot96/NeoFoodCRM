@@ -6,13 +6,21 @@ class IngredientService {
       where: { name: { equals: data.name } } // Dependiendo de tu BD, puedes usar mode: 'insensitive'
     });
     if (existing) {
-      const error = new Error(`Ya existe un ingrediente llamado "${data.name}"`);
+      if (!existing.isActive) {
+        // Si ya existía pero estaba desactivado, lo reactivamos con los datos nuevos
+        return await this.updateIngredient(existing.id, {
+          ...data,
+          isActive: true
+        });
+      }
+      const error = new Error(`Ya existe un ingrediente activo llamado "${data.name}"`);
       error.statusCode = 400;
       throw error;
     }
 
   return await prisma.ingredient.create({
       data: {
+        tenantId: data.tenantId || 'default-tenant-001',
         name: data.name,
         unit: data.unit || 'Unidad',
         minStock: data.minStock ? parseFloat(data.minStock) : 0,
@@ -29,8 +37,14 @@ class IngredientService {
       }});
   }
 
-  async getAllIngredients() {
+  async getAllIngredients(query = {}) {
+    const where = {};
+    if (query.includeInactive !== 'true' && query.includeInactive !== true) {
+      where.isActive = true;
+    }
+
     const list = await prisma.ingredient.findMany({
+      where,
       include: {
         recipeIngredients: {
           include: {
@@ -90,14 +104,49 @@ class IngredientService {
   }
 
   async deleteIngredient(id) {
-    await this.getIngredientById(id);
-    return await prisma.ingredient.delete({ where: { id } });
+    const ingredient = await this.getIngredientById(id);
+
+    // Verificamos si tiene historial transaccional
+    const [
+      purchasesCount,
+      movesCount,
+      productionOrdersCount,
+      productionConsumptionsCount,
+    ] = await Promise.all([
+      prisma.purchaseDetail.count({ where: { ingredientId: id } }),
+      prisma.inventoryMovement.count({ where: { ingredientId: id } }),
+      prisma.productionOrder.count({ where: { ingredientId: id } }),
+      prisma.productionConsumption.count({ where: { ingredientId: id } }),
+    ]);
+
+    const hasHistory = (purchasesCount + movesCount + productionOrdersCount + productionConsumptionsCount) > 0;
+
+    if (hasHistory) {
+      // DESACTIVACIÓN (Soft delete): se oculta del inventario activo pero se mantiene su historial contable
+      await prisma.ingredient.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      return {
+        action: 'deactivated',
+        message: `El insumo "${ingredient.name}" tiene historial de compras/kárdex, por lo que fue desactivado del inventario activo para proteger la integridad contable.`
+      };
+    }
+
+    // Si NO tiene historial de compras, kárdex ni producción, se elimina permanentemente
+    await prisma.ingredient.delete({ where: { id } });
+    return {
+      action: 'deleted',
+      message: `El insumo "${ingredient.name}" fue eliminado permanentemente.`
+    };
   }
 
   // Alertas de Stock Mínimo
   async getLowStockAlerts() {
     return await prisma.ingredient.findMany({
       where: {
+        isActive: true,
         currentStock: {
           lte: prisma.ingredient.fields.minStock
         }

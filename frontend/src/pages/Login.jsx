@@ -160,8 +160,17 @@ const Login = () => {
       <footer className={styles.loginPageFooter}>
         <p><span className={styles.loginTitleNeo}>NEO</span><span className={styles.loginTitleFood}>FOOD</span> &bull; Sistema Integral de Gestión Gastronómica</p>
         <p className={styles.loginFooterCopy}>
-          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v 1.7.5
+          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v 1.7.6
         </p>
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', fontSize: '0.75rem', color: '#64748b', margin: '0.4rem 0', flexWrap: 'wrap' }}>
+          <Link to="/terminos" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Términos de Servicio</Link>
+          <span>&bull;</span>
+          <Link to="/privacidad" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Privacidad & Habeas Data</Link>
+          <span>&bull;</span>
+          <Link to="/cookies" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Cookies</Link>
+          <span>&bull;</span>
+          <Link to="/sla" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Garantía SLA</Link>
+        </div>
         <p className={styles.loginFooterAuthor}>
           Diseñado por <strong>Leonardo Ramirez</strong>
         </p>

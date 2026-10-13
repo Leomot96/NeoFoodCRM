@@ -22,7 +22,7 @@ Otorgado con pleno reconocimiento y validez internacional a favor de:
 **Creador, Autor Original, Diseñador y Arquitecto Principal de Software**
 
 Fecha de Registro y Declaración: **Octubre de 2026**  
-Identificador Global del Sistema: `NEOFOOD-SAAS-CORE-v1.7.0`  
+Identificador Global del Sistema: `NEOFOOD-SAAS-CORE-v1.8.0`  
 Repositorio Oficial: `Neofood CRM / Versiones`
 
 ---

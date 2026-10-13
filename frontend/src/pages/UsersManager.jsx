@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit2, Trash2, Shield, UserX, CheckCircle, AlertTriangle, Phone, Eye, EyeOff } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Shield, UserX, CheckCircle, AlertTriangle, Phone, Eye, EyeOff, Store, Search } from 'lucide-react';
 import CustomSelect from '../components/ui/CustomSelect';
 import { Pagination } from '../components/ui';
 import api from '../services/api';
@@ -10,11 +10,20 @@ import { validatePassword } from '../utils/passwordValidator';
 const UsersManager = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]); // Nuevo estado para los roles de la BD
+  const [roles, setRoles] = useState([]); // Roles de la BD
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Rol y verificación de SuperAdmin
+  const roleName = typeof currentUser?.role === 'object' ? currentUser?.role?.name : currentUser?.role;
+  const isSuperAdmin = roleName === 'SuperAdmin' || roleName === 'SUPERADMIN';
+
+  // Filtros de búsqueda y restaurantes (SuperAdmin)
+  const [restaurants, setRestaurants] = useState([]);
+  const [selectedRestaurant, setSelectedRestaurant] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Estado para modal de confirmación de eliminación
   const [userToDelete, setUserToDelete] = useState(null);
@@ -23,34 +32,55 @@ const UsersManager = () => {
 
   const plan = currentUser?.tenant?.plan;
   const maxUsers = typeof plan?.maxUsers === 'number' ? plan.maxUsers : -1;
-  const isLimitReached = maxUsers !== -1 && users.length >= maxUsers;
+  const isLimitReached = !isSuperAdmin && maxUsers !== -1 && users.length >= maxUsers;
 
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', password: '', roleId: '', isActive: true
+    name: '', email: '', phone: '', password: '', roleId: '', tenantId: '', isActive: true
   });
 
-  const fetchData = async () => {
+  const fetchData = async (tenantFilter = selectedRestaurant) => {
     try {
       setLoading(true);
-      // Cargamos usuarios y roles al mismo tiempo
-      const [usersRes, rolesRes] = await Promise.all([
-        api.get('/users'),
+      const params = {};
+      if (isSuperAdmin && tenantFilter && tenantFilter !== 'ALL') {
+        params.tenantId = tenantFilter;
+      }
+
+      const promises = [
+        api.get('/users', { params }),
         api.get('/users/roles')
-      ]);
-      setUsers(usersRes.data.data);
-      setRoles(rolesRes.data.data);
+      ];
+
+      if (isSuperAdmin) {
+        promises.push(api.get('/users/restaurants'));
+      }
+
+      const [usersRes, rolesRes, restsRes] = await Promise.all(promises);
+      setUsers(usersRes.data?.data || []);
+      setRoles(rolesRes.data?.data || []);
+      if (restsRes?.data?.data) {
+        setRestaurants(restsRes.data.data);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error al cargar datos de usuarios:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+  }, [isSuperAdmin]);
+
+  const handleRestaurantChange = (val) => {
+    setSelectedRestaurant(val);
+    setCurrentPage(1);
+    fetchData(val);
+  };
 
   const openModal = (user = null) => {
     if (user) {
@@ -61,6 +91,7 @@ const UsersManager = () => {
         phone: user.phone || '', 
         password: '', 
         roleId: user.roleId, 
+        tenantId: user.tenantId || user.tenant?.id || '',
         isActive: user.isActive 
       });
     } else {
@@ -76,6 +107,7 @@ const UsersManager = () => {
         phone: '', 
         password: '', 
         roleId: roles.length > 0 ? roles[0].id : '', 
+        tenantId: selectedRestaurant !== 'ALL' ? selectedRestaurant : (restaurants[0]?.id || ''),
         isActive: true 
       });
     }
@@ -101,10 +133,14 @@ const UsersManager = () => {
     }
 
     try {
+      const payload = { ...formData };
+      if (!isSuperAdmin) {
+        delete payload.tenantId;
+      }
       if (editingUser) {
-        await api.put(`/users/${editingUser.id}`, formData);
+        await api.put(`/users/${editingUser.id}`, payload);
       } else {
-        await api.post('/users', formData);
+        await api.post('/users', payload);
       }
       setIsModalOpen(false);
       fetchData(); // Recargamos la tabla
@@ -136,6 +172,29 @@ const UsersManager = () => {
     return <span className={`${styles.roleBadge} ${styles.roleBadgeDefault}`}>{name}</span>;
   };
 
+  // Usuarios filtrados por término de búsqueda y restaurante (SuperAdmin)
+  const filteredUsers = users.filter(user => {
+    if (isSuperAdmin && selectedRestaurant !== 'ALL') {
+      if (user.tenantId !== selectedRestaurant && user.tenant?.id !== selectedRestaurant) {
+        return false;
+      }
+    }
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
+      const matchName = user.name?.toLowerCase().includes(q);
+      const matchEmail = user.email?.toLowerCase().includes(q);
+      const matchPhone = user.phone?.toLowerCase().includes(q);
+      const matchRole = user.role?.name?.toLowerCase().includes(q);
+      const matchRestaurant = user.tenant?.name?.toLowerCase().includes(q);
+      return matchName || matchEmail || matchPhone || matchRole || matchRestaurant;
+    }
+
+    return true;
+  });
+
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className={styles.usersPage}>
       {/* HEADER */}
@@ -146,9 +205,14 @@ const UsersManager = () => {
           </h1>
           <p className={styles.usersSubtitle}>
             Gestiona los usuarios del sistema y sus niveles de permiso
-            {maxUsers !== -1 && (
+            {maxUsers !== -1 && !isSuperAdmin && (
               <span style={{ marginLeft: '0.5rem', fontWeight: 600, color: isLimitReached ? '#ef4444' : 'var(--primary)' }}>
                 &bull; {users.length} de {maxUsers} usuarios en {plan?.name || 'Plan Actual'}
+              </span>
+            )}
+            {isSuperAdmin && (
+              <span style={{ marginLeft: '0.5rem', fontWeight: 600, color: 'var(--primary)' }}>
+                &bull; Modo SuperAdmin (Acceso a todos los establecimientos)
               </span>
             )}
           </p>
@@ -162,6 +226,59 @@ const UsersManager = () => {
         >
           <Plus size={20} /> Nuevo Usuario
         </button>
+      </div>
+
+      {/* BARRA DE FILTROS & BÚSQUEDA */}
+      <div className={styles.usersFiltersBar}>
+        <div className={styles.usersFiltersLeft}>
+          <div className={styles.usersSearchBox}>
+            <Search size={18} className={styles.usersSearchIcon} />
+            <input
+              type="text"
+              placeholder={isSuperAdmin ? "Buscar por nombre, correo, rol o restaurante..." : "Buscar por nombre, correo o rol..."}
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className={styles.usersSearchInput}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                }}
+                className={styles.clearSearchBtn}
+                title="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* FILTRO DE RESTAURANTE (Exclusivo para SuperAdmin) */}
+          {isSuperAdmin && (
+            <div className={styles.restaurantFilterWrapper}>
+              <div className={styles.restaurantFilterLabel}>
+                <Store size={16} style={{ color: 'var(--primary)' }} />
+                <span>Restaurante:</span>
+              </div>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <CustomSelect
+                  value={selectedRestaurant}
+                  onChange={handleRestaurantChange}
+                  options={[
+                    { value: 'ALL', label: `Todos los restaurantes (${restaurants.length})` },
+                    ...restaurants.map(r => ({ value: r.id, label: r.name }))
+                  ]}
+                  placeholder="Filtrar por restaurante..."
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ALERTA DE LÍMITE DE USUARIOS */}
@@ -194,6 +311,7 @@ const UsersManager = () => {
                 <th>Nombre</th>
                 <th>Usuario / Correo</th>
                 <th>Celular / Teléfono</th>
+                {isSuperAdmin && <th>Restaurante</th>}
                 <th className="text-center">Rol</th>
                 <th className="text-center">Estado</th>
                 <th className="text-right">Acciones</th>
@@ -201,18 +319,30 @@ const UsersManager = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando usuarios...</td></tr>
-              ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+                  <td colSpan={isSuperAdmin ? 7 : 6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Cargando usuarios...
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={isSuperAdmin ? 7 : 6} style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                       <UserX size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }} />
-                      <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)' }}>No hay usuarios registrados</p>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Crea nuevos usuarios y asígnales roles en el sistema.</p>
+                      <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                        {searchTerm || (isSuperAdmin && selectedRestaurant !== 'ALL')
+                          ? 'No se encontraron usuarios coincidentes'
+                          : 'No hay usuarios registrados'}
+                      </p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {searchTerm || (isSuperAdmin && selectedRestaurant !== 'ALL')
+                          ? 'Prueba modificando los filtros de búsqueda o seleccionando otro restaurante.'
+                          : 'Crea nuevos usuarios y asígnales roles en el sistema.'}
+                      </p>
                     </div>
                   </td>
                 </tr>
-              ) : users.slice((currentPage - 1) * pageSize, currentPage * pageSize).map(user => (
+              ) : paginatedUsers.map(user => (
                 <tr key={user.id} style={{ opacity: !user.isActive ? 0.6 : 1 }}>
                   <td style={{ fontWeight: 600 }}>{user.name}</td>
                   <td style={{ color: 'var(--text-secondary)' }}>{user.email}</td>
@@ -225,6 +355,27 @@ const UsersManager = () => {
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>No registrado</span>
                     )}
                   </td>
+
+                  {/* Columna Restaurante (Solo visible para SuperAdmin) */}
+                  {isSuperAdmin && (
+                    <td>
+                      {user.tenant ? (
+                        <div className={styles.restaurantCell}>
+                          <span className={styles.restaurantIconBadge} title="Restaurante asignado">
+                            <Store size={13} />
+                          </span>
+                          <span className={styles.restaurantName} title={user.tenant.name}>
+                            {user.tenant.name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className={styles.globalTenantBadge}>
+                          Plataforma (Global)
+                        </span>
+                      )}
+                    </td>
+                  )}
+
                   {/* Rol */}
                   <td className="text-center">{getRoleBadge(user.role?.name)}</td>
                   <td className="text-center">
@@ -268,7 +419,7 @@ const UsersManager = () => {
         </div>
         <Pagination
           currentPage={currentPage}
-          totalItems={users.length}
+          totalItems={filteredUsers.length}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
           itemName="usuarios"
@@ -316,7 +467,7 @@ const UsersManager = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isSuperAdmin ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: '1rem' }}>
                   <div className="neo-form-group" style={{ marginBottom: 0 }}>
                     <label className="neo-label">Número de Celular / WhatsApp</label>
                     <input
@@ -337,6 +488,21 @@ const UsersManager = () => {
                       placeholder="Selecciona..."
                     />
                   </div>
+
+                  {isSuperAdmin && (
+                    <div className="neo-form-group" style={{ marginBottom: 0 }}>
+                      <label className="neo-label">Restaurante / Establecimiento</label>
+                      <CustomSelect
+                        value={formData.tenantId}
+                        onChange={val => setFormData({ ...formData, tenantId: val })}
+                        options={[
+                          { value: '', label: 'Sin restaurante (Global)' },
+                          ...restaurants.map(r => ({ value: r.id, label: r.name }))
+                        ]}
+                        placeholder="Selecciona restaurante..."
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>

@@ -14,6 +14,26 @@ class AuthController {
     }
   }
 
+  async sendVerificationCode(req, res, next) {
+    try {
+      const { email } = req.body;
+      const result = await authService.sendVerificationCode(email);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyCode(req, res, next) {
+    try {
+      const { email, code } = req.body;
+      const result = await authService.verifyCode(email, code);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getPublicPlans(req, res, next) {
     try {
       const plans = await authService.getPublicPlans();

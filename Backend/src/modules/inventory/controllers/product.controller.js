@@ -31,8 +31,8 @@ class ProductController {
 
   async delete(req, res, next) {
     try {
-      await productService.deleteProduct(req.params.id);
-      res.status(200).json({ success: true, message: 'Producto desactivado' });
+      const result = await productService.deleteProduct(req.params.id);
+      res.status(200).json({ success: true, message: result?.message || 'Producto eliminado', ...result });
     } catch (error) { next(error); }
   }
 

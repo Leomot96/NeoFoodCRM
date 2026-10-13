@@ -3,6 +3,36 @@
 Todos los cambios relevantes de este proyecto quedan documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) y usa versionado [Semántico](https://semver.org/lang/es/).
 
+## [1.8.0] — 2026-10-13
+
+### Añadido
+
+#### Seguridad, Pre-Verificación de Correo & Defensa Anti-Spam (Resend)
+- **Pre-Verificación de Correo con Código OTP de 6 Dígitos:** Nuevo flujo de seguridad (Opción B) donde el usuario verifica su dirección de correo electrónico mediante un código OTP transaccional antes de procesar el registro del restaurante, evitando registros basura en la base de datos.
+- **Integración Transaccional con Resend (`email.service.js`):** Envío de plantillas HTML profesionales con el código de seguridad, advertencia de expiración (10 minutos) y soporte para API Key segura.
+- **Defensa Multicapa contra Bots & Spammers:**
+  - **Rate Limiting Estricto por IP (`security.middleware.js`):** Límites independientes para envío de códigos (5 por 15 min), verificación OTP (10 por 15 min) y registro de restaurantes (5 por hora).
+  - **Trampa Honeypot con Shadow-Drop:** Campos trampa invisibles (`website`) en el formulario de registro que atrapan bots automatizados y simulan éxito inmediato (`200 OK`) sin gastar cuota de correos ni crear datos.
+  - **Bloqueo de Correos Temporales / Desechables:** Detección y bloqueo automático de dominios como `tempmail.com`, `10minutemail.com`, `guerrillamail.com`, `mailinator.com`, etc.
+
+#### Unificación de 7 Días de Prueba & Optimización de Onboarding
+- **Prueba Gratuita Universal (7 Días):** Se unificó el sistema para que cualquier plan seleccionado (Básico, Pro o Cadenas) incluya automáticamente 7 días de prueba completa.
+- **Política de Retención tras Expiración:** Al vencer los 7 días de prueba, todos los datos (menús, recetas, mesas, configuración) permanecen resguardados de forma segura, restringiendo el acceso hasta formalizar el pago de la suscripción.
+- **Rediseño Compacto del Formulario de Registro:** Nueva interfaz por pasos con diseño ergonómico de 2 columnas, reducción drástica de espaciados verticales para minimizar el scroll y reubicación del selector de plan y modalidad al final del formulario, justo antes del botón de confirmación.
+
+#### Centro Legal Completo & Cumplimiento Normativo
+- **Páginas Legales Centralizadas (`/legal`, `/terminos`, `/privacidad`, `/cookies`, `/sla`):**
+  - **Términos y Condiciones del Servicio:** Marco contractual SaaS, régimen de prueba de 7 días, titularidad de datos y exención de comisiones en la tienda virtual por WhatsApp.
+  - **Política de Privacidad y Habeas Data:** Cumplimiento de la Ley 1581 de 2012 y Decreto 1377 de 2013 (Colombia) y estándares internacionales (GDPR), con aislamiento multi-tenant y canales de PQR.
+  - **Política de Cookies y Almacenamiento Local:** Transparencia sobre almacenamiento técnico de sesión y cero rastreo publicitario invasivo.
+  - **Acuerdo de Nivel de Servicio (SLA 99.5%):** Compromiso de disponibilidad, respaldos diarios y ventanas de mantenimiento nocturno.
+- **Banner Flotante de Consentimiento de Cookies (`CookieBanner.jsx`):** Aviso respetuoso y no intrusivo con almacenamiento en `localStorage`.
+
+#### Gestión de Usuarios con Contexto Multi-Tenant (SuperAdmin)
+- **Filtro y Columna de Restaurante:** Columna dedicada que muestra a qué restaurante pertenece cada usuario y selector de sede al crear/editar usuarios exclusivo para el rol `SuperAdmin`.
+
+---
+
 ## [1.7.6] — 2026-10-05
 
 ### Añadido

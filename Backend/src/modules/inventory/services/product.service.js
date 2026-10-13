@@ -50,6 +50,22 @@ class ProductService {
       additions,
     } = data;
 
+    // Si ya existía un producto inactivo con el mismo nombre y categoría, lo reactivamos
+    const existingInactive = await prisma.product.findFirst({
+      where: {
+        name: { equals: name },
+        categoryId: categoryId,
+        isAvailable: false
+      }
+    });
+
+    if (existingInactive) {
+      return await this.updateProduct(existingInactive.id, {
+        ...data,
+        isAvailable: true
+      });
+    }
+
     return await prisma.product.create({
       data: {
         name,
@@ -264,13 +280,40 @@ class ProductService {
   }
 
   // =====================================
-  // ELIMINAR (DESACTIVAR) PRODUCTO
+  // ELIMINAR / DESACTIVAR PRODUCTO
   // =====================================
   async deleteProduct(id) {
-    return await prisma.product.update({
-      where: { id },
-      data: { isAvailable: false },
-    });
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      const error = new Error('Producto no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const [salesCount, ordersCount] = await Promise.all([
+      prisma.saleDetail.count({ where: { productId: id } }),
+      prisma.orderDetail.count({ where: { productId: id } }),
+    ]);
+
+    if (salesCount > 0 || ordersCount > 0) {
+      // Tiene historial de ventas o pedidos -> Desactivar (Soft delete)
+      await prisma.product.update({
+        where: { id },
+        data: { isAvailable: false },
+      });
+
+      return {
+        action: 'deactivated',
+        message: `El producto "${product.name}" tiene historial de ventas/pedidos, por lo que fue desactivado de la carta para proteger tus reportes.`
+      };
+    }
+
+    // No tiene historial de ventas ni pedidos -> Borrado permanente (Hard delete)
+    await prisma.product.delete({ where: { id } });
+    return {
+      action: 'deleted',
+      message: `El producto "${product.name}" fue eliminado permanentemente.`
+    };
   }
 }
 

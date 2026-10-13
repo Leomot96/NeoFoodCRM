@@ -1,8 +1,28 @@
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const prisma = require('../../config/prisma');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../../utils/jwt.util');
 const ROLES = require('../../constants/roles');
 const { validatePassword } = require('../../utils/passwordValidator');
+const emailService = require('../../services/email.service');
+
+// Lista de dominios de correos temporales/desechables para prevención de spam
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'tempmail.com', '10minutemail.com', 'guerrillamail.com', 'mailinator.com',
+  'yopmail.com', 'trashmail.com', 'sharklasers.com', 'dispostable.com',
+  'fakeinbox.com', 'getairmail.com', 'throwawaymail.com', 'mytemp.email',
+  'mohmal.com', 'crazymailing.com', 'tempr.email', 'tempail.com',
+  'burnermail.io', 'inboxkitten.com', 'nada.ltd', 'emailondeck.com',
+  'guerrillamailblock.com', 'pokemail.net', 'spam4.me', 'grr.la',
+  'guerrillamail.biz', 'guerrillamail.de', 'guerrillamail.net', 'guerrillamail.org',
+  'disposablemail.com', 'temp-mail.org', '10minutemail.net'
+]);
+
+const isDisposableEmail = (email) => {
+  if (!email || !email.includes('@')) return false;
+  const domain = email.split('@')[1]?.toLowerCase().trim();
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain);
+};
 
 class AuthService {
   async loginUser(credentials) {
@@ -240,6 +260,158 @@ class AuthService {
       .replace(/^-+|-+$/g, '');
   }
 
+  // ============================================================
+  // PRE-VERIFICACIÓN DE CORREO ELECTRÓNICO (ANTI-SPAM)
+  // ============================================================
+
+  // 1. Enviar código de 6 dígitos al correo
+  async sendVerificationCode(email) {
+    if (!email || !email.trim()) {
+      const error = new Error('El correo electrónico es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!emailRegex.test(cleanEmail)) {
+      const error = new Error('Por favor ingresa un correo electrónico válido');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (isDisposableEmail(cleanEmail)) {
+      const error = new Error('No se permiten correos electrónicos temporales o desechables. Por favor utiliza una dirección de correo válida y permanente.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // A. Verificar si el usuario ya existe en la base de datos
+    const existingUser = await prisma.user.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (existingUser) {
+      const error = new Error('Ya existe una cuenta registrada con este correo electrónico. Por favor inicia sesión.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // B. Control de frecuencia (cooldown de 45 segundos)
+    const existingVerif = await prisma.emailVerification.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (existingVerif && existingVerif.updatedAt) {
+      const timeDiff = Date.now() - new Date(existingVerif.updatedAt).getTime();
+      if (timeDiff < 45000) {
+        const remaining = Math.ceil((45000 - timeDiff) / 1000);
+        const error = new Error(`Por favor espera ${remaining} segundos antes de solicitar otro código`);
+        error.statusCode = 429;
+        throw error;
+      }
+    }
+
+    // C. Generar código numérico de 6 dígitos
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Válido por 10 minutos
+
+    // D. Guardar o actualizar en base de datos
+    await prisma.emailVerification.upsert({
+      where: { email: cleanEmail },
+      update: {
+        code,
+        expiresAt,
+        attempts: 0,
+        verified: false,
+        token: null,
+        updatedAt: new Date()
+      },
+      create: {
+        email: cleanEmail,
+        code,
+        expiresAt,
+        attempts: 0,
+        verified: false
+      }
+    });
+
+    // E. Enviar email con plantilla vía Resend
+    await emailService.sendVerificationCode(cleanEmail, code);
+
+    return {
+      success: true,
+      message: 'Código de verificación enviado correctamente a tu correo',
+      email: cleanEmail
+    };
+  }
+
+  // 2. Validar código de 6 dígitos ingresado por el usuario
+  async verifyCode(email, code) {
+    if (!email || !code) {
+      const error = new Error('El correo y el código de verificación son obligatorios');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCode = code.toString().trim();
+
+    const verif = await prisma.emailVerification.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (!verif) {
+      const error = new Error('No se ha solicitado ningún código para este correo. Por favor solicita uno nuevo.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (new Date() > new Date(verif.expiresAt)) {
+      const error = new Error('El código de verificación ha expirado. Por favor solicita uno nuevo.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (verif.attempts >= 5) {
+      const error = new Error('Has superado el límite de intentos permitidos. Por favor solicita un nuevo código.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (verif.code !== cleanCode) {
+      await prisma.emailVerification.update({
+        where: { email: cleanEmail },
+        data: { attempts: { increment: 1 } }
+      });
+      const remaining = 5 - (verif.attempts + 1);
+      const error = new Error(`Código incorrecto. ${remaining > 0 ? `Te quedan ${remaining} intento(s).` : 'Debes solicitar un nuevo código.'}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Código válido -> Emitir token criptográfico de verificación temporal
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora para terminar el formulario
+
+    await prisma.emailVerification.update({
+      where: { email: cleanEmail },
+      data: {
+        verified: true,
+        token: verificationToken,
+        expiresAt: tokenExpiresAt
+      }
+    });
+
+    return {
+      success: true,
+      message: 'Correo verificado correctamente',
+      verificationToken,
+      email: cleanEmail
+    };
+  }
+
   // Onboarding / Registro público de nuevo restaurante (Tenant)
   async registerTenant(data) {
     const {
@@ -252,6 +424,7 @@ class AuthService {
       adminPhone,
       email,
       password,
+      verificationToken,
       planCode = 'basic',
       billingCycle = 'monthly',
       isTrial = false
@@ -277,6 +450,34 @@ class AuthService {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    if (isDisposableEmail(cleanEmail)) {
+      const error = new Error('No se permiten correos electrónicos temporales o desechables');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validar token de pre-verificación de correo (Evita registros spam)
+    if (!verificationToken) {
+      const error = new Error('Debes verificar tu correo electrónico antes de registrar tu restaurante');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const verification = await prisma.emailVerification.findFirst({
+      where: {
+        email: cleanEmail,
+        token: verificationToken,
+        verified: true,
+        expiresAt: { gt: new Date() }
+      }
+    });
+
+    if (!verification) {
+      const error = new Error('La verificación de tu correo electrónico no es válida o ha expirado. Por favor valida tu correo nuevamente.');
+      error.statusCode = 400;
+      throw error;
+    }
 
     // 1. Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
@@ -314,26 +515,12 @@ class AuthService {
       });
     }
 
-    // Determinar modalidad (Prueba 7 días vs Plan de pago)
-    const isTrialSelected = Boolean(isTrial) || billingCycle === 'trial';
-    const validCycles = ['monthly', 'semiannual', 'annual', 'trial'];
-    const effectiveBillingCycle = isTrialSelected
-      ? 'trial'
-      : (validCycles.includes(billingCycle) ? billingCycle : 'monthly');
+    // Todos los registros reciben 7 días de prueba garantizados con las características del plan seleccionado.
+    // Una vez terminan los 7 días, su estado pasa a requerir pago según el plan y ciclo elegido.
+    const validCycles = ['monthly', 'semiannual', 'annual'];
+    const effectiveBillingCycle = validCycles.includes(billingCycle) ? billingCycle : 'monthly';
 
-    // Calcular monto a pagar si es plan de pago
-    let amountToPay = 0;
-    if (plan && !isTrialSelected) {
-      if (effectiveBillingCycle === 'annual') {
-        amountToPay = parseFloat(plan.priceAnnual) > 0 ? parseFloat(plan.priceAnnual) : parseFloat(plan.priceMonthly) * 12;
-      } else if (effectiveBillingCycle === 'semiannual') {
-        amountToPay = parseFloat(plan.priceMonthly) * 6;
-      } else {
-        amountToPay = parseFloat(plan.priceMonthly);
-      }
-    }
-
-    // Duración para trial: 7 días
+    // Duración de la prueba: 7 días desde hoy
     const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // 4. Crear todo atómicamente en transacción
@@ -341,7 +528,7 @@ class AuthService {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Crear Tenant
+      // Crear Tenant con estado TRIAL activo durante 7 días y con su plan asignado
       const tenant = await tx.tenant.create({
         data: {
           name: restaurantName.trim(),
@@ -350,11 +537,11 @@ class AuthService {
           phone: phone ? phone.trim() : (adminPhone ? adminPhone.trim() : null),
           address: address ? address.trim() : null,
           email: cleanEmail,
-          status: isTrialSelected ? 'TRIAL' : 'INACTIVE',
+          status: 'TRIAL',
           billingCycle: effectiveBillingCycle,
-          paymentStatus: isTrialSelected ? 'VERIFIED' : 'PENDING',
+          paymentStatus: 'VERIFIED',
           planId: plan ? plan.id : null,
-          subscriptionEndsAt: isTrialSelected ? trialEndsAt : null
+          subscriptionEndsAt: trialEndsAt
         }
       });
 
@@ -454,34 +641,7 @@ class AuthService {
         }
       });
 
-      // Si es plan de pago, NO se activa hasta que se verifique el pago
-      if (!isTrialSelected) {
-        return {
-          paymentPending: true,
-          message: '¡Registro completado exitosamente! Tu cuenta ha sido creada y se encuentra pendiente de verificación de pago.',
-          restaurant: {
-            id: tenant.id,
-            name: tenant.name,
-            slug: tenant.slug,
-            phone: tenant.phone
-          },
-          plan: {
-            id: plan ? plan.id : null,
-            name: plan ? plan.name : 'Plan Seleccionado',
-            code: plan ? plan.code : planCode,
-            billingCycle: effectiveBillingCycle,
-            amountToPay: amountToPay
-          },
-          admin: {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            phone: newUser.phone
-          }
-        };
-      }
-
-      // Si es prueba gratuita (TRIAL), generamos tokens y entra de inmediato
+      // Todos los registros inician de inmediato con 7 días de prueba garantizados
       const payload = {
         id: newUser.id,
         role: newUser.role.name,
@@ -531,6 +691,11 @@ class AuthService {
         refreshToken
       };
     });
+
+    // Limpiamos el registro de verificación para que el token no pueda reutilizarse
+    await prisma.emailVerification.deleteMany({
+      where: { email: cleanEmail }
+    }).catch(() => {});
 
     return result;
   }

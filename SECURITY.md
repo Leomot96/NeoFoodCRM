@@ -10,9 +10,9 @@ Actualmente se brinda soporte de seguridad prioritario a las siguientes versione
 
 | Versión | Estado de Soporte |
 | :--- | :--- |
-| **v1.7.x** | ✅ Soporte Activo / Parches Inmediatos |
-| **v1.6.x** | ⚠️ Soporte de Seguridad Crítico |
-| < v1.5.x > | ❌ Obsoleta (Se recomienda actualizar) |
+| **v1.8.x** | ✅ Soporte Activo / Parches Inmediatos |
+| **v1.7.x** | ⚠️ Soporte de Seguridad Crítico |
+| < v1.7.x > | ❌ Obsoleta (Se recomienda actualizar) |
 
 ---
 

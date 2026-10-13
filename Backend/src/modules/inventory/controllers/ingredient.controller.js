@@ -10,7 +10,7 @@ class IngredientController {
 
   async getAll(req, res, next) {
     try {
-      const ingredients = await ingredientService.getAllIngredients();
+      const ingredients = await ingredientService.getAllIngredients(req.query);
       res.status(200).json({ success: true, data: ingredients });
     } catch (error) { next(error); }
   }
@@ -31,8 +31,8 @@ class IngredientController {
 
   async delete(req, res, next) {
     try {
-      await ingredientService.deleteIngredient(req.params.id);
-      res.status(200).json({ success: true, message: 'Ingrediente eliminado' });
+      const result = await ingredientService.deleteIngredient(req.params.id);
+      res.status(200).json({ success: true, message: result.message, ...result });
     } catch (error) { next(error); }
   }
 

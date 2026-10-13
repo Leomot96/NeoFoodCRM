@@ -29,6 +29,9 @@ const StoreFront = lazy(() => import('./pages/StoreFront'));
 const StoreOrdersManager = lazy(() => import('./pages/StoreOrdersManager'));
 const Cocina = lazy(() => import('./pages/Cocina'));
 const Produccion = lazy(() => import('./pages/Production/ProductionManager'));
+const LegalPages = lazy(() => import('./pages/Legal/LegalPages'));
+
+import CookieBanner from './components/ui/CookieBanner';
 
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-full min-h-[300px]">
@@ -72,6 +75,13 @@ const App = () => {
         <Route path="/register" element={<PublicRoute><RegisterTenant /></PublicRoute>} />
         <Route path="/tienda/:slug" element={<Suspense fallback={<LoadingFallback />}><StoreFront /></Suspense>} />
 
+        {/* Centro Legal y Normativo */}
+        <Route path="/legal" element={<Suspense fallback={<LoadingFallback />}><LegalPages /></Suspense>} />
+        <Route path="/terminos" element={<Suspense fallback={<LoadingFallback />}><LegalPages /></Suspense>} />
+        <Route path="/privacidad" element={<Suspense fallback={<LoadingFallback />}><LegalPages /></Suspense>} />
+        <Route path="/cookies" element={<Suspense fallback={<LoadingFallback />}><LegalPages /></Suspense>} />
+        <Route path="/sla" element={<Suspense fallback={<LoadingFallback />}><LegalPages /></Suspense>} />
+
         {/* Sistema Interno CRM & POS */}
         <Route path="/" element={<RootRoute />}>
           <Route index element={<Suspense fallback={<LoadingFallback />}><Dashboard /></Suspense>} />
@@ -93,6 +103,7 @@ const App = () => {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <CookieBanner />
     </BrowserRouter>
   );
 };

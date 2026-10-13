@@ -571,7 +571,7 @@ const MainLayout = () => {
             <span className={styles.layoutFooterSep}>•</span>
             <span className={styles.layoutFooterDesc}>Sistema Integral de Gestión Gastronómica</span>
             <span className={styles.layoutFooterSep}>•</span>
-            <span className={styles.layoutFooterVersion}>v 1.7.6</span>
+            <span className={styles.layoutFooterVersion}>v 1.8.0</span>
           </div>
 
           <div className={styles.layoutFooterRight}>
