@@ -36,10 +36,64 @@ const getActiveTenant = () => {
   return null;
 };
 
+// Cache en memoria para evitar re-convertir en cada descarga
+let cachedLogos = null;
+
+/**
+ * Convierte un SVG accesible vía URL a PNG DataURL usando un Canvas en el navegador
+ */
+const convertSvgToPngDataUrl = (url, width, height) => {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = width * 2; // Alta densidad 2x
+          canvas.height = height * 2;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) {
+          console.warn('Error convirtiendo SVG a PNG en canvas:', e);
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    } catch {
+      resolve(null);
+    }
+  });
+};
+
+/**
+ * Carga y cachea los logotipos oficiales de NeoFood
+ */
+const getBrandingLogos = async () => {
+  if (cachedLogos) return cachedLogos;
+  try {
+    const [isotipoDataUrl, logoBlancoDataUrl] = await Promise.all([
+      convertSvgToPngDataUrl('/isotipo.svg', 200, 180),
+      convertSvgToPngDataUrl('/logo_blanco.svg', 636, 150)
+    ]);
+    cachedLogos = { isotipoDataUrl, logoBlancoDataUrl };
+    return cachedLogos;
+  } catch {
+    return { isotipoDataUrl: null, logoBlancoDataUrl: null };
+  }
+};
+
+// Iniciar pre-carga inmediata al cargar la app
+if (typeof window !== 'undefined') {
+  getBrandingLogos();
+}
+
 /**
  * Dibuja el encabezado institucional NeoFood en el PDF
  */
-const drawNeoHeader = (doc, title, subtitle, rightInfo = '') => {
+const drawNeoHeader = (doc, title, subtitle, rightInfo = '', logos = cachedLogos) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const tenant = getActiveTenant();
   const restaurantName = tenant?.name || 'NeoFood';
@@ -52,18 +106,36 @@ const drawNeoHeader = (doc, title, subtitle, rightInfo = '') => {
   doc.setFillColor(79, 70, 229); // #4f46e5
   doc.rect(0, 28, pageWidth, 3, 'F');
 
-  // Logotipo y Nombre
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(255, 255, 255);
-  doc.text('NEO', 14, 15);
-  doc.setTextColor(129, 140, 248); // #818cf8
-  doc.text('FOOD', 28, 15);
+  // Logotipo NeoFood
+  let brandDrawn = false;
+  if (logos?.logoBlancoDataUrl) {
+    try {
+      if (logos.isotipoDataUrl) {
+        doc.addImage(logos.isotipoDataUrl, 'PNG', 14, 4, 11, 10);
+        doc.addImage(logos.logoBlancoDataUrl, 'PNG', 27, 4.5, 45, 10.5);
+      } else {
+        doc.addImage(logos.logoBlancoDataUrl, 'PNG', 14, 4.5, 52, 12);
+      }
+      brandDrawn = true;
+    } catch (e) {
+      console.warn('Error insertando imagen de logo en PDF:', e);
+    }
+  }
+
+  // Fallback tipográfico vectorial si la imagen no está disponible
+  if (!brandDrawn) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('NEO', 14, 15);
+    doc.setTextColor(129, 140, 248); // #818cf8
+    doc.text('FOOD', 28, 15);
+  }
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(203, 213, 225); // #cbd5e1
-  doc.text(`${restaurantName} • Gestión Gastronómica`, 14, 21);
+  doc.text(`${restaurantName} • Gestión Gastronómica`, 14, 21.5);
 
   // Título a la derecha
   doc.setFont('helvetica', 'bold');
@@ -87,7 +159,7 @@ const drawNeoHeader = (doc, title, subtitle, rightInfo = '') => {
 /**
  * Dibuja el pie de página con firmas y créditos
  */
-const drawNeoFooter = (doc, showSignatures = true) => {
+const drawNeoFooter = (doc, showSignatures = true, logos = cachedLogos) => {
   const pageHeight = doc.internal.pageSize.getHeight();
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -117,14 +189,26 @@ const drawNeoFooter = (doc, showSignatures = true) => {
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   const printDate = new Date().toLocaleString('es-CO');
-  doc.text(`Impreso: ${printDate} • NeoFood v 1.2.1 • Documento de control interno`, 14, pageHeight - 7);
+
+  if (logos?.isotipoDataUrl) {
+    try {
+      doc.addImage(logos.isotipoDataUrl, 'PNG', 14, pageHeight - 10.5, 4.5, 4);
+      doc.text(`Impreso: ${printDate} • NeoFood v 1.8.0 • Documento de control interno`, 20, pageHeight - 7);
+    } catch {
+      doc.text(`Impreso: ${printDate} • NeoFood v 1.8.0 • Documento de control interno`, 14, pageHeight - 7);
+    }
+  } else {
+    doc.text(`Impreso: ${printDate} • NeoFood v 1.8.0 • Documento de control interno`, 14, pageHeight - 7);
+  }
+
   doc.text('Página ' + doc.internal.getNumberOfPages(), pageWidth - 14, pageHeight - 7, { align: 'right' });
 };
 
 /**
  * REPORTE 1: ARQUEO Y CUADRE DE UN TURNO / SESIÓN
  */
-export const generateTurnPdf = (session) => {
+export const generateTurnPdf = async (session) => {
+  const logos = await getBrandingLogos();
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -133,7 +217,7 @@ export const generateTurnPdf = (session) => {
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const statusText = session.status === 'OPEN' ? 'ESTADO: TURNO ABIERTO' : 'ESTADO: TURNO CERRADO';
-  drawNeoHeader(doc, 'REPORTE DE ARQUEO DE CAJA', `TURNO #${session.id}`, statusText);
+  drawNeoHeader(doc, 'REPORTE DE ARQUEO DE CAJA', `TURNO #${session.id}`, statusText, logos);
 
   let currentY = 38;
 
@@ -357,14 +441,15 @@ export const generateTurnPdf = (session) => {
     });
   }
 
-  drawNeoFooter(doc, true);
+  drawNeoFooter(doc, true, logos);
   doc.save(`Arqueo_Turno_${session.id}_${session.openedAt.substring(0, 10)}.pdf`);
 };
 
 /**
  * REPORTE 2: REPORTE DIARIO CONSOLIDADO
  */
-export const generateDailyReportPdf = (reportData) => {
+export const generateDailyReportPdf = async (reportData) => {
+  const logos = await getBrandingLogos();
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -372,7 +457,7 @@ export const generateDailyReportPdf = (reportData) => {
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
-  drawNeoHeader(doc, 'REPORTE DIARIO DE CAJA', `FECHA: ${reportData.date}`, `TURNOS: ${reportData.sessionsCount}`);
+  drawNeoHeader(doc, 'REPORTE DIARIO DE CAJA', `FECHA: ${reportData.date}`, `TURNOS: ${reportData.sessionsCount}`, logos);
 
   let currentY = 38;
 
@@ -482,14 +567,15 @@ export const generateDailyReportPdf = (reportData) => {
     styles: { fontSize: 7.5, cellPadding: 1.8, lineColor: [226, 232, 240] }
   });
 
-  drawNeoFooter(doc, true);
+  drawNeoFooter(doc, true, logos);
   doc.save(`Reporte_Diario_${reportData.date}.pdf`);
 };
 
 /**
  * REPORTE 3: REPORTE MENSUAL CONSOLIDADO
  */
-export const generateMonthlyReportPdf = (reportData) => {
+export const generateMonthlyReportPdf = async (reportData) => {
+  const logos = await getBrandingLogos();
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -503,7 +589,7 @@ export const generateMonthlyReportPdf = (reportData) => {
   ];
   const monthLabel = monthsNames[(reportData.month || 1) - 1] + ' ' + reportData.year;
 
-  drawNeoHeader(doc, 'REPORTE MENSUAL DE CAJA', monthLabel.toUpperCase(), `TOTAL TURNOS: ${reportData.sessionsCount}`);
+  drawNeoHeader(doc, 'REPORTE MENSUAL DE CAJA', monthLabel.toUpperCase(), `TOTAL TURNOS: ${reportData.sessionsCount}`, logos);
 
   let currentY = 38;
 
@@ -604,14 +690,15 @@ export const generateMonthlyReportPdf = (reportData) => {
     styles: { fontSize: 7.5, cellPadding: 1.8, lineColor: [226, 232, 240] }
   });
 
-  drawNeoFooter(doc, true);
+  drawNeoFooter(doc, true, logos);
   doc.save(`Reporte_Mensual_${reportData.period}.pdf`);
 };
 
 /**
  * REPORTE 4: FACTURA DE VENTA ELECTRÓNICA CON ESTILO VISUAL NEOFOOD
  */
-export const generateInvoicePdf = (invoice) => {
+export const generateInvoicePdf = async (invoice) => {
+  const logos = await getBrandingLogos();
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -627,7 +714,8 @@ export const generateInvoicePdf = (invoice) => {
     doc,
     'FACTURA ELECTRÓNICA DE VENTA',
     `FACTURA #${invoice.invoiceNumber}`,
-    statusLabel
+    statusLabel,
+    logos
   );
 
   let currentY = 38;
@@ -811,7 +899,7 @@ export const generateInvoicePdf = (invoice) => {
   doc.text('Consérvelo ante cualquier solicitud de garantía o soporte.', 14, finalY + 18);
 
   // Pie de página institucional
-  drawNeoFooter(doc, false);
+  drawNeoFooter(doc, false, logos);
 
   doc.save(`Factura_${invoice.invoiceNumber}.pdf`);
 };

@@ -58,8 +58,9 @@ const PurchaseForm = ({ isOpen = true, onClose, onSuccess, onBack }) => {
   });
 
   const resetForm = () => {
+    const generic = (suppliers || []).find(s => s.nit === "222222222" || s.name?.toLowerCase().includes("proveedor genérico"));
     setFormData({
-      supplierId: "",
+      supplierId: generic ? generic.id : "",
       invoiceNumber: "",
       purchaseDate: {
         startDate: new Date().toISOString().split("T")[0],
@@ -88,7 +89,15 @@ const PurchaseForm = ({ isOpen = true, onClose, onSuccess, onBack }) => {
         api.get("/purchases/suppliers"),
         api.get("/inventory/ingredients"),
       ]);
-      setSuppliers(suppliersRes.data.data);
+      const suppliersData = suppliersRes.data.data || [];
+      setSuppliers(suppliersData);
+      setFormData(prev => {
+        if (!prev.supplierId) {
+          const generic = suppliersData.find(s => s.nit === "222222222" || s.name?.toLowerCase().includes("proveedor genérico"));
+          return generic ? { ...prev, supplierId: generic.id } : prev;
+        }
+        return prev;
+      });
       const rawIngredients = (ingredientsRes.data.data || []).filter(i => !i.isManufactured);
       setIngredients(rawIngredients);
     } catch (err) {

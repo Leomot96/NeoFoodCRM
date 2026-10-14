@@ -125,7 +125,39 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  gap: 2px;
+  gap: 0.65rem;
+}
+
+.navIsotipoImg {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.navLogoImg {
+  height: 34px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+}
+
+.footerIsotipoImg {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
+}
+
+.footerLogoImg {
+  height: 38px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  display: block;
 }
 
 .brandNeo {

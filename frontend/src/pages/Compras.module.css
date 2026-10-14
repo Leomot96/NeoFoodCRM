@@ -238,3 +238,40 @@
   font-weight: 900;
   color: var(--text-main);
 }
+
+/* ========================================================
+   OPTIMIZACIONES MÓVILES (COMPRAS ESTILO APP)
+   ======================================================== */
+@media (max-width: 768px) {
+  .comprasContainer,
+  .compras-container {
+    gap: 1rem !important;
+  }
+
+  .comprasTitle,
+  .compras-title {
+    font-size: 1.25rem !important;
+  }
+
+  .comprasHeaderActions,
+  .compras-header-actions {
+    width: 100% !important;
+  }
+
+  .comprasSearchBox,
+  .compras-search-box {
+    width: 100% !important;
+  }
+
+  .comprasTableWrapper,
+  .compras-table-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+  }
+
+  .comprasTable,
+  .compras-table {
+    min-width: 600px !important;
+  }
+}

@@ -67,6 +67,23 @@ class SaleService {
 
       const finalAmount = subtotalTotal - parseFloat(discount);
 
+      // Si no se especifica cliente, asociar automáticamente al "Consumidor final" del establecimiento
+      let effectiveCustomerId = customerId || null;
+      if (!effectiveCustomerId && effectiveTenantId) {
+        const defaultCustomer = await tx.customer.findFirst({
+          where: {
+            tenantId: effectiveTenantId,
+            OR: [
+              { document: '222222222222' },
+              { name: { contains: 'Consumidor' } }
+            ]
+          }
+        });
+        if (defaultCustomer) {
+          effectiveCustomerId = defaultCustomer.id;
+        }
+      }
+
       // 1. Obtener orden existente de mesa o crear una nueva
       let order;
       if (orderId) {
@@ -76,7 +93,7 @@ class SaleService {
           order = await tx.order.update({
             where: { id: order.id },
             data: {
-              customerId: customerId || order.customerId,
+              customerId: effectiveCustomerId || order.customerId,
               tableId: tableId || order.tableId,
               status: 'DELIVERED',
               notes: notes || order.notes,
@@ -102,7 +119,7 @@ class SaleService {
           data: {
             tenantId: effectiveTenantId,
             userId,
-            customerId: customerId || null,
+            customerId: effectiveCustomerId || null,
             tableId: tableId || null,
             status: 'DELIVERED',
             orderType,
@@ -171,7 +188,7 @@ class SaleService {
           orderId: order.id,
           paymentMethodId: paymentMethod.id,
           cashSessionId: activeSession.id,
-          customerId: customerId || null,
+          customerId: effectiveCustomerId || null,
           details: {
             create: costedDetails.map(item => {
               const detailData = {
@@ -246,7 +263,32 @@ class SaleService {
         });
       }
 
-      return newSale;
+      const fullSale = await tx.sale.findUnique({
+        where: { id: newSale.id },
+        include: {
+          tenant: true,
+          customer: { select: { name: true, document: true, phone: true } },
+          paymentMethod: { select: { name: true } },
+          order: {
+            select: {
+              orderNumber: true,
+              orderType: true,
+              notes: true,
+              table: { select: { name: true } },
+              user: { select: { name: true } }
+            }
+          },
+          details: {
+            include: {
+              product: { select: { name: true } },
+              saleDetailAdditions: { include: { addition: { select: { name: true } } } },
+              saleDetailVariations: { include: { variation: { select: { name: true } } } }
+            }
+          }
+        }
+      });
+
+      return fullSale || newSale;
     });
   }
 

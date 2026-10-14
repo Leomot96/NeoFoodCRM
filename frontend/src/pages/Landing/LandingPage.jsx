@@ -227,8 +227,8 @@ const LandingPage = () => {
       <header className={styles.navbar}>
         <div className={styles.navContainer}>
           <Link to="/" className={styles.brandLink}>
-            <span className={styles.brandNeo}>Neo</span>
-            <span className={styles.brandFood}>FOOD</span>
+            <img src="/isotipo.svg" alt="NeoFood" className={styles.navIsotipoImg} />
+            <img src="/logo_blanco.svg" alt="NeoFood POS & CRM" className={styles.navLogoImg} />
             <span className={styles.brandBadge}>POS & CRM</span>
           </Link>
 
@@ -911,8 +911,8 @@ const LandingPage = () => {
           <div className={styles.footerGrid}>
             <div className={styles.footerBrandCol}>
               <div className={styles.brandLink}>
-                <span className={styles.brandNeo}>Neo</span>
-                <span className={styles.brandFood}>FOOD</span>
+                <img src="/isotipo.svg" alt="NeoFood" className={styles.footerIsotipoImg} />
+                <img src="/logo_blanco.svg" alt="NeoFood POS & CRM" className={styles.footerLogoImg} />
                 <span className={styles.brandBadge}>POS & CRM</span>
               </div>
               <p className={styles.footerBio}>

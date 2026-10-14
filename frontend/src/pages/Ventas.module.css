@@ -613,3 +613,292 @@
   flex-direction: column;
   gap: 0.75rem;
 }
+
+/* ========================================================
+   OPTIMIZACIONES MÓVILES (PUNTO DE VENTA ESTILO APP)
+   ======================================================== */
+@media (max-width: 768px) {
+  .posPage,
+  .pos-page {
+    padding: 0.65rem !important;
+    gap: 0.75rem !important;
+    border-radius: 0.875rem !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .posTablesHeader,
+  .pos-tables-header {
+    gap: 0.5rem !important;
+  }
+
+  .posTablesTitle,
+  .pos-tables-title {
+    font-size: 1.25rem !important;
+  }
+
+  /* Cuadrícula de mesas en 2 columnas compactas para móvil */
+  .posTablesGrid,
+  .pos-tables-grid {
+    grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)) !important;
+    gap: 0.65rem !important;
+  }
+
+  .posTableCard,
+  .pos-table-card {
+    min-height: 105px !important;
+    padding: 0.65rem 0.75rem !important;
+    border-radius: 0.875rem !important;
+  }
+
+  .posTableName,
+  .pos-table-name {
+    font-size: 1rem !important;
+  }
+
+  .posTableIconBox,
+  .pos-table-icon-box {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  /* Barra de categorías con deslizamiento horizontal suave */
+  .posCategoriesBar,
+  .pos-categories-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 0.2rem !important;
+    touch-action: pan-x !important;
+  }
+
+  .posCategoriesBar::-webkit-scrollbar,
+  .pos-categories-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .posCategoryBtn,
+  .pos-category-btn {
+    flex-shrink: 0 !important;
+    padding: 0.4rem 0.85rem !important;
+    font-size: 0.725rem !important;
+  }
+
+  /* Catálogo de productos en móvil */
+  .posProductsGrid,
+  .pos-products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)) !important;
+    gap: 0.65rem !important;
+    padding: 0.65rem !important;
+  }
+
+  .posProductCard,
+  .pos-product-card {
+    padding: 0.5rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .posProductMedia {
+    height: 75px !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  /* Layout activo de orden en móvil: FLUJO EN 2 PASOS (Catálogo <-> Checkout/Pedido) */
+  .posActiveLayout,
+  .pos-active-layout {
+    flex-direction: column !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .posCatalogPanel,
+  .pos-catalog-panel {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: calc(100vh - 140px) !important;
+    overflow: visible !important;
+  }
+
+  .posCartPanel,
+  .pos-cart-panel {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin-top: 0 !important;
+    border-radius: var(--radius-xl, 1rem) !important;
+  }
+
+  .posCartItemsContainer,
+  .pos-cart-items-container {
+    max-height: 48vh !important;
+    min-height: 160px !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ========================================================
+   REGLAS DEL FLUJO EN 2 PASOS EN DISPOSITIVOS MÓVILES (<1024px)
+   ======================================================== */
+.posMobileCartBar {
+  display: none;
+}
+
+.posMobileBackRow {
+  display: none;
+}
+
+.posMobileCartHeaderBtn {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .hideOnMobile {
+    display: none !important;
+  }
+
+  /* Botón de acceso directo al carrito en la cabecera */
+  .posMobileCartHeaderBtn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 0.45rem 0.65rem;
+    background-color: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: var(--radius-lg, 0.75rem);
+    color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .posMobileCartHeaderBtn:active {
+    background-color: rgba(255, 255, 255, 0.35);
+  }
+
+  .posMobileCartHeaderBadge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 900;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ffffff;
+    padding: 0 0.2rem;
+  }
+
+  /* Barra Flotante Inferior de Paso 1 (Ver Pedido / Cobrar) */
+  .posMobileCartBar {
+    display: flex !important;
+    position: sticky;
+    bottom: 0.65rem;
+    margin: 0.75rem 0.75rem 0.75rem 0.75rem;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #ffffff;
+    border-radius: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.5), 0 4px 6px -2px rgba(15, 23, 42, 0.3);
+    z-index: 50;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    animation: slideUpMobile 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .posMobileCartBarInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .posMobileCartBadge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .posMobileCartTotal {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #38bdf8;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .posMobileCartBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.15rem;
+    background: linear-gradient(135deg, var(--primary, #4f46e5), #6366f1);
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 800;
+    border: none;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    transition: transform 0.15s ease;
+  }
+
+  .posMobileCartBtn:active {
+    transform: scale(0.96);
+  }
+
+  /* Barra de retorno al Menú en Paso 2 */
+  .posMobileBackRow {
+    display: flex !important;
+    padding: 0.65rem 0.85rem;
+    background-color: var(--bg-surface, #ffffff);
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    align-items: center;
+  }
+
+  .posMobileBackBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #eef2ff;
+    color: var(--primary, #4f46e5);
+    border: 1.5px solid rgba(79, 70, 229, 0.2);
+    padding: 0.55rem 0.95rem;
+    border-radius: 0.75rem;
+    font-size: 0.825rem;
+    font-weight: 800;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.15s ease;
+  }
+
+  .posMobileBackBtn:active {
+    background-color: #e0e7ff;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes slideUpMobile {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

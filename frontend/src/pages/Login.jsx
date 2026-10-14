@@ -45,10 +45,10 @@ const Login = () => {
               ← Conoce más sobre NeoFood
             </Link>
           </div>
-          <h2 className={styles.loginTitle}>
-            <span className={styles.loginTitleNeo1}>Neo</span>
-            <span className={styles.loginTitleFood1}>FOOD</span>
-          </h2>
+          <div className={styles.loginLogoBox}>
+            <img src="/isotipo.svg" alt="NeoFood" className={styles.loginIsotipoImg} />
+            <img src="/logo_negro.svg" alt="NeoFood" className={styles.loginLogoTextImg} />
+          </div>
           <p className={styles.loginSubtitle}>Ingresa tus credenciales para acceder</p>
         </div>
 
@@ -151,25 +151,30 @@ const Login = () => {
 
         <div className={styles.loginFooter}>
           <div className={styles.loginFooterSecurity}>
-            <ShieldCheck size={14} />
-            <span>Acceso Seguro &bull; <span className={styles.loginTitleNeo}>NEO</span><span className={styles.loginTitleFood}>FOOD</span></span>
+            <ShieldCheck size={15} />
+            <span>Acceso Seguro &bull;</span>
+            <img src="/logo_negro.svg" alt="NeoFood" className={styles.loginCardFooterLogo} />
           </div>
         </div>
       </div>
 
       <footer className={styles.loginPageFooter}>
-        <p><span className={styles.loginTitleNeo}>NEO</span><span className={styles.loginTitleFood}>FOOD</span> &bull; Sistema Integral de Gestión Gastronómica</p>
+        <div className={styles.loginPageFooterBrandRow}>
+          <img src="/isotipo.svg" alt="NeoFood" className={styles.loginFooterIsotipo} />
+          <img src="/logo_negro.svg" alt="NeoFood" className={styles.loginFooterBrandLogo} />
+        </div>
+        <p className={styles.loginFooterTagline}>Sistema Integral de Gestión Gastronómica</p>
         <p className={styles.loginFooterCopy}>
-          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v 1.7.6
+          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v 1.8.0
         </p>
-        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', fontSize: '0.75rem', color: '#64748b', margin: '0.4rem 0', flexWrap: 'wrap' }}>
-          <Link to="/terminos" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Términos de Servicio</Link>
+        <div className={styles.loginFooterLegalLinks}>
+          <Link to="/terminos" target="_blank">Términos de Servicio</Link>
           <span>&bull;</span>
-          <Link to="/privacidad" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Privacidad & Habeas Data</Link>
+          <Link to="/privacidad" target="_blank">Privacidad & Habeas Data</Link>
           <span>&bull;</span>
-          <Link to="/cookies" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Cookies</Link>
+          <Link to="/cookies" target="_blank">Cookies</Link>
           <span>&bull;</span>
-          <Link to="/sla" target="_blank" style={{ color: '#475569', textDecoration: 'none' }}>Garantía SLA</Link>
+          <Link to="/sla" target="_blank">Garantía SLA</Link>
         </div>
         <p className={styles.loginFooterAuthor}>
           Diseñado por <strong>Leonardo Ramirez</strong>

@@ -520,3 +520,43 @@
   font-size: 0.75rem;
   font-weight: 800;
 }
+
+/* ========================================================
+   OPTIMIZACIONES MÓVILES (TIENDA VIRTUAL ESTILO APP)
+   ======================================================== */
+@media (max-width: 768px) {
+  .managerContainer {
+    gap: 1rem !important;
+  }
+
+  .headerTitle {
+    font-size: 1.25rem !important;
+  }
+
+  .tabsBar {
+    width: 100% !important;
+  }
+
+  .segmentedTabs {
+    width: 100% !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    touch-action: pan-x !important;
+  }
+
+  .segmentedTabs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .tabBtn {
+    flex-shrink: 0 !important;
+    font-size: 0.75rem !important;
+    padding: 0.45rem 0.75rem !important;
+  }
+
+  .historyTable {
+    min-width: 580px !important;
+  }
+}

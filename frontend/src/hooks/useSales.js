@@ -169,7 +169,7 @@ export const useSales = () => {
       const result = await salesService.createSale(saleData);
       clearCart();
       await refreshTables();
-      return { success: true, data: result };
+      return { success: true, data: result.data || result };
     } catch (err) {
       return { success: false, message: err.response?.data?.message || 'Error al procesar la venta' };
     }

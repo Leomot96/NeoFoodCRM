@@ -362,8 +362,8 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
             </Link>
           </div>
           <div className={styles.brandTitleContainer}>
-            <span className={styles.brandNeo}>Neo</span>
-            <span className={styles.brandFood}>FOOD</span>
+            <img src="/isotipo.svg" alt="NeoFood" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
+            <img src="/logo_negro.svg" alt="NeoFood" style={{ height: '26px', width: 'auto', maxWidth: '170px', objectFit: 'contain' }} />
             <span className={styles.saasBadge}>SaaS Multi-Tenant</span>
           </div>
           <h1 className={styles.registerTitle}>

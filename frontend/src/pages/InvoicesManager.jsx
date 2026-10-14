@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, DollarSign, FileText, Calendar, User, CreditCard, RefreshCw, Eye, Download, Edit3 } from 'lucide-react';
+import { Search, Filter, DollarSign, FileText, Calendar, User, CreditCard, RefreshCw, Eye, Download, Edit3, Printer } from 'lucide-react';
 import Datepicker from "react-tailwindcss-datepicker";
 import CustomSelect from '../components/ui/CustomSelect';
 import { Pagination } from '../components/ui';
+import PosTicketModal from '../components/pos/PosTicketModal';
+import printerService from '../services/printerService';
 import api from '../services/api'; // Ajusta tu ruta
 import { generateInvoicePdf } from '../services/reportPdfService';
 import styles from './InvoicesManager.module.css';
@@ -40,13 +42,24 @@ const InvoicesManager = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
+  // Impresión Tirilla POS
+  const [selectedTicketInvoice, setSelectedTicketInvoice] = useState(null);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [printerConfig, setPrinterConfig] = useState(null);
+
   const [editData, setEditData] = useState({ paymentMethodId: '', date: { startDate: null, endDate: null }, amount: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Carga inicial de selectores
+  const handleOpenPosTicket = (invoice) => {
+    setSelectedTicketInvoice(invoice);
+    setIsTicketModalOpen(true);
+  };
+
+  // Carga inicial de selectores y config de impresora
   useEffect(() => {
     api.get('/customers').then(res => setCustomers(res.data.data));
     api.get('/sales/payment-methods').then(res => setPaymentMethods((res.data.data || []).filter(pm => pm.isActive !== false)));
+    printerService.getPrinterConfig().then(setPrinterConfig).catch(console.warn);
   }, []);
 
   useEffect(() => {
@@ -265,6 +278,9 @@ const InvoicesManager = () => {
                         <button onClick={() => handleOpenDetails(invoice)} className="neo-action-icon-btn" style={{ color: '#2563eb' }} title="Ver Detalles">
                           <Eye size={18} />
                         </button>
+                        <button onClick={() => handleOpenPosTicket(invoice)} className="neo-action-icon-btn" style={{ color: '#16a34a' }} title="Imprimir Tirilla POS">
+                          <Printer size={18} />
+                        </button>
                         <button onClick={() => handleDownloadPDF(invoice)} className="neo-action-icon-btn" title="Descargar PDF">
                           <Download size={18} />
                         </button>
@@ -436,8 +452,19 @@ const InvoicesManager = () => {
             </div>
 
             <div className="neo-modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Total de la Factura:</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{formatCurrency(selectedInvoice.totalAmount)}</span>
+              <button
+                type="button"
+                onClick={() => handleOpenPosTicket(selectedInvoice)}
+                className="neo-btn neo-btn-secondary"
+                style={{ gap: '0.4rem', padding: '0.5rem 0.85rem' }}
+              >
+                <Printer size={16} />
+                <span>Imprimir Tirilla POS</span>
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Total:</span>
+                <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{formatCurrency(selectedInvoice.totalAmount)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -583,6 +610,14 @@ const InvoicesManager = () => {
           </div>
         );
       })()}
+
+      {/* Modal de Impresión de Tirilla POS */}
+      <PosTicketModal
+        isOpen={isTicketModalOpen}
+        onClose={() => setIsTicketModalOpen(false)}
+        sale={selectedTicketInvoice}
+        initialConfig={printerConfig}
+      />
     </div>
   );
 };

@@ -24,10 +24,13 @@ import {
   Loader2,
   Clock,
   Eye,
-  Sliders
+  Sliders,
+  Printer,
+  FileText
 } from 'lucide-react';
 import configService from '../services/config.service';
 import storeService from '../services/store.service';
+import printerService from '../services/printerService';
 import { getFullImageUrl } from '../utils/imageUrl';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -93,6 +96,21 @@ const Configuracion = () => {
   const [isDeletingLogo, setIsDeletingLogo] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
+  // Estado Impresora POS
+  const [printerConfig, setPrinterConfig] = useState({
+    paperWidth: '80mm',
+    autoPrint: false,
+    showLogo: true,
+    headerText: '',
+    footerText: '¡Gracias por su compra! Vuelva pronto.',
+    showCustomer: true,
+    showTable: true,
+    showCashier: true,
+    showTax: false
+  });
+  const [isSavingPrinter, setIsSavingPrinter] = useState(false);
+  const [printerSaveSuccess, setPrinterSaveSuccess] = useState(false);
+
   const plan = user?.tenant?.plan;
   const maxTables = typeof plan?.maxTables === 'number' ? plan.maxTables : -1;
   const isLimitReached = maxTables !== -1 && tables.length >= maxTables;
@@ -101,10 +119,11 @@ const Configuracion = () => {
 
   const loadData = async () => {
     try {
-      const [tableRes, methodRes, storeRes] = await Promise.all([
+      const [tableRes, methodRes, storeRes, printerRes] = await Promise.all([
         api.get('/tables'),
         configService.getPaymentMethods(),
-        storeService.getStoreConfig().catch(() => null)
+        storeService.getStoreConfig().catch(() => null),
+        printerService.getPrinterConfig().catch(() => null)
       ]);
       setTables(tableRes.data.data);
       setMethods(methodRes);
@@ -112,7 +131,56 @@ const Configuracion = () => {
         setStoreData(storeRes);
         setWeeklySchedule(parseSchedule(storeRes.storeSchedule));
       }
+      if (printerRes) {
+        setPrinterConfig(prev => ({ ...prev, ...printerRes }));
+      }
     } catch (err) { console.error(err); }
+  };
+
+  const handleSavePrinter = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingPrinter(true);
+    setPrinterSaveSuccess(false);
+    try {
+      const saved = await printerService.savePrinterConfig(printerConfig);
+      setPrinterConfig(prev => ({ ...prev, ...saved }));
+      setPrinterSaveSuccess(true);
+      setTimeout(() => setPrinterSaveSuccess(false), 3000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error guardando configuración de impresora');
+    } finally {
+      setIsSavingPrinter(false);
+    }
+  };
+
+  const sampleSale = {
+    invoiceNumber: 'FE-000123',
+    createdAt: new Date().toISOString(),
+    cashier: user?.name || 'Administrador',
+    tableName: 'Mesa 1',
+    customer: {
+      name: 'Consumidor final',
+      document: '222222222222'
+    },
+    paymentMethod: { name: 'Efectivo' },
+    details: [
+      { quantity: 2, product: { name: 'Hamburguesa Especial' }, subtotal: 36000 },
+      { quantity: 2, product: { name: 'Gaseosa 400ml' }, subtotal: 8000 }
+    ],
+    totalAmount: 44000,
+    discount: 0,
+    finalAmount: 44000,
+    tenant: {
+      name: user?.tenant?.name || storeData.name || 'NeoFood Restaurante',
+      document: user?.tenant?.document || storeData.document || '900.123.456-7',
+      phone: user?.tenant?.phone || storeData.phone || '+57 300 123 4567',
+      address: user?.tenant?.address || storeData.address || 'Calle 10 # 5-20',
+      logoUrl: user?.tenant?.logoUrl || storeData.logoUrl || null
+    }
+  };
+
+  const handleTestPrint = async () => {
+    await printerService.printPosTicket(sampleSale, printerConfig);
   };
 
   // --- LÓGICA HORARIOS TIENDA VIRTUAL ---
@@ -321,6 +389,27 @@ const Configuracion = () => {
             borderColor: storeData.isStoreActive ? '#bbf7d0' : '#fecaca'
           }}>
             {storeData.isStoreActive ? '● Activa' : '○ Pausada'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('printer')}
+          className={`${styles.configTabBtn} ${activeTab === 'printer' ? styles.configTabBtnActive : ''}`}
+        >
+          <div className={styles.configTabIconWrap}>
+            <Printer size={20} />
+          </div>
+          <div className={styles.configTabInfo}>
+            <span className={styles.configTabTitle}>Impresora POS</span>
+            <span className={styles.configTabDesc}>Tirilla térmica 80mm / 58mm & auto-impresión</span>
+          </div>
+          <span className={styles.configTabBadge} style={{
+            backgroundColor: '#f1f5f9',
+            color: '#334155',
+            fontWeight: 700
+          }}>
+            {printerConfig.paperWidth}
           </span>
         </button>
       </div>
@@ -537,6 +626,246 @@ const Configuracion = () => {
               )}
             </div>
           </div>
+        ) : activeTab === 'printer' ? (
+          /* PESTAÑA: IMPRESORA POS Y FORMATO TICKET */
+          <div style={{ padding: '1.5rem' }}>
+            {/* ENCABEZADO DE SECCIÓN */}
+            <div className={styles.configCardHeader} style={{ marginBottom: '1.5rem' }}>
+              <div className={styles.configCardHeaderLeft}>
+                <h3 className={styles.configCardTitle}>
+                  <Printer size={20} /> Impresora POS y Formato de Tirilla
+                </h3>
+                <p className={styles.configCardSubtitle}>
+                  Configura el formato térmico para recibos, tamaño de papel y comportamiento de auto-impresión
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleTestPrint}
+                  className="neo-btn neo-btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.55rem 0.85rem' }}
+                  title="Enviar ticket de prueba a la impresora conectada"
+                >
+                  <Printer size={16} /> Probar Impresión
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.printerLayout}>
+              {/* COLUMNA IZQUIERDA: CONFIGURACIONES */}
+              <form onSubmit={handleSavePrinter} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                
+                {/* 1. SELECCIÓN DE ANCHO DE PAPEL */}
+                <div className={styles.storeSectionCard}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sliders size={18} /> Ancho del Papel Térmico
+                  </h4>
+                  <p style={{ fontSize: '0.785rem', color: 'var(--text-muted)' }}>
+                    Selecciona el ancho según el modelo de tu impresora térmica (Epson, Xprinter, Bixolon, etc.)
+                  </p>
+
+                  <div className={styles.printerWidthCards}>
+                    <div
+                      className={`${styles.printerWidthCard} ${printerConfig.paperWidth === '80mm' ? styles.printerWidthCardActive : ''}`}
+                      onClick={() => setPrinterConfig({ ...printerConfig, paperWidth: '80mm' })}
+                    >
+                      {printerConfig.paperWidth === '80mm' && (
+                        <span className={styles.printerWidthCardBadge}>Activo</span>
+                      )}
+                      <div className={styles.printerWidthTitle}>
+                        <FileText size={18} /> 80 mm (Estándar)
+                      </div>
+                      <p className={styles.printerWidthDesc}>
+                        Ancho tradicional de restaurantes y puntos de venta fijos. Permite nombres completos de productos y adiciones.
+                      </p>
+                    </div>
+
+                    <div
+                      className={`${styles.printerWidthCard} ${printerConfig.paperWidth === '58mm' ? styles.printerWidthCardActive : ''}`}
+                      onClick={() => setPrinterConfig({ ...printerConfig, paperWidth: '58mm' })}
+                    >
+                      {printerConfig.paperWidth === '58mm' && (
+                        <span className={styles.printerWidthCardBadge}>Activo</span>
+                      )}
+                      <div className={styles.printerWidthTitle}>
+                        <FileText size={18} /> 58 mm (Compacto)
+                      </div>
+                      <p className={styles.printerWidthDesc}>
+                        Ideal para impresoras portátiles Bluetooth, mini impresoras de mostrador o quioscos compactos.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. OPCIONES DE IMPRESIÓN Y CONTENIDO */}
+                <div className={styles.storeSectionCard}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <CheckCircle size={18} /> Contenido del Ticket y Auto-Impresión
+                  </h4>
+
+                  <div className={styles.printerSwitchesGrid}>
+                    {/* Auto Print */}
+                    <div className={styles.printerToggleItem}>
+                      <div className={styles.printerToggleInfo}>
+                        <span className={styles.printerToggleTitle}>Auto-Imprimir al Cobrar</span>
+                        <span className={styles.printerToggleDesc}>Abre el diálogo de impresión automáticamente al registrar cada venta en POS</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPrinterConfig({ ...printerConfig, autoPrint: !printerConfig.autoPrint })}
+                        className={`${styles.printerToggleSwitch} ${printerConfig.autoPrint ? styles.printerToggleSwitchActive : ''}`}
+                      >
+                        <div className={styles.printerToggleThumb} />
+                      </button>
+                    </div>
+
+                    {/* Mostrar Logo */}
+                    <div className={styles.printerToggleItem}>
+                      <div className={styles.printerToggleInfo}>
+                        <span className={styles.printerToggleTitle}>Imprimir Logotipo</span>
+                        <span className={styles.printerToggleDesc}>Incluye el logo del restaurante en blanco y negro en el encabezado</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPrinterConfig({ ...printerConfig, showLogo: !printerConfig.showLogo })}
+                        className={`${styles.printerToggleSwitch} ${printerConfig.showLogo ? styles.printerToggleSwitchActive : ''}`}
+                      >
+                        <div className={styles.printerToggleThumb} />
+                      </button>
+                    </div>
+
+                    {/* Datos del Cliente */}
+                    <div className={styles.printerToggleItem}>
+                      <div className={styles.printerToggleInfo}>
+                        <span className={styles.printerToggleTitle}>Datos del Cliente</span>
+                        <span className={styles.printerToggleDesc}>Imprime Nombre y Documento (o "Consumidor final" / 222222222222)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPrinterConfig({ ...printerConfig, showCustomer: !printerConfig.showCustomer })}
+                        className={`${styles.printerToggleSwitch} ${printerConfig.showCustomer ? styles.printerToggleSwitchActive : ''}`}
+                      >
+                        <div className={styles.printerToggleThumb} />
+                      </button>
+                    </div>
+
+                    {/* Mesa y Ubicación */}
+                    <div className={styles.printerToggleItem}>
+                      <div className={styles.printerToggleInfo}>
+                        <span className={styles.printerToggleTitle}>Mesa y Tipo de Pedido</span>
+                        <span className={styles.printerToggleDesc}>Indica el número de mesa, para llevar o domicilio</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPrinterConfig({ ...printerConfig, showTable: !printerConfig.showTable })}
+                        className={`${styles.printerToggleSwitch} ${printerConfig.showTable ? styles.printerToggleSwitchActive : ''}`}
+                      >
+                        <div className={styles.printerToggleThumb} />
+                      </button>
+                    </div>
+
+                    {/* Nombre del Cajero */}
+                    <div className={styles.printerToggleItem}>
+                      <div className={styles.printerToggleInfo}>
+                        <span className={styles.printerToggleTitle}>Nombre del Cajero</span>
+                        <span className={styles.printerToggleDesc}>Muestra quién atendió o cobró la orden</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPrinterConfig({ ...printerConfig, showCashier: !printerConfig.showCashier })}
+                        className={`${styles.printerToggleSwitch} ${printerConfig.showCashier ? styles.printerToggleSwitchActive : ''}`}
+                      >
+                        <div className={styles.printerToggleThumb} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. MENSAJES PERSONALIZADOS */}
+                <div className={styles.storeSectionCard}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <MessageSquare size={18} /> Textos Personalizados del Ticket
+                  </h4>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className={styles.storeFieldBox}>
+                      <label className={styles.storeLabel}>Mensaje de Encabezado (Opcional - Slogan o Lema)</label>
+                      <input
+                        type="text"
+                        value={printerConfig.headerText || ''}
+                        onChange={(e) => setPrinterConfig({ ...printerConfig, headerText: e.target.value })}
+                        placeholder="Ej: ¡El mejor sabor de la ciudad!"
+                        className={styles.storeInput}
+                      />
+                    </div>
+
+                    <div className={styles.storeFieldBox}>
+                      <label className={styles.storeLabel}>Mensaje de Pie de Página (Agradecimiento o Leyenda)</label>
+                      <textarea
+                        rows={2}
+                        value={printerConfig.footerText || ''}
+                        onChange={(e) => setPrinterConfig({ ...printerConfig, footerText: e.target.value })}
+                        placeholder="Ej: ¡Gracias por su compra! Vuelva pronto. Propina voluntaria sugerida."
+                        className={styles.storeInput}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* BOTÓN GUARDAR */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
+                  {printerSaveSuccess && (
+                    <span style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <CheckCircle size={16} /> ¡Configuración de impresora guardada con éxito!
+                    </span>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSavingPrinter}
+                    className="neo-btn neo-btn-primary flex items-center gap-2 px-6 py-3 text-sm font-bold shadow-md"
+                    style={{ borderRadius: '0.75rem' }}
+                  >
+                    {isSavingPrinter ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    <span>{isSavingPrinter ? 'Guardando...' : 'Guardar Configuración de Impresora'}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* COLUMNA DERECHA: VISTA PREVIA EN VIVO DE LA TIRILLA TÉRMICA */}
+              <div className={styles.printerPreviewCard}>
+                <div className={styles.printerPreviewHeader}>
+                  <div className={styles.printerPreviewTitle}>
+                    <Eye size={16} /> Vista Previa Tirilla ({printerConfig.paperWidth})
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTestPrint}
+                    className="neo-btn neo-btn-secondary"
+                    style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Printer size={14} /> Imprimir Muestra
+                  </button>
+                </div>
+
+                <div
+                  className={`${styles.printerReceiptPaper} ${
+                    printerConfig.paperWidth === '58mm' ? styles.printerReceiptPaper58 : styles.printerReceiptPaper80
+                  }`}
+                >
+                  <iframe
+                    key={`${printerConfig.paperWidth}-${printerConfig.showLogo}-${printerConfig.showCustomer}-${printerConfig.headerText}-${printerConfig.footerText}`}
+                    srcDoc={printerService.generatePosTicketHtml(sampleSale, printerConfig)}
+                    title="Live Ticket Preview"
+                    className={styles.printerReceiptFrame}
+                  />
+                </div>
+                <p style={{ fontSize: '0.7rem', color: '#a1a1aa', textAlign: 'center', margin: 0 }}>
+                  Renderizado en vivo con tipografía e interlineado óptimo para cabezal térmico POS.
+                </p>
+              </div>
+            </div>
+          </div>
         ) : (
           /* PESTAÑA: TIENDA VIRTUAL */
           <div className={styles.storeContainer} style={{ padding: '1.5rem' }}>
@@ -706,48 +1035,56 @@ const Configuracion = () => {
                             }`}
                         >
                           {/* FILA PRINCIPAL: CHECKBOX + NOMBRE + HORAS O CERRADO */}
-                          <div className="flex items-center justify-between gap-2">
-                            <label className="flex items-center gap-2 cursor-pointer select-none min-w-[110px] shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(dayItem.isOpen)}
-                                onChange={() => handleDayToggle(index)}
-                                className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
-                              />
-                              <span className={`text-xs ${dayItem.isOpen ? 'font-bold text-slate-800' : 'font-medium text-slate-400'}`}>
-                                {dayItem.dayName}:
-                              </span>
-                            </label>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center justify-between w-full sm:w-auto">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(dayItem.isOpen)}
+                                  onChange={() => handleDayToggle(index)}
+                                  className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <span className={`text-xs ${dayItem.isOpen ? 'font-bold text-slate-800' : 'font-medium text-slate-400'}`}>
+                                  {dayItem.dayName}:
+                                </span>
+                              </label>
+
+                              {!dayItem.isOpen && (
+                                <span className="text-[11px] font-bold text-slate-400 bg-slate-200/70 px-2.5 py-0.5 rounded-full sm:hidden">
+                                  Cerrado
+                                </span>
+                              )}
+                            </div>
 
                             {dayItem.isOpen ? (
-                              <div className="flex items-center gap-1.5 flex-1 justify-end">
+                              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end flex-wrap sm:flex-nowrap">
                                 <input
                                   type="time"
                                   value={dayItem.openTime || '11:00'}
                                   onChange={(e) => handleDayTimeChange(index, 'openTime', e.target.value)}
-                                  className="text-xs px-2 py-0.5 bg-white border border-slate-200 rounded-md text-slate-800 font-semibold focus:border-indigo-500 outline-none w-[90px]"
+                                  className="text-xs px-2 py-1 bg-white border border-slate-200 rounded-md text-slate-800 font-semibold focus:border-indigo-500 outline-none flex-1 sm:flex-none sm:w-[90px] text-center"
                                 />
                                 <span className="text-[11px] text-slate-400 font-medium">-</span>
                                 <input
                                   type="time"
                                   value={dayItem.closeTime || '22:00'}
                                   onChange={(e) => handleDayTimeChange(index, 'closeTime', e.target.value)}
-                                  className="text-xs px-2 py-0.5 bg-white border border-slate-200 rounded-md text-slate-800 font-semibold focus:border-indigo-500 outline-none w-[90px]"
+                                  className="text-xs px-2 py-1 bg-white border border-slate-200 rounded-md text-slate-800 font-semibold focus:border-indigo-500 outline-none flex-1 sm:flex-none sm:w-[90px] text-center"
                                 />
 
                                 {!dayItem.hasSecondShift && (
                                   <button
                                     type="button"
                                     onClick={() => handleToggleSecondShift(index, true)}
-                                    className="p-1 rounded-md text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-dashed border-indigo-300 transition-colors ml-0.5"
+                                    className="p-1 rounded-md text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-dashed border-indigo-300 transition-colors ml-0.5 shrink-0"
                                     title="Agregar 2do turno a este día"
                                   >
-                                    <Plus size={13} />
+                                    <Plus size={14} />
                                   </button>
                                 )}
                               </div>
                             ) : (
-                              <div className="flex items-center justify-end flex-1">
+                              <div className="hidden sm:flex items-center justify-end flex-1">
                                 <span className="text-[11px] font-bold text-slate-400 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
                                   Cerrado
                                 </span>
@@ -757,30 +1094,30 @@ const Configuracion = () => {
 
                           {/* FILA SEGUNDO TURNO (SI ESTÁ ACTIVO Y TIENE 2DO TURNO) */}
                           {dayItem.isOpen && dayItem.hasSecondShift && (
-                            <div className="flex items-center justify-end gap-1.5 pt-1.5 mt-1 border-t border-slate-100 text-xs">
-                              <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
+                            <div className="flex items-center justify-end gap-1.5 pt-1.5 mt-1 border-t border-slate-100 text-xs flex-wrap sm:flex-nowrap">
+                              <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded shrink-0">
                                 2do Turno:
                               </span>
                               <input
                                 type="time"
                                 value={dayItem.openTime2 || '18:00'}
                                 onChange={(e) => handleDayTimeChange(index, 'openTime2', e.target.value)}
-                                className="text-xs px-2 py-0.5 bg-white border border-amber-200 rounded-md text-slate-800 font-semibold focus:border-amber-500 outline-none w-[90px]"
+                                className="text-xs px-2 py-1 bg-white border border-amber-200 rounded-md text-slate-800 font-semibold focus:border-amber-500 outline-none flex-1 sm:flex-none sm:w-[90px] text-center"
                               />
                               <span className="text-[11px] text-slate-400 font-medium">-</span>
                               <input
                                 type="time"
                                 value={dayItem.closeTime2 || '23:00'}
                                 onChange={(e) => handleDayTimeChange(index, 'closeTime2', e.target.value)}
-                                className="text-xs px-2 py-0.5 bg-white border border-amber-200 rounded-md text-slate-800 font-semibold focus:border-amber-500 outline-none w-[90px]"
+                                className="text-xs px-2 py-1 bg-white border border-amber-200 rounded-md text-slate-800 font-semibold focus:border-amber-500 outline-none flex-1 sm:flex-none sm:w-[90px] text-center"
                               />
                               <button
                                 type="button"
                                 onClick={() => handleToggleSecondShift(index, false)}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors shrink-0"
                                 title="Eliminar segundo turno"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           )}

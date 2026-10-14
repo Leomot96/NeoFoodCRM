@@ -2,13 +2,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSales } from '../hooks/useSales';
 import CheckoutModal from '../components/sales/CheckoutModal';
 import ProductOptionsModal from '../components/sales/ProductOptionsModal';
+import PosTicketModal from '../components/pos/PosTicketModal';
 import CustomSelect from '../components/ui/CustomSelect';
 import { getFullImageUrl } from '../utils/imageUrl';
+import printerService from '../services/printerService';
 import styles from './Ventas.module.css';
 import {
   ShoppingCart, Plus, Minus, Trash2, Tag, AlertCircle, ArrowLeft, Users,
   Sparkles, CheckCircle2, Clock, Bookmark, XCircle, DollarSign, UserCheck,
-  Utensils
+  Utensils, Printer
 } from 'lucide-react';
 
 const formatCurrency = (value) => new Intl.NumberFormat('es-CO', {
@@ -28,6 +30,7 @@ const Ventas = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [posMobileView, setPosMobileView] = useState('catalog'); // 'catalog' | 'cart'
 
   // Mesa seleccionada y pedido activo
   const [selectedTable, setSelectedTable] = useState(null);
@@ -38,6 +41,23 @@ const Ventas = () => {
 
   // Modal para productos con opciones/adiciones/combos
   const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
+
+  // Impresión POS
+  const [printerConfig, setPrinterConfig] = useState(null);
+  const [lastSale, setLastSale] = useState(null);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const config = await printerService.getPrinterConfig();
+        setPrinterConfig(config);
+      } catch (err) {
+        console.warn('Error cargando configuración de impresora POS:', err);
+      }
+    };
+    loadConfig();
+  }, []);
 
   // Categorías únicas
   const categories = useMemo(() => {
@@ -52,6 +72,7 @@ const Ventas = () => {
   // Seleccionar Mesa desde la cuadrícula
   const handleSelectTable = (table) => {
     setSelectedTable(table);
+    setPosMobileView('catalog');
     if (table.isOccupied && table.activeOrder) {
       // Cargar pedido activo existente
       setActiveOrderId(table.activeOrder.id);
@@ -127,6 +148,24 @@ const Ventas = () => {
       setErrorMessage('');
       setSelectedTable(null);
       setActiveOrderId(null);
+
+      const createdSale = result.data;
+      if (createdSale) {
+        setLastSale(createdSale);
+
+        // Si la configuración tiene impresión automática activada
+        if (printerConfig?.autoPrint) {
+          try {
+            printerService.printPosTicket(createdSale, printerConfig);
+          } catch (printErr) {
+            console.error('Error al imprimir ticket automático:', printErr);
+          }
+        }
+
+        // Abrir modal de tirilla para visualizar y/o reimprimir
+        setIsTicketModalOpen(true);
+      }
+
       setTimeout(() => setSuccessMessage(''), 4000);
       return { success: true };
     } else {
@@ -222,7 +261,10 @@ const Ventas = () => {
 
           {/* Opción Venta Rápida / Para Llevar */}
           <button
-            onClick={() => setSelectedTable({ id: null, name: 'Para Llevar' })}
+            onClick={() => {
+              setSelectedTable({ id: null, name: 'Para Llevar' });
+              setPosMobileView('catalog');
+            }}
             className={styles.posQuickSaleCard}
           >
             <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -331,13 +373,16 @@ const Ventas = () => {
     <div className={styles.posActiveLayout}>
 
       {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
-      <div className={styles.posCatalogPanel}>
+      <div className={`${styles.posCatalogPanel} ${posMobileView === 'cart' ? styles.hideOnMobile : ''}`}>
 
         {/* Cabecera de la Mesa Atendida */}
         <div className={`${styles.posActiveTableBar} ${selectedTable.isOccupied ? styles['posActiveTableBar.occupied'] || styles.occupied : styles['posActiveTableBar.available'] || styles.available}`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
-              onClick={() => setSelectedTable(null)}
+              onClick={() => {
+                setSelectedTable(null);
+                setPosMobileView('catalog');
+              }}
               style={{ padding: '0.5rem', backgroundColor: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: 'var(--radius-lg)', color: '#ffffff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               title="Volver al Salón"
             >
@@ -365,17 +410,32 @@ const Ventas = () => {
             </div>
           </div>
 
-          {selectedTable.isOccupied && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {selectedTable.isOccupied && (
+              <button
+                onClick={handleCancelTableOrder}
+                className="neo-btn neo-btn-danger"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
+                title="Cancelar pedido y dejar la mesa disponible"
+              >
+                <XCircle size={15} />
+                <span>Liberar Mesa</span>
+              </button>
+            )}
             <button
-              onClick={handleCancelTableOrder}
-              className="neo-btn neo-btn-danger"
-              style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}
-              title="Cancelar pedido y dejar la mesa disponible"
+              type="button"
+              onClick={() => setPosMobileView('cart')}
+              className={styles.posMobileCartHeaderBtn}
+              title="Ver pedido actual"
             >
-              <XCircle size={15} />
-              <span>Liberar Mesa</span>
+              <ShoppingCart size={17} />
+              {cart.length > 0 && (
+                <span className={styles.posMobileCartHeaderBadge}>
+                  {cart.reduce((s, i) => s + i.quantity, 0)}
+                </span>
+              )}
             </button>
-          )}
+          </div>
         </div>
 
         {/* Filtro de Categorías */}
@@ -460,10 +520,42 @@ const Ventas = () => {
             </div>
           )}
         </div>
+
+        {/* Barra Flotante de Carrito en Móvil (Paso 1 -> Paso 2) */}
+        {cart.length > 0 && (
+          <div className={styles.posMobileCartBar}>
+            <div className={styles.posMobileCartBarInfo}>
+              <span className={styles.posMobileCartBadge}>
+                <ShoppingCart size={14} />
+                {cart.reduce((s, i) => s + i.quantity, 0)} {cart.length === 1 ? 'ítem' : 'ítems'}
+              </span>
+              <span className={styles.posMobileCartTotal}>{formatCurrency(cartTotal)}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPosMobileView('cart')}
+              className={styles.posMobileCartBtn}
+            >
+              <span>Ver Pedido / Cobrar →</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* PANEL DERECHO: CARRITO / PEDIDO DE LA MESA */}
-      <div className={styles.posCartPanel}>
+      <div className={`${styles.posCartPanel} ${posMobileView === 'catalog' ? styles.hideOnMobile : ''}`}>
+
+        {/* Barra de Retorno al Catálogo en Móvil */}
+        <div className={styles.posMobileBackRow}>
+          <button
+            type="button"
+            onClick={() => setPosMobileView('catalog')}
+            className={styles.posMobileBackBtn}
+          >
+            <ArrowLeft size={18} />
+            <span>← Seguir Agregando Productos</span>
+          </button>
+        </div>
 
         {/* Cabecera del Carrito */}
         <div className={`${styles.posCartHeader} ${selectedTable.isOccupied ? styles['posCartHeader.occupied'] || styles.occupied : styles['posCartHeader.available'] || styles.available}`}>
@@ -497,7 +589,9 @@ const Ventas = () => {
               onChange={val => setSelectedCustomerId(val)}
               options={[
                 { value: "", label: "Consumidor Final" },
-                ...customers.map(c => ({ value: c.id, label: `${c.name} ${c.phone ? `(${c.phone})` : ''}` }))
+                ...customers
+                  .filter(c => !(c.document === '222222222222' || c.name?.toLowerCase() === 'consumidor final'))
+                  .map(c => ({ value: c.id, label: `${c.name} ${c.phone ? `(${c.phone})` : ''}` }))
               ]}
               placeholder="Consumidor Final"
             />
@@ -643,6 +737,14 @@ const Ventas = () => {
           }}
         />
       )}
+
+      {/* Modal de Impresión de Tirilla POS */}
+      <PosTicketModal
+        isOpen={isTicketModalOpen}
+        onClose={() => setIsTicketModalOpen(false)}
+        sale={lastSale}
+        initialConfig={printerConfig}
+      />
     </div>
   );
 };

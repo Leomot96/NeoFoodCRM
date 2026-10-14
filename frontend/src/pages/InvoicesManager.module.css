@@ -165,3 +165,49 @@
   font-size: 0.75rem;
   font-weight: 500;
 }
+
+/* ========================================================
+   OPTIMIZACIONES MÓVILES (FACTURAS ESTILO APP)
+   ======================================================== */
+@media (max-width: 768px) {
+  .invoicesPage,
+  .invoices-page {
+    gap: 1rem !important;
+  }
+
+  .invoicesTitle,
+  .invoices-title {
+    font-size: 1.25rem !important;
+  }
+
+  .invoicesTotalBox,
+  .invoices-total-box {
+    text-align: left !important;
+    background: #ffffff !important;
+    padding: 0.75rem 1rem !important;
+    border-radius: 0.75rem !important;
+    border: 1.5px solid #cbd5e1 !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .invoicesTotalValue,
+  .invoices-total-value {
+    font-size: 1.35rem !important;
+  }
+
+  .invoicesFiltersCard,
+  .invoices-filters-card {
+    padding: 0.85rem 1rem !important;
+    gap: 0.75rem !important;
+    border-radius: 0.875rem !important;
+  }
+
+  .invoicesFilterCol,
+  .invoices-filter-col {
+    min-width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+}

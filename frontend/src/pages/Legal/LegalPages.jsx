@@ -71,8 +71,8 @@ const LegalPages = () => {
         <div className={styles.headerContainer}>
           <div className={styles.brandRow}>
             <Link to="/" className={styles.brandLink}>
-              <span className={styles.brandNeo}>Neo</span>
-              <span className={styles.brandFood}>FOOD</span>
+              <img src="/isotipo.svg" alt="NeoFood" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+              <img src="/logo_negro.svg" alt="NeoFood" style={{ height: '26px', width: 'auto', objectFit: 'contain' }} />
               <span className={styles.brandBadge}>Centro Legal</span>
             </Link>
 
@@ -587,8 +587,8 @@ const LegalPages = () => {
         <div className={styles.footerContainer}>
           <div className={styles.footerTop}>
             <div className={styles.footerBrand}>
-              <span className={styles.brandNeo}>Neo</span>
-              <span className={styles.brandFood}>FOOD</span>
+              <img src="/isotipo.svg" alt="NeoFood" style={{ height: '28px', width: 'auto', objectFit: 'contain' }} />
+              <img src="/logo_blanco.svg" alt="NeoFood" style={{ height: '22px', width: 'auto', objectFit: 'contain' }} />
               <span className={styles.footerTagline}>&bull; Sistema Integral de Gestión Gastronómica</span>
             </div>
             <div className={styles.footerLinksRow}>

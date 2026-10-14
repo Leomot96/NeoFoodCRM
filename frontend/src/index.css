@@ -353,3 +353,137 @@ button[class*="CustomSelect_trigger"][class*="isOpen"] {
   color: var(--danger);
   border-color: rgba(239, 68, 68, 0.3);
 }
+
+/* ========================================================
+   OPTIMIZACIONES MÓVILES GLOBALES (ESTILO APP ANDROID / IOS)
+   ======================================================== */
+
+/* Utilidades para scroll horizontal fluido en móvil */
+.neo-table-responsive,
+.neo-scroll-x {
+  width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-x: contain !important;
+  touch-action: pan-x pan-y !important;
+}
+
+/* Ocultar scrollbar visual pero mantener deslizamiento táctil */
+.neo-no-scrollbar,
+.neo-chips-scroll {
+  overflow-x: auto !important;
+  flex-wrap: nowrap !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.neo-no-scrollbar::-webkit-scrollbar,
+.neo-chips-scroll::-webkit-scrollbar {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  /* Tablas: Evitar que se aplasten y permitir desplazamiento lateral suave */
+  .neo-table,
+  table.neo-table {
+    min-width: 580px !important;
+  }
+
+  .neo-table th {
+    padding: 0.65rem 0.85rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .neo-table td {
+    padding: 0.75rem 0.85rem !important;
+    font-size: 0.8125rem !important;
+  }
+
+  .neo-table-card {
+    border-radius: 0.875rem !important;
+  }
+
+  /* Acciones de tabla táctiles */
+  .neo-action-icon-btn {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+    padding: 0.35rem !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .neo-action-icon-btn:active {
+    transform: scale(0.92) !important;
+  }
+
+  /* Prevenir auto-zoom molesto en iOS Safari manteniendo tamaño legible 16px */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  select,
+  textarea,
+  .neo-input,
+  .neo-select,
+  .neo-textarea {
+    font-size: 16px !important;
+  }
+
+  .neo-form-group {
+    padding: 0.65rem 0.75rem !important;
+    margin-bottom: 0.65rem !important;
+    border-radius: 0.65rem !important;
+  }
+
+  /* Modales estilo Bottom Sheet nativo en móvil */
+  .neo-modal-backdrop,
+  .neo-modal-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  .neo-modal {
+    max-height: 92vh !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 1.5rem !important;
+    border-top-right-radius: 1.5rem !important;
+    margin-bottom: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .neo-modal-header {
+    padding: 1rem 1.15rem !important;
+  }
+
+  .neo-modal-title {
+    font-size: 1.05rem !important;
+  }
+
+  .neo-modal-body {
+    padding: 1rem 1.15rem !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .neo-modal-footer {
+    padding: 0.75rem 1.15rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0)) !important;
+  }
+
+  /* Botones principales con feedback táctil */
+  .neo-btn,
+  button[class*="neo-btn"] {
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .neo-btn:active,
+  button[class*="neo-btn"]:active {
+    transform: scale(0.97) !important;
+  }
+}

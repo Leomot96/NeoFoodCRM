@@ -599,6 +599,24 @@ class AuthService {
         });
       }
 
+      // Crear Cliente por defecto: Consumidor final
+      await tx.customer.create({
+        data: {
+          tenantId: tenant.id,
+          name: 'Consumidor final',
+          document: '222222222222'
+        }
+      });
+
+      // Crear Proveedor por defecto: Proveedor Genérico
+      await tx.supplier.create({
+        data: {
+          tenantId: tenant.id,
+          name: 'Proveedor Genérico',
+          nit: '222222222'
+        }
+      });
+
       // Crear Configuraciones iniciales
       const defaultConfigs = [
         { key: 'business_name', value: restaurantName.trim() },

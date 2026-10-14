@@ -96,7 +96,9 @@ const CheckoutModal = ({ isOpen, onClose, cartTotal, paymentMethods, customers, 
               onChange={(val) => setSelectedCustomer(val)}
               options={[
                 { value: "", label: "Consumidor Final" },
-                ...(customers || []).map(c => ({ value: c.id, label: `${c.name} ${c.document ? `- ${c.document}` : ''}` }))
+                ...(customers || [])
+                  .filter(c => !(c.document === '222222222222' || c.name?.toLowerCase() === 'consumidor final'))
+                  .map(c => ({ value: c.id, label: `${c.name} ${c.document ? `- ${c.document}` : ''}` }))
               ]}
               placeholder="Consumidor Final"
             />

@@ -349,7 +349,28 @@ async function main() {
   console.log(`   ✔️ 3 Mesas creadas para ${demoTenant.name} (Mesa 1, Mesa 2, Mesa 3)`);
   console.log(`   ✔️ Sede SuperAdmin (${mainTenant.name}): 0 mesas por defecto (solo las que configure el SuperAdmin)`);
 
-  // 9. Limpieza de Uploads físicos
+  // 9. Cliente y Proveedor Base por defecto
+  console.log('\n👥 Sembrando Cliente y Proveedor Base...');
+  for (const t of [mainTenant, demoTenant]) {
+    await prisma.customer.create({
+      data: {
+        tenantId: t.id,
+        name: 'Consumidor final',
+        document: '222222222222'
+      }
+    });
+
+    await prisma.supplier.create({
+      data: {
+        tenantId: t.id,
+        name: 'Proveedor Genérico',
+        nit: '222222222'
+      }
+    });
+    console.log(`   ✔️ Cliente "Consumidor final" (222222222222) y Proveedor "Proveedor Genérico" (222222222) creados para ${t.name}`);
+  }
+
+  // 10. Limpieza de Uploads físicos
   await cleanUploads();
 
   console.log('\n========================================================');

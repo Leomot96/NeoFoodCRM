@@ -239,13 +239,12 @@ const MainLayout = () => {
             title={isCollapsed ? 'Expandir menú' : undefined}
           >
             <div className={styles.sidebarLogo}>
-              NF
+              <img src="/isotipo.svg" alt="NeoFood" className={styles.sidebarLogoImg} />
             </div>
             {!isCollapsed && (
               <div className={styles.sidebarBrandText}>
                 <div className={styles.sidebarBrandNameContainer}>
-                  <span className={styles.sidebarBrandName}>Neo</span>
-                  <span className={styles.sidebarBrandName1}>Food</span>
+                  <img src="/logo_negro.svg" alt="NeoFood" className={styles.sidebarBrandImg} />
                 </div>
                 <div className={styles.sidebarTenantPill} title={`Establecimiento: ${user?.tenant?.name || 'Sede Principal'}`}>
                   <Store size={11} />
@@ -427,39 +426,17 @@ const MainLayout = () => {
             </div>
           </div>
 
-          <div className={styles.layoutHeaderRight} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className={styles.layoutHeaderRight}>
             {/* Botón Alerta Pedidos Tienda */}
             <Link
               to="/pedidos-tienda"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.45rem 0.85rem',
-                borderRadius: '0.625rem',
-                fontSize: '0.775rem',
-                fontWeight: 800,
-                textDecoration: 'none',
-                backgroundColor: pendingOrdersCount > 0 ? '#fef3c7' : '#f8fafc',
-                color: pendingOrdersCount > 0 ? '#b45309' : '#475569',
-                border: pendingOrdersCount > 0 ? '1.5px solid #fde68a' : '1px solid #cbd5e1',
-                boxShadow: pendingOrdersCount > 0 ? '0 0 10px rgba(245, 158, 11, 0.3)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
+              className={`${styles.headerWebOrdersBtn} ${pendingOrdersCount > 0 ? styles.headerWebOrdersBtnActive : ''}`}
               title="Ver pedidos de la Tienda Virtual"
             >
-              <Bell size={15} style={{ color: pendingOrdersCount > 0 ? '#d97706' : '#64748b' }} />
-              <span>Pedidos Web</span>
+              <Bell size={16} className={styles.headerWebOrdersIcon} />
+              <span className={styles.headerWebOrdersText}>Pedidos Web</span>
               {pendingOrdersCount > 0 && (
-                <span style={{
-                  backgroundColor: '#ef4444',
-                  color: '#ffffff',
-                  fontSize: '0.675rem',
-                  fontWeight: 900,
-                  padding: '0.1rem 0.4rem',
-                  borderRadius: '9999px',
-                  lineHeight: 1
-                }}>
+                <span className={styles.headerWebOrdersBadge}>
                   {pendingOrdersCount}
                 </span>
               )}
@@ -589,56 +566,6 @@ const MainLayout = () => {
             </span>
           </div>
         </footer>
-
-        {/* BARRA DE NAVEGACIÓN INFERIOR MÓVIL (TIPO APP NATIVA) */}
-        <nav className={styles.mobileBottomNav} aria-label="Navegación móvil del sistema">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
-          >
-            <LayoutDashboard size={20} />
-            <span>Inicio</span>
-          </NavLink>
-
-          <NavLink
-            to="/ventas"
-            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
-          >
-            <ShoppingCart size={20} />
-            <span>Ventas</span>
-          </NavLink>
-
-          <NavLink
-            to="/cocina"
-            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
-          >
-            <ChefHat size={20} />
-            <span>Cocina</span>
-          </NavLink>
-
-          <NavLink
-            to="/pedidos-tienda"
-            className={({ isActive }) => `${styles.mobileBottomNavItem} ${isActive ? styles.mobileBottomNavActive : ''}`}
-          >
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <ShoppingBag size={20} />
-              {pendingOrdersCount > 0 && (
-                <span className={styles.mobileBadge}>{pendingOrdersCount}</span>
-              )}
-            </div>
-            <span>Tienda</span>
-          </NavLink>
-
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen(true)}
-            className={`${styles.mobileBottomNavItem} ${isSidebarOpen ? styles.mobileBottomNavActive : ''}`}
-          >
-            <Menu size={20} />
-            <span>Menú</span>
-          </button>
-        </nav>
       </main>
     </div>
   );
