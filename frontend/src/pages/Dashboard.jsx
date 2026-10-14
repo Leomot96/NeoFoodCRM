@@ -63,9 +63,12 @@ const Dashboard = () => {
       {/* HEADER PRINCIPAL */}
       <div className={styles.dashboardHeader}>
         <div>
-          <h1 className={styles.dashboardTitle}>
-            Panel Principal
-          </h1>
+          <div className={styles.dashboardTitleRow}>
+            <h1 className={styles.dashboardTitle}>
+              Panel Principal
+            </h1>
+            <span className={styles.versionBadge}>v1.8.0</span>
+          </div>
           <p className={styles.dashboardSubtitle}>
             Resumen operativo, balance y métricas de NeoFood en tiempo real
           </p>

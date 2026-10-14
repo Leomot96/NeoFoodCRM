@@ -605,7 +605,7 @@ const LegalPages = () => {
           </div>
 
           <div className={styles.footerBottom}>
-            <p>&copy; {new Date().getFullYear()} NeoFood SaaS. Todos los derechos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} NeoFood SaaS. Todos los derechos reservados. &bull; v1.8.0</p>
             <p className={styles.footerAuthor}>Diseñado por <strong>Leonardo Ramirez</strong></p>
           </div>
         </div>

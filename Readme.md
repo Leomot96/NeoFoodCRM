@@ -73,6 +73,20 @@ Diseñado bajo principios de **arquitectura modular limpia**, **100% CSS Nativo*
    - **Banner de Cookies Flotante:** Consentimiento informado no obstructivo con persistencia local.
 6. **Gestión de Usuarios con Contexto de Restaurante (SuperAdmin):** Columna y filtro para identificar a qué restaurante pertenece cada usuario del sistema y selector de sede al crear/editar usuarios.
 
+### Impresoras Térmicas POS, Experiencia Móvil App Nativa & Branding Vectorial
+7. **🖨️ Módulo de Impresora Térmica POS (58mm / 80mm):**
+   - Pestaña de configuración de impresora en el módulo de Configuración para personalizar ancho de papel (58mm estándar o 80mm ancho), mensajes de encabezado/pie y márgenes de impresión.
+   - Generación instantánea de tickets/tirillas de venta en formato POS térmico con corte de papel, desglose detallado de platos, adiciones, métodos de pago, cálculo de cambio y resolución de control interno.
+8. **📱 Experiencia Móvil Optimizada Estilo App Nativa (Android / iOS):**
+   - **Flujo POS en 2 Pasos para Teléfonos:** Separación inteligente entre la vista de selección de productos y la vista de checkout/pago en pantalla completa, evitando el bloqueo visual del catálogo y agilizando la toma de comandas en mesas.
+   - **Corrección Responsiva de Horarios:** Adaptación fluida de la matriz de horarios de doble jornada en la configuración de la tienda virtual desde teléfonos inteligentes.
+   - **Remoción de Barra Flotante Inferior:** Eliminación de barras superpuestas fijas que obstaculizaban botones y formularios en dispositivos móviles.
+9. **🎨 Identidad Visual Vectorial Oficial (SVG):**
+   - Incorporación e integración de los activos gráficos oficiales en alta definición: Isotipo (`isotipo.svg`), Logotipo Blanco (`logo_blanco.svg`) y Logotipo Negro (`logo_negro.svg`).
+   - Dimensiones calibradas y legibilidad optimizada en pantallas de Login, Registro de Restaurante, Barra Lateral (Sidebar), Centro Legal, Landing Page y documentos/facturas PDF (`reportPdfService.js`).
+10. **👥 Clientes y Proveedores Genéricos Automáticos:**
+    - Al crear un nuevo establecimiento, el sistema aprovisiona automáticamente el cliente "Consumidor Final" (identificación `222222222222`) y el "Proveedor Genérico" (identificación `222222222`), permitiendo operar ventas rápidas de mostrador y compras de emergencia sin fricción.
+
 ---
 
 ## 🆕 Novedades de la Versión 1.7.6

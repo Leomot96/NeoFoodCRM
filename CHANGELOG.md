@@ -31,6 +31,22 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.
 #### Gestión de Usuarios con Contexto Multi-Tenant (SuperAdmin)
 - **Filtro y Columna de Restaurante:** Columna dedicada que muestra a qué restaurante pertenece cada usuario y selector de sede al crear/editar usuarios exclusivo para el rol `SuperAdmin`.
 
+#### Módulo de Impresión Térmica POS & Facturación en Tirilla
+- **Configuración Local de Impresoras Térmicas (`printerService.js`):** Soporte configurable por terminal para impresoras POS estándar en anchos de 58mm y 80mm.
+- **Formato de Ticket Estándar de Alto Rendimiento:** Impresión limpia de comprobantes de pago y comandas con corte térmico, detalle de productos, adiciones, desglose de impuestos, propina voluntaria, cálculo de vueltas en efectivo y pie de página de cortesía configurable.
+
+#### Experiencia Móvil Optimizada Estilo App Nativa (Android / iOS)
+- **Flujo en 2 Pasos para Terminal Punto de Venta (POS):** En dispositivos móviles, la interfaz se divide de forma transparente entre Catálogo/Productos y Carrito/Checkout en pantalla completa con botón flotante interactivo, erradicando solapamientos de pantalla.
+- **Corrección de Cuadrícula de Horarios en Tienda Virtual:** Visualización adaptativa fluida para la configuración de doble turno de apertura y cierre en pantallas reducidas.
+- **Eliminación de Barra de Navegación Inferior Fija:** Supresión de elementos fijos que restaban visibilidad vertical y ocultaban botones de acción en smartphones.
+
+#### Identidad Corporativa Vectorial Oficial (SVG) & Calidad Gráfica
+- **Integración de Logotipos Vectoriales:** Implementación de los archivos oficiales de marca `isotipo.svg`, `logo_blanco.svg` y `logo_negro.svg`.
+- **Estandarización Visual:** Calibración de escala y tipografía en Login, Registro, Sidebar, Centro Legal, Landing Page y membretes/firmas en reportes y comprobantes PDF (`reportPdfService.js`).
+
+#### Automatización de Aprovisionamiento para Nuevos Tenants
+- **Cuentas Genéricas Automáticas:** Creación inmediata del cliente "Consumidor Final" (identificación `222222222222`) y del "Proveedor Genérico" (identificación `222222222`) al registrar cualquier restaurante nuevo, permitiendo la operación instantánea sin configuración previa obligatoria.
+
 ---
 
 ## [1.7.6] — 2026-10-05

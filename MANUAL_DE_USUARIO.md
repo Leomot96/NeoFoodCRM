@@ -96,11 +96,15 @@ Diseñado para soportar alto tráfico en horas pico:
 3. **Gestión del Carrito:**
    - Modifica cantidades con los botones `+` o `-`.
    - Agrega observaciones especiales (ej. *"Sin cebolla"* o *"Salsa aparte"*).
-4. **Procesamiento de Pago y Cierre:**
+4. **Modo Móvil en 2 Pasos (Smartphones y Tablets):**
+   - En pantallas móviles, el POS se adapta como una app nativa: navega y añade platillos con el catálogo a pantalla completa.
+   - Presiona el botón flotante inferior con el total acumulado para abrir el **Paso 2: Resumen y Cobro** en pantalla completa, evitando que el carrito tape los productos.
+5. **Procesamiento de Pago y Facturación Térmica POS:**
    - Presiona el botón verde **"Cobrar Pedido"**.
+   - Selecciona el cliente (por defecto viene seleccionado **"Consumidor Final"** con documento `222222222222` para cobros inmediatos).
    - Selecciona el método de pago: *Efectivo*, *Transferencia*, *Tarjeta* o *Crédito*.
    - Si es en efectivo, ingresa el dinero recibido y el sistema calculará automáticamente el cambio (vueltas).
-   - Al finalizar, el sistema registra la venta, descarga el stock de insumos correspondientes e imprime/genera la factura.
+   - Al finalizar, el sistema registra la venta, descarga el stock de insumos e imprime automáticamente la tirilla en tu impresora POS térmica (58mm u 80mm) con corte de papel y formato estándar.
 
 ---
 
@@ -221,10 +225,13 @@ Ideal para restaurantes que elaboran sus propios ingredientes base (ej. amasar p
      * Al menos un carácter especial (`@, $, !, %, *, #, ?, &, etc.`).
    - El sistema cuenta con checklist dinámico en tiempo real que valida visualmente el cumplimiento de cada requisito mientras se escribe, además de selector de visibilidad (`Eye`/`EyeOff`) para mayor comodidad.
    - Bloqueo preventivo de eliminación si un usuario tiene turnos de caja abiertos o históricos asociados.
-3. **Configuración Institucional:**
-   - Datos de la empresa (Razón social, NIT, teléfono, dirección de la sede).
-   - Métodos de pago aceptados en caja.
-   - Horarios comerciales y personalización visual de la tienda online.
+3. **Configuración Institucional e Impresoras:**
+   - **Datos de la Empresa:** Razón social, NIT, teléfono, dirección física y lema de la sede.
+   - **Configuración de Impresora Térmica POS:** Pestaña dedicada para calibrar ancho de papel (58mm estándar o 80mm ancho), mensajes de encabezado, mensaje de agradecimiento al pie, márgenes e impresión automática de tirilla.
+   - **Métodos de Pago:** Configuración de canales autorizados (Efectivo, Tarjeta, Transferencia, Crédito).
+   - **Horarios Comerciales & Tienda Online:** Programación de turnos semanales de atención y personalización visual (logo y portada).
+4. **Proveedores y Clientes Genéricos de Fábrica:**
+   - Para evitar bloqueos operativos iniciales, el sistema aprovisiona automáticamente el **"Consumidor Final"** (`222222222222`) y el **"Proveedor Genérico"** (`222222222`), permitiendo registrar compras menores y ventas inmediatas desde el primer minuto.
 
 ---
 

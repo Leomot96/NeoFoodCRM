@@ -26,6 +26,25 @@
   }
 }
 
+.dashboardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.versionBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  border: 1px solid rgba(79, 70, 229, 0.22);
+  display: inline-flex;
+  align-items: center;
+}
+
 .dashboardTitle,
 .dashboard-title {
   font-size: 1.35rem;
