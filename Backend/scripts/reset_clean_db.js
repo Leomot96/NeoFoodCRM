@@ -41,6 +41,7 @@ async function main() {
   await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0;');
 
   const tablesToTruncate = [
+    'email_verifications',
     'sale_detail_additions',
     'sale_detail_variations',
     'sale_details',
