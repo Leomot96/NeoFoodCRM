@@ -1,11 +1,16 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class CategoryService {
 
-async createCategory(data) {
-    // 1. Buscamos si ya existe alguna en la base de datos con ese nombre exacto
+  async createCategory(data) {
+    const tenantId = getTenantId();
+    const whereExisting = { name: data.name };
+    if (tenantId) whereExisting.tenantId = tenantId;
+
+    // 1. Buscamos si ya existe alguna en la base de datos con ese nombre exacto para este restaurante
     const existing = await prisma.category.findFirst({
-      where: { name: data.name }
+      where: whereExisting
     });
 
     if (existing) {
@@ -30,16 +35,21 @@ async createCategory(data) {
     return await prisma.category.create({
       data: {
         name: data.name,
-        description: data.description
+        description: data.description,
+        ...(tenantId ? { tenantId } : {})
       }
     });
   }
 
   async getAllCategories() {
+    const tenantId = getTenantId();
+    const where = {
+      isActive: true,
+    };
+    if (tenantId) where.tenantId = tenantId;
+
     return await prisma.category.findMany({
-      where: {
-        isActive: true,
-      },
+      where,
       orderBy: {
         name: 'asc',
       },
@@ -47,7 +57,11 @@ async createCategory(data) {
   }
 
   async getCategoryById(id) {
-    const category = await prisma.category.findUnique({ where: { id } });
+    const tenantId = getTenantId();
+    const where = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const category = await prisma.category.findFirst({ where });
     if (!category) {
       const error = new Error('Categoría no encontrada');
       error.statusCode = 404;
@@ -57,7 +71,7 @@ async createCategory(data) {
   }
 
   async updateCategory(id, data) {
-    await this.getCategoryById(id); // Verifica si existe
+    await this.getCategoryById(id); // Verifica si existe en el tenant actual
     return await prisma.category.update({
       where: { id },
       data,

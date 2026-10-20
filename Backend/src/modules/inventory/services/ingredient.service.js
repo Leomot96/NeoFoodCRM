@@ -1,9 +1,14 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class IngredientService {
   async createIngredient(data) {
+    const tenantId = getTenantId();
+    const whereExisting = { name: { equals: data.name } };
+    if (tenantId) whereExisting.tenantId = tenantId;
+
     const existing = await prisma.ingredient.findFirst({
-      where: { name: { equals: data.name } } // Dependiendo de tu BD, puedes usar mode: 'insensitive'
+      where: whereExisting
     });
     if (existing) {
       if (!existing.isActive) {
@@ -20,7 +25,7 @@ class IngredientService {
 
   return await prisma.ingredient.create({
       data: {
-        tenantId: data.tenantId || 'default-tenant-001',
+        tenantId: data.tenantId || tenantId || 'default-tenant-001',
         name: data.name,
         unit: data.unit || 'Unidad',
         minStock: data.minStock ? parseFloat(data.minStock) : 0,
@@ -38,7 +43,9 @@ class IngredientService {
   }
 
   async getAllIngredients(query = {}) {
+    const tenantId = getTenantId();
     const where = {};
+    if (tenantId) where.tenantId = tenantId;
     if (query.includeInactive !== 'true' && query.includeInactive !== true) {
       where.isActive = true;
     }

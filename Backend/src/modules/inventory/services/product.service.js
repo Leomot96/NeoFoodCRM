@@ -1,12 +1,18 @@
 const prisma = require("../../../config/prisma");
 const { deleteUploadedFile } = require("../../../utils/fileCleaner");
+const { getTenantId } = require("../../../context/tenantContext");
 
 class ProductService {
   // =====================================
   // OBTENER TODOS LOS PRODUCTOS
   // =====================================
   async getAllProducts() {
+    const tenantId = getTenantId();
+    const where = {};
+    if (tenantId) where.tenantId = tenantId;
+
     return await prisma.product.findMany({
+      where,
       include: {
         category: true,
         ingredients: { include: { ingredient: true } },
@@ -32,9 +38,46 @@ class ProductService {
   }
 
   // =====================================
+  // OBTENER PRODUCTO POR ID
+  // =====================================
+  async getProductById(id) {
+    const tenantId = getTenantId();
+    const where = { id };
+    if (tenantId) where.tenantId = tenantId;
+
+    const product = await prisma.product.findFirst({
+      where,
+      include: {
+        category: true,
+        ingredients: { include: { ingredient: true } },
+        modifiers: {
+          include: {
+            options: {
+              include: {
+                ingredient: true,
+                ingredients: { include: { ingredient: true } },
+                linkedProduct: true,
+              },
+            },
+          },
+        },
+        additions: { include: { ingredient: true } },
+      },
+    });
+
+    if (!product) {
+      const error = new Error('Producto no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+    return product;
+  }
+
+  // =====================================
   // CREAR PRODUCTO CON RELACIONES
   // =====================================
   async createProduct(data) {
+    const tenantId = getTenantId();
     const {
       name,
       description,
@@ -50,13 +93,16 @@ class ProductService {
       additions,
     } = data;
 
-    // Si ya existía un producto inactivo con el mismo nombre y categoría, lo reactivamos
+    // Si ya existía un producto inactivo con el mismo nombre y categoría en este restaurante, lo reactivamos
+    const whereInactive = {
+      name: { equals: name },
+      categoryId: categoryId,
+      isAvailable: false
+    };
+    if (tenantId) whereInactive.tenantId = tenantId;
+
     const existingInactive = await prisma.product.findFirst({
-      where: {
-        name: { equals: name },
-        categoryId: categoryId,
-        isAvailable: false
-      }
+      where: whereInactive
     });
 
     if (existingInactive) {
@@ -68,6 +114,7 @@ class ProductService {
 
     return await prisma.product.create({
       data: {
+        ...(tenantId && !data.tenantId ? { tenantId } : {}),
         name,
         description,
         price,

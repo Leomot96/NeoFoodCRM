@@ -34,7 +34,14 @@ const STRICTLY_SCOPED_MODELS = [
   'customer',
   'supplier',
   'purchase',
-  'expense'
+  'expense',
+  'category',
+  'product',
+  'ingredient',
+  'inventorymovement',
+  'productionorder',
+  'order',
+  'cashsession'
 ];
 
 /**
