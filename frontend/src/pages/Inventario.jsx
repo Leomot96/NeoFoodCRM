@@ -4,8 +4,9 @@ import { useInventory } from '../hooks/useInventory';
 import ProductForm from '../components/inventory/ProductForm';
 import CategoryForm from '../components/inventory/CategoryForm';
 import IngredientsList from './Inventory/IngredientsList'; // <-- Importamos la vista de bodega
+import StockAdjustmentModal from '../components/inventory/StockAdjustmentModal';
 import CustomSelect from '../components/ui/CustomSelect';
-import { Plus, Edit2, Trash2, Package, AlertTriangle, Layers, Database, ShoppingBag, Store, Image as ImageIcon, Search, X, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, AlertTriangle, Layers, Database, ShoppingBag, Store, Image as ImageIcon, Search, X, RotateCcw, ArrowUpDown } from 'lucide-react';
 import { Pagination } from '../components/ui';
 import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './Inventario.module.css';
@@ -16,7 +17,7 @@ const formatCurrency = (value) => {
 
 const Inventario = () => {
   const navigate = useNavigate();
-  const { products, categories, loading, error, addProduct, editProduct, removeProduct, addCategory, removeCategory, updatedCategory } = useInventory();
+  const { products, categories, loading, error, refetch, addProduct, editProduct, removeProduct, addCategory, removeCategory, updatedCategory } = useInventory();
 
   // Estado para las Pestañas (Tabs)
   const [activeTab, setActiveTab] = useState('products'); // 'products' o 'ingredients'
@@ -24,8 +25,20 @@ const Inventario = () => {
   // Estados para modales
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isAdjustProductModalOpen, setIsAdjustProductModalOpen] = useState(false);
+  const [adjustingProduct, setAdjustingProduct] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
+
+  const handleOpenAdjustProductModal = (product = null) => {
+    setAdjustingProduct(product);
+    setIsAdjustProductModalOpen(true);
+  };
+
+  const handleCloseAdjustProductModal = () => {
+    setAdjustingProduct(null);
+    setIsAdjustProductModalOpen(false);
+  };
 
   // Estados de búsqueda y filtros
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -149,9 +162,20 @@ const Inventario = () => {
         {/* Los botones según la pestaña activa */}
         <div className={styles.invHeaderActions}>
           {activeTab === 'products' && (
-            <button onClick={() => handleOpenProductModal()} className="neo-btn neo-btn-primary">
-              <Plus size={18} /> Nuevo Producto
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => handleOpenAdjustProductModal(null)}
+                className="neo-btn"
+                style={{ backgroundColor: '#0284c7', color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
+                title="Aumentar, disminuir o fijar stock de productos a voluntad"
+              >
+                <ArrowUpDown size={16} /> Ajustar Stock
+              </button>
+              <button onClick={() => handleOpenProductModal()} className="neo-btn neo-btn-primary">
+                <Plus size={18} /> Nuevo Producto
+              </button>
+            </>
           )}
           {activeTab === 'categories' && (
             <button onClick={() => handleOpenCategoryModal()} className="neo-btn neo-btn-primary">
@@ -374,7 +398,11 @@ const Inventario = () => {
                       {formatCurrency(product.price)}
                     </td>
                     <td>
-                      {product.isCombo ? (
+                      {product.trackStock ? (
+                        <span className={`${styles.invBadge} ${styles.invBadgeEmerald}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 700 }}>
+                          Stock: {parseFloat(product.stock || 0).toLocaleString('es-CO')}
+                        </span>
+                      ) : product.isCombo ? (
                         <span className={`${styles.invBadge} ${styles.invBadgeAmber}`}>
                           ⭐ Combo Multiproducto
                         </span>
@@ -402,6 +430,16 @@ const Inventario = () => {
                           </button>
                         ) : (
                           <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAdjustProductModal(product)}
+                              className="neo-btn neo-btn-ghost"
+                              style={{ padding: '0.35rem 0.55rem', color: '#0284c7', backgroundColor: '#f0f9ff', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', border: '1px solid #bae6fd' }}
+                              title="Ajustar Stock del Producto (Aumentar / Disminuir / Inventario Inicial)"
+                            >
+                              <ArrowUpDown size={13} />
+                              <span>Stock</span>
+                            </button>
                             <button
                               onClick={() => handleOpenProductModal(product)}
                               className="neo-btn neo-btn-ghost"
@@ -585,6 +623,18 @@ const Inventario = () => {
         onClose={() => { setIsCategoryModalOpen(false); setEditingCategory(null); }}
         onSubmit={handleCategorySubmit}
         initialData={editingCategory}
+      />
+
+      {/* Modal de ajuste manual de stock para productos */}
+      <StockAdjustmentModal
+        isOpen={isAdjustProductModalOpen}
+        onClose={handleCloseAdjustProductModal}
+        initialItem={adjustingProduct}
+        itemType="product"
+        productsList={products.filter(p => p.isAvailable !== false)}
+        onSuccess={() => {
+          if (refetch) refetch();
+        }}
       />
     </div>
   );

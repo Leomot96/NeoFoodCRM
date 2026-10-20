@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, AlertTriangle, Plus, Store, Edit2, Trash2, X, Search, ChefHat, ShoppingCart, Factory, Layers, RotateCcw, Archive } from 'lucide-react';
+import { Package, AlertTriangle, Plus, Store, Edit2, Trash2, X, Search, ChefHat, ShoppingCart, Factory, Layers, RotateCcw, Archive, ArrowUpDown } from 'lucide-react';
 import CustomSelect from '../../components/ui/CustomSelect';
 import { Pagination } from '../../components/ui';
 import api from '../../services/api';
 import PurchaseForm from '../Purchases/PurchaseForm';
+import StockAdjustmentModal from '../../components/inventory/StockAdjustmentModal';
 import styles from '../Inventario.module.css';
 
 const formatCurrency = (value) => {
@@ -22,6 +23,8 @@ const IngredientsList = () => {
   // Estados para el Modal de Insumos
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [adjustingIngredient, setAdjustingIngredient] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -86,6 +89,16 @@ const IngredientsList = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setError('');
+  };
+
+  const handleOpenAdjustModal = (ingredient = null) => {
+    setAdjustingIngredient(ingredient);
+    setIsAdjustModalOpen(true);
+  };
+
+  const handleCloseAdjustModal = () => {
+    setAdjustingIngredient(null);
+    setIsAdjustModalOpen(false);
   };
 
   // Cerrar modal al presionar la tecla Escape
@@ -398,6 +411,17 @@ const IngredientsList = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap', flexShrink: 0 }}>
             <button
               type="button"
+              onClick={() => handleOpenAdjustModal(null)}
+              className="neo-btn"
+              style={{ backgroundColor: '#0284c7', color: '#ffffff', padding: '0.5rem 0.85rem', fontSize: '0.825rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              title="Aumentar, disminuir o fijar stock de inventario a voluntad"
+            >
+              <ArrowUpDown size={15} />
+              <span>Ajustar Stock</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsPurchaseModalOpen(true)}
               className="neo-btn neo-btn-success"
               style={{ padding: '0.5rem 0.85rem', fontSize: '0.825rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
@@ -540,6 +564,16 @@ const IngredientsList = () => {
                           </button>
                         ) : (
                           <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAdjustModal(ing)}
+                              className="neo-btn neo-btn-ghost"
+                              style={{ padding: '0.35rem 0.55rem', color: '#4f46e5', backgroundColor: '#eef2ff', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', border: '1px solid #c7d2fe' }}
+                              title="Ajustar Stock (Aumentar / Disminuir / Inventario Inicial)"
+                            >
+                              <ArrowUpDown size={13} />
+                              <span>Ajustar</span>
+                            </button>
                             <button
                               onClick={() => openModal(ing)}
                               className="neo-btn neo-btn-ghost"
@@ -758,6 +792,18 @@ const IngredientsList = () => {
         onClose={() => setIsPurchaseModalOpen(false)}
         onSuccess={() => {
           setIsPurchaseModalOpen(false);
+          fetchIngredients();
+        }}
+      />
+
+      {/* MODAL DE AJUSTE MANUAL DE STOCK (AUMENTAR, DISMINUIR O FIJAR INVENTARIO) */}
+      <StockAdjustmentModal
+        isOpen={isAdjustModalOpen}
+        onClose={handleCloseAdjustModal}
+        initialItem={adjustingIngredient}
+        itemType="ingredient"
+        ingredientsList={ingredients.filter(i => i.isActive !== false)}
+        onSuccess={() => {
           fetchIngredients();
         }}
       />

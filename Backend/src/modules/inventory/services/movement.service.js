@@ -2,34 +2,82 @@ const prisma = require('../../../config/prisma');
 
 class MovementService {
   
-  // Movimiento manual (Entradas, Salidas por avería, Ajustes)
+  // Movimiento manual (Entradas, Salidas por avería, Ajustes) tanto para insumos de bodega como productos
   async registerManualMovement(data, userId) {
-    const { ingredientId, type, quantity, reason } = data; // type: 'IN', 'OUT', 'ADJUSTMENT'
+    const { ingredientId, productId, type, quantity, reason } = data; // type: 'IN', 'OUT', 'ADJUSTMENT' | 'SET'
+    const normalizedType = type === 'SET' ? 'ADJUSTMENT' : type;
+
+    const numericQuantity = parseFloat(quantity);
+    if (isNaN(numericQuantity) || numericQuantity < 0) {
+      throw Object.assign(new Error('La cantidad ingresada no es válida'), { statusCode: 400 });
+    }
+    if ((normalizedType === 'IN' || normalizedType === 'OUT') && numericQuantity <= 0) {
+      throw Object.assign(new Error('La cantidad a sumar o restar debe ser mayor a 0'), { statusCode: 400 });
+    }
 
     return await prisma.$transaction(async (tx) => {
+      // 1. Ajuste de Producto de Catálogo
+      if (productId) {
+        const product = await tx.product.findUnique({ where: { id: productId } });
+        if (!product) {
+          throw Object.assign(new Error('Producto no encontrado'), { statusCode: 404 });
+        }
+
+        const currentStock = parseFloat(product.stock || 0);
+        let stockChange = 0;
+
+        if (normalizedType === 'IN') stockChange = numericQuantity;
+        if (normalizedType === 'OUT') stockChange = -numericQuantity;
+        if (normalizedType === 'ADJUSTMENT') stockChange = numericQuantity - currentStock;
+
+        const newStock = currentStock + stockChange;
+        if (newStock < 0) {
+          throw Object.assign(new Error(`El movimiento resulta en stock negativo (Stock actual: ${currentStock})`), { statusCode: 400 });
+        }
+
+        await tx.product.update({
+          where: { id: productId },
+          data: { stock: newStock, trackStock: true }
+        });
+
+        return {
+          productId,
+          productName: product.name,
+          type: normalizedType,
+          quantity: Math.abs(stockChange),
+          newStock,
+          reason: reason || 'Ajuste manual de stock de producto'
+        };
+      }
+
+      // 2. Ajuste de Insumo / Materia Prima de Bodega
+      if (!ingredientId) {
+        throw Object.assign(new Error('Debe especificar un insumo o producto para registrar el movimiento'), { statusCode: 400 });
+      }
+
       const ingredient = await tx.ingredient.findUnique({ where: { id: ingredientId } });
       if (!ingredient) {
         throw Object.assign(new Error('Ingrediente no encontrado'), { statusCode: 404 });
       }
 
-      const numericQuantity = parseFloat(quantity);
+      const currentStock = parseFloat(ingredient.currentStock || 0);
       let stockChange = 0;
 
-      if (type === 'IN') stockChange = numericQuantity;
-      if (type === 'OUT') stockChange = -numericQuantity;
-      if (type === 'ADJUSTMENT') stockChange = numericQuantity - parseFloat(ingredient.currentStock);
+      if (normalizedType === 'IN') stockChange = numericQuantity;
+      if (normalizedType === 'OUT') stockChange = -numericQuantity;
+      if (normalizedType === 'ADJUSTMENT') stockChange = numericQuantity - currentStock;
 
-      const newStock = parseFloat(ingredient.currentStock) + stockChange;
+      const newStock = currentStock + stockChange;
       
       if (newStock < 0) {
-        throw Object.assign(new Error('El movimiento resulta en stock negativo'), { statusCode: 400 });
+        throw Object.assign(new Error(`El movimiento resulta en stock negativo (Stock actual: ${currentStock})`), { statusCode: 400 });
       }
 
       const movement = await tx.inventoryMovement.create({
         data: {
           ingredientId,
           userId,
-          type,
+          type: normalizedType,
           quantity: Math.abs(stockChange),
           reason: reason || 'Movimiento manual',
         }
@@ -40,7 +88,11 @@ class MovementService {
         data: { currentStock: newStock }
       });
 
-      return movement;
+      return {
+        ...movement,
+        newStock,
+        ingredientName: ingredient.name
+      };
     });
   }
 
