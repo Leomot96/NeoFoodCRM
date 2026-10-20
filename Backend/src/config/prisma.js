@@ -28,7 +28,14 @@ const TENANT_MODELS = [
 
 // Modelos de ámbito estrictamente local / por sede que NUNCA se mezclan entre restaurantes,
 // incluso para SuperAdmin; cada sede (incluida la sede principal del SuperAdmin) solo ve y gestiona los suyos.
-const STRICTLY_SCOPED_MODELS = ['table', 'paymentmethod', 'customer'];
+const STRICTLY_SCOPED_MODELS = [
+  'table',
+  'paymentmethod',
+  'customer',
+  'supplier',
+  'purchase',
+  'expense'
+];
 
 /**
  * Cliente de Prisma extendido con auto-scoping de Multi-Tenancy.

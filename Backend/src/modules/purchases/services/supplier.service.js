@@ -1,27 +1,43 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class SupplierService {
   async createSupplier(data) {
-    // Verificamos si el NIT ya existe
+    const tenantId = getTenantId();
+    // Verificamos si el NIT ya existe dentro del mismo establecimiento
     if (data.nit) {
-      const existing = await prisma.supplier.findFirst({ where: { nit: data.nit } });
+      const whereNit = { nit: data.nit };
+      if (tenantId) whereNit.tenantId = tenantId;
+      const existing = await prisma.supplier.findFirst({ where: whereNit });
       if (existing) {
         const error = new Error('Ya existe un proveedor con este NIT');
         error.statusCode = 400;
         throw error;
       }
     }
-    return await prisma.supplier.create({ data });
+
+    const supplierData = {
+      ...data,
+      ...(tenantId && !data.tenantId ? { tenantId } : {})
+    };
+    return await prisma.supplier.create({ data: supplierData });
   }
 
   async getAllSuppliers() {
+    const tenantId = getTenantId();
+    const where = {};
+    if (tenantId) where.tenantId = tenantId;
     return await prisma.supplier.findMany({
+      where,
       orderBy: { name: 'asc' },
     });
   }
 
   async getSupplierById(id) {
-    const supplier = await prisma.supplier.findUnique({ where: { id } });
+    const tenantId = getTenantId();
+    const where = { id };
+    if (tenantId) where.tenantId = tenantId;
+    const supplier = await prisma.supplier.findFirst({ where });
     if (!supplier) {
       const error = new Error('Proveedor no encontrado');
       error.statusCode = 404;
