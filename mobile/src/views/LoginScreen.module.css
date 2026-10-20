@@ -1,0 +1,346 @@
+.container {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 20px;
+  color: var(--text-primary);
+  position: relative;
+}
+
+.topBar {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--safe-top);
+}
+
+.serverButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.serverButton:hover {
+  color: var(--primary-light);
+  border-color: rgba(79, 70, 229, 0.4);
+}
+
+.centerContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: auto 0;
+  width: 100%;
+}
+
+.logoContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.officialIsotipo {
+  width: 58px;
+  height: 58px;
+  filter: drop-shadow(0 0 16px var(--primary-shadow));
+}
+
+.officialLogo {
+  height: 30px;
+  width: auto;
+}
+
+.brandHeader {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.brandTitle {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.brandSubtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.errorBox {
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #F87171;
+  font-size: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.errorTitle {
+  font-weight: 700;
+}
+
+.errorDetail {
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
+.form {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 14px 14px 42px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.togglePassButton {
+  position: absolute;
+  right: 14px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submitButton {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--primary) 0%, #4338CA 100%);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px var(--primary-shadow);
+  transition: all var(--transition-fast);
+}
+
+.submitButton:hover {
+  filter: brightness(1.1);
+}
+
+.footer {
+  text-align: center;
+  padding-top: 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.footerBrandRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+
+.footerIsotipo {
+  height: 18px;
+  width: auto;
+}
+
+.footerLogo {
+  height: 16px;
+  width: auto;
+}
+
+.footerTagline {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.footerCopy {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.footerAuthor {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.footerAuthor strong {
+  color: var(--text-secondary);
+}
+
+.footerIpInfo {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.footerIp {
+  font-family: monospace;
+  color: var(--text-muted);
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 380px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--primary-light);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.modalDesc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.pingSuccess {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--secondary-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pingError {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #F87171;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btnSecondary {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btnPrimary {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--primary);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.btnCancel {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding-top: 4px;
+}

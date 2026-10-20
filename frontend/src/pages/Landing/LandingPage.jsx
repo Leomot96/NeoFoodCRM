@@ -209,7 +209,7 @@ const LandingPage = () => {
       <div className={styles.topAnnouncement}>
         <div className={styles.topAnnouncementInner}>
           <span className={styles.announcementBadge}>
-            <Sparkles size={13} /> ¡Lanzamiento v1.8.0!
+            <Sparkles size={13} /> ¡Lanzamiento v1.8.1!
           </span>
           <span className={styles.announcementText}>
             Prueba <strong>NeoFood Gratis por {TRIAL_DAYS} Días</strong> con acceso completo a todos los módulos. Sin tarjeta de crédito.
@@ -970,7 +970,7 @@ const LandingPage = () => {
               &copy; {new Date().getFullYear()} NeoFood CRM & POS. Todos los derechos reservados. Diseñado para potenciar el sector gastronómico.
             </p>
             <div className={styles.footerLegal}>
-              <span>Versión 1.8.0</span>
+              <span>Versión 1.8.1</span>
               <span>•</span>
               <Link to="/terminos">Términos del Servicio</Link>
               <span>•</span>

@@ -1,0 +1,806 @@
+.container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 24px;
+}
+
+.tenantNotice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background-color: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: var(--secondary-light);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Selector de Pestañas Superior (Segmented Control) */
+.tabSwitcher {
+  display: flex;
+  background-color: var(--bg-secondary);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  gap: 4px;
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.tabBtnActive {
+  background-color: var(--primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+.tabBadge {
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+}
+
+/* Card de Sesión de Caja */
+.cashCard {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-md);
+}
+
+.cashCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statusPillOpen {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.statusPillClosed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.pulseDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background-color: #34D399;
+  box-shadow: 0 0 8px #34D399;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+/* Bloque 1: Resumen Total Cobrado */
+.totalSoldBlock {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(30, 41, 59, 0.6) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.totalSoldLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.totalSoldValue {
+  font-size: 24px;
+  font-weight: 900;
+  color: #A5B4FC;
+  line-height: 1.2;
+}
+
+/* Bloque 2: Desglose por Métodos de Pago */
+.breakdownSection {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.methodsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.methodCard {
+  background-color: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.methodLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.methodIconBox {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: rgba(99, 102, 241, 0.15);
+  color: #818CF8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.methodName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.methodValue {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text-primary);
+}
+
+/* Bloque 3: Efectivo Esperado en Gaveta */
+.expectedDrawerBox {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(30, 41, 59, 0.7) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expectedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.expectedTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expectedTitle {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--secondary-light);
+}
+
+.expectedSubtitle {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.eyeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expectedAmount {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--secondary-light);
+  letter-spacing: -0.02em;
+}
+
+.formulaBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.formulaChip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+/* Bloque 4: Movimientos de Efectivo Manuales */
+.movementsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.movementActions {
+  display: flex;
+  gap: 6px;
+}
+
+.movBtnIn {
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34D399;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.movBtnOut {
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #F87171;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.movementsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.movementRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.movDesc {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.movTime {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.movAmountIn {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--secondary-light);
+}
+
+.movAmountOut {
+  font-size: 12px;
+  font-weight: 800;
+  color: #F87171;
+}
+
+/* Botones de acción principales */
+.openCashBtn {
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%);
+  color: #090D16;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
+.closeCashBtn {
+  height: 46px;
+  border-radius: var(--radius-md);
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #F87171;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.seeSalesBtn {
+  height: 42px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+}
+
+/* ========================================================
+   PESTAÑA 2: VENTAS DEL DÍA
+   ======================================================== */
+.salesTabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.searchCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 42px;
+  padding: 0 38px 0 40px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.clearSearchBtn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  background-color: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.methodFiltersScroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.methodFilterChip {
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.methodFilterChipActive {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #FFFFFF;
+}
+
+.salesKpi {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(30, 41, 59, 0.6) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.salesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.saleCard {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.saleCard:active {
+  transform: scale(0.99);
+  border-color: var(--primary);
+}
+
+.saleCardLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.saleInvoice {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.saleMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.saleCardRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.saleAmount {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--secondary-light);
+}
+
+.methodBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Modales */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.modalCard {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.modalHeader {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.modalCloseBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalBody {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inputLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.inputField {
+  height: 46px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.submitBtn {
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--primary) 0%, #4F46E5 100%);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px var(--primary-glow);
+  margin-top: 6px;
+}
+
+.submitBtnDanger {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+.submitBtnSuccess {
+  background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  color: #090D16;
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+}
+
+.invoiceItemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+.invoiceItemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+/* ========================================================
+   ESTILOS DE ABONOS A FACTURAS
+   ======================================================== */
+.cardAbonoBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #F59E0B;
+  font-size: 11px;
+  font-weight: 800;
+  transition: transform var(--transition-fast);
+}
+
+.cardAbonoBtn:active {
+  transform: scale(0.95);
+}
+
+.abonoActionBtn {
+  width: 100%;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #090D16;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+  margin-top: 10px;
+}
+
+.abonoDebtCard {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.abonoProgressBar {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--border);
+  overflow: hidden;
+}
+
+.abonoProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10B981, #34D399);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+.abonoHistoryBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.abonoHistoryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  font-size: 12px;
+}
+
+.methodSelectBox {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.methodSelectOption {
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.methodSelectOptionActive {
+  background-color: var(--primary-subtle);
+  border-color: var(--primary);
+  color: var(--primary-light);
+}
+
+.payAllBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--primary-subtle);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  color: var(--primary-light);
+  font-size: 11px;
+  font-weight: 800;
+}
+

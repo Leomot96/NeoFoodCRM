@@ -1,0 +1,222 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.card {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.productName {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.productDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.productBasePrice {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--secondary-light);
+  margin-top: 4px;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.content {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.requiredBadge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #FBBF24;
+  background-color: rgba(245, 158, 11, 0.15);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.optionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.optionCard {
+  padding: 12px 14px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.optionCardActive {
+  background-color: var(--primary-subtle);
+  border-color: var(--primary);
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
+}
+
+.optionName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.optionPrice {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--secondary-light);
+}
+
+.checkboxIndicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+}
+
+.checkboxIndicatorActive {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: #FFFFFF;
+}
+
+.notesInput {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background-color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.quantityControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: var(--radius-lg);
+}
+
+.qtyBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.qtyValue {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text-primary);
+  width: 24px;
+  text-align: center;
+}
+
+.addBtn {
+  flex: 1;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--primary) 0%, #4338CA 100%);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px var(--primary-shadow);
+}

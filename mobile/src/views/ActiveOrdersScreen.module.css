@@ -1,0 +1,173 @@
+.container {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.refreshBtn {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.orderCard {
+  padding: 16px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 10px;
+}
+
+.tableGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tableBadge {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background-color: var(--primary-subtle);
+  color: var(--primary-light);
+  font-weight: 900;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tableName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tableZone {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.statusBadge {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 800;
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 12px;
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.itemQuantity {
+  font-weight: 800;
+  color: var(--primary-light);
+}
+
+.itemName {
+  color: var(--text-secondary);
+}
+
+.itemNotes {
+  font-size: 10px;
+  color: #FBBF24;
+  font-style: italic;
+}
+
+.itemPrice {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.cardFooter {
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.totalLabel {
+  color: var(--text-muted);
+}
+
+.totalValue {
+  color: var(--secondary-light);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 56px 16px;
+  background-color: rgba(17, 24, 39, 0.4);
+  border-radius: var(--radius-xl);
+  border: 1px dashed var(--border);
+  margin: auto 0;
+}

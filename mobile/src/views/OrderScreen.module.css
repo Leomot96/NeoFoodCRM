@@ -1,0 +1,459 @@
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  padding-bottom: 110px;
+}
+
+.tableHeaderCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.tableInfoGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tableBadgeNumber {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: var(--primary-subtle);
+  color: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.tableTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.tableZone {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.changeTableBtn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-light);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--primary-subtle);
+}
+
+.searchWrapper {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 11px 36px 11px 40px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: var(--primary);
+}
+
+.clearSearchBtn {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  color: var(--text-dim);
+}
+
+.categoriesScroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.categoryChip {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  background-color: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+}
+
+.categoryChipActive {
+  background-color: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px var(--primary-shadow);
+}
+
+.productList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.productCard {
+  padding: 12px 14px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.productDetails {
+  flex: 1;
+  overflow: hidden;
+}
+
+.productName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.productDesc {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.productPrice {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--secondary);
+  margin-top: 4px;
+}
+
+.addBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background-color: var(--primary-subtle);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  color: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.quantityGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  padding: 4px;
+  border-radius: var(--radius-md);
+}
+
+.quantityBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quantityBtnPrimary {
+  background-color: var(--primary);
+  color: #FFFFFF;
+}
+
+.quantityValue {
+  width: 24px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* Barra flotante de comanda */
+.floatingBar {
+  position: fixed;
+  bottom: 84px;
+  left: 16px;
+  right: 16px;
+  z-index: 30;
+}
+
+.floatingInner {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, var(--primary) 0%, #4338CA 100%);
+  color: #FFFFFF;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 24px var(--primary-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.floatingGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.floatingCountBadge {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: 900;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floatingTitle {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.floatingSubtitle {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.floatingTotal {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+/* Bottom Sheet de Comanda */
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.sheetCard {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.sheetHeader {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sheetTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.sheetSubtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sheetItemsList {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sheetItem {
+  padding: 12px 14px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sheetItemTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sheetItemName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sheetItemSubtotal {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+.noteRow {
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.noteBtn {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.noteBtn:hover {
+  color: var(--primary-light);
+}
+
+.noteInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.noteInput {
+  flex: 1;
+  padding: 6px 10px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.noteSaveBtn {
+  padding: 6px 10px;
+  background-color: var(--secondary);
+  color: #090D16;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sheetFooter {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totalLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.totalValue {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--secondary-light);
+}
+
+.sendOrderBtn {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--primary) 0%, #4338CA 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px var(--primary-shadow);
+}
+
+.sendOrderBtnSuccess {
+  background: var(--secondary);
+  color: #090D16;
+}

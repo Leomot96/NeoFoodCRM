@@ -193,12 +193,12 @@ const drawNeoFooter = (doc, showSignatures = true, logos = cachedLogos) => {
   if (logos?.isotipoDataUrl) {
     try {
       doc.addImage(logos.isotipoDataUrl, 'PNG', 14, pageHeight - 10.5, 4.5, 4);
-      doc.text(`Impreso: ${printDate} • NeoFood v1.8.0 • Documento de control interno`, 20, pageHeight - 7);
+      doc.text(`Impreso: ${printDate} • NeoFood v1.8.1 • Documento de control interno`, 20, pageHeight - 7);
     } catch {
-      doc.text(`Impreso: ${printDate} • NeoFood v1.8.0 • Documento de control interno`, 14, pageHeight - 7);
+      doc.text(`Impreso: ${printDate} • NeoFood v1.8.1 • Documento de control interno`, 14, pageHeight - 7);
     }
   } else {
-    doc.text(`Impreso: ${printDate} • NeoFood v1.8.0 • Documento de control interno`, 14, pageHeight - 7);
+    doc.text(`Impreso: ${printDate} • NeoFood v1.8.1 • Documento de control interno`, 14, pageHeight - 7);
   }
 
   doc.text('Página ' + doc.internal.getNumberOfPages(), pageWidth - 14, pageHeight - 7, { align: 'right' });

@@ -165,7 +165,7 @@ const Login = () => {
         </div>
         <p className={styles.loginFooterTagline}>Sistema Integral de Gestión Gastronómica</p>
         <p className={styles.loginFooterCopy}>
-          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v1.8.0
+          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v1.8.1
         </p>
         <div className={styles.loginFooterLegalLinks}>
           <Link to="/terminos" target="_blank">Términos de Servicio</Link>

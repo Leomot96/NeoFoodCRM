@@ -3,6 +3,52 @@
 Todos los cambios relevantes de este proyecto quedan documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) y usa versionado [Semántico](https://semver.org/lang/es/).
 
+## [1.8.1] — 2026-10-20
+
+### Añadido
+
+#### Aplicación Móvil Nativa Android (NeoFood Móvil / Capacitor)
+- **Nueva Plataforma Móvil (`/mobile`):** Creación de un proyecto independiente e integrado con Capacitor para generar APKs de Android nativas con identidad visual y operativa de NeoFood.
+- **Detección Automática de Restaurante (Multi-Tenant):** Autenticación inteligente donde cualquier usuario al iniciar sesión detecta automáticamente el restaurante (`Tenant`), carga su nombre, logotipo y plan activo.
+- **Selector y Probador de IP Local en Red WiFi:** Modal de configuración dinámica de IP del servidor con prueba de conexión en vivo (*ping*) para operar en red local sin recompilar la aplicación.
+- **Arquitectura de CSS Modular:** Sistema de estilos 100% modular (`*.module.css`) basado en los tokens y variables de diseño oficiales de NeoFood (`tokens.css` y `reset.css`), respetando Safe Area Insets (notch y gestos de Android) y desactivando comportamientos web como zoom accidental o tap highlight.
+- **Identidad de Marca Oficial:** Integración de los logotipos oficiales (`isotipo.svg`, `logo_blanco.svg`) y pie de página institucional con autoría de Leonardo Ramirez.
+- **Gestión Operativa de Mesas en Salón:**
+  - Visualización del estado en tiempo real (Libre / Ocupada) vinculada al estado de comandas del backend.
+  - Accesos directos para órdenes especiales: **Para Llevar** (`TAKEAWAY`) y **Domicilio** (`DELIVERY`).
+  - Menú modal de mesa ocupada para agregar platos, cancelar pedido o proceder al cobro.
+- **Modal de Personalización de Productos (`ProductCustomizerModal.jsx`):**
+  - Despliegue inmediato al pulsar sobre cualquier plato o bebida del menú móvil.
+  - Selección de variantes y modificadores obligatorios u opcionales con preselección inteligente.
+  - Gestión de adiciones y extras con casillas interactivas y cálculo de recargo en vivo.
+  - Especificación de notas de cocina personalizadas ("término medio", "sin cebolla") y contador de cantidad.
+- **Módulo de Cartera y Clientes (`CustomersScreen.jsx`):**
+  - Acceso restringido exclusivamente a roles **Administrador** y **Supervisor**.
+  - Aislamiento estricto multi-tenant: visualización y cobro únicamente de clientes registrados en el restaurante en sesión.
+  - Monitoreo en tiempo real de deuda total en cartera, clientes con saldo pendiente y clientes al día.
+  - Buscador inteligente por nombre, cédula/NIT o número de teléfono.
+  - **Filtro Estricto de Métodos de Abono:** En el formulario de abonos se muestran todos los medios de pago (Efectivo, Transferencia, Tarjeta) **excluyendo Crédito**, impidiendo que una deuda se pague con otra deuda.
+  - Historial detallado de créditos y cargos por facturas del cliente.
+- **Optimización de Desplazamiento Nativo (Scroll por Demanda):**
+  - Eliminación de alturas mínimas artificiales (`min-height`) y fijación del contenedor raíz a `100dvh` con contención de desbordamiento, asegurando que el scroll solo se active cuando la cantidad de elementos sobrepase naturalmente la pantalla.
+- **Módulo de Caja y Ventas del Día (`CashScreen.jsx`):**
+  - **Desglose Exhaustivo por Método de Pago:** Discriminación idéntica a la aplicación web mostrando el monto acumulado en cada método activo (Efectivo, Nequi/Transferencia, Tarjeta/Datáfono, Crédito/Fiao).
+  - **Cuadre de Gaveta con Privacidad:** Visualización de la fórmula de efectivo esperado (`Base + Ventas Efectivo + Abonos Efectivo ± Movimientos`) con botón de ojo (`Eye`/`EyeOff`) para ocultar o revelar el saldo en gaveta.
+  - **Movimientos de Efectivo Manuales:** Registro directo de salidas/ingresos de dinero (pago a proveedores, compras menores) con actualización inmediata del saldo esperado.
+  - **Pestaña Dedicada para Ventas del Día:** Selector segmentado para alternar entre el *Cuadre de Caja* y el *Historial de Ventas*, con buscador en tiempo real, filtros por método de pago y modal con el ticket de venta detallado.
+  - **Ajuste Ergonómico de Margen Inferior:** Incorporación de margen de resguardo inferior (`padding-bottom: calc(90px + env(safe-area-inset-bottom))`) para garantizar que la última tarjeta de venta nunca quede tapada por la barra de navegación móvil.
+- **Pestañas de Navegación Móvil Actualizadas (`BottomNav.jsx`):** Integración ergonómica de pestañas para Mesas, Pedido, En Curso, Caja, Clientes (condicional para administradores) y Ajustes.
+
+### Modificado
+
+- **Corrección y Blindaje de Abonos en Cartera (`CustomersScreen.jsx`):**
+  - **Filtro Exclusivo de Facturas con Saldo:** El selector de facturas a abonar valida estrictamente que la factura sea a crédito y tenga deuda pendiente real (`> $0`), impidiendo que facturas ya saldadas al 100% reaparezcan tras procesar el pago.
+  - **Protección de Campo de Comprobante / Descripción:** Configurado como solo lectura (`readOnly`) inmutable, precargado automáticamente con el estándar `"Abono a Factura #[Número]"` o `"Abono general a cuenta"`.
+- **Ocultamiento Dinámico del Botón "Abonar" en Facturas (`CashScreen.jsx`):**
+  - El botón *"Abonar"* y el bloque modal de abono solo se muestran en facturas que tengan crédito activo con saldo por cobrar.
+  - En facturas pagadas en su totalidad, pagadas de contado o canceladas, el botón desaparece y se exhibe el indicador verde `"✓ Pagada"`.
+- **Sincronización Global de Versiones a v1.8.1:** Actualización integral de números de versión en paquetes, pies de página de la app móvil y versión web, pantallas de inicio de sesión, ajustes, barra de estado, landing page, documentos legales, tickets de impresión y documentación del repositorio.
+
 ## [1.8.0] — 2026-10-13
 
 ### Añadido

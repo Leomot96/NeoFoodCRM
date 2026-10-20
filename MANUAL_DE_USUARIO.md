@@ -6,7 +6,7 @@
 <div align="center">
 
 ![NeoFood](https://img.shields.io/badge/NeoFood-Manual%20de%20Usuario-4f46e5?style=for-the-badge)
-![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.8.0-10b981?style=for-the-badge)
+![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.8.1-10b981?style=for-the-badge)
 ![Autor](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
 
 </div>

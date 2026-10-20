@@ -1,0 +1,341 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.card {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+
+.header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Resumen del Total */
+.totalBanner {
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totalBannerLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.totalBannerAmount {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--secondary-light);
+}
+
+/* Sección de Cliente */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.customerSelector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.customerInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.customerName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.customerPhone {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.changeCustomerBtn {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-light);
+}
+
+/* Tarjeta de Crédito del Cliente */
+.creditBadgeCard {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background-color: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.creditHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: #C084FC;
+}
+
+.creditRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.creditAvailable {
+  color: var(--secondary-light);
+  font-weight: 800;
+}
+
+/* Métodos de Pago */
+.paymentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.paymentOption {
+  padding: 12px 10px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.paymentOptionActive {
+  background-color: var(--primary-subtle);
+  border-color: var(--primary);
+  color: var(--primary-light);
+  box-shadow: 0 0 12px rgba(79, 70, 229, 0.25);
+}
+
+/* Efectivo recibido y cambio */
+.cashDetailsBox {
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cashInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cashInput {
+  width: 100%;
+  padding: 10px 14px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.cashShortcuts {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.shortcutBtn {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.changeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.changeLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.changeValue {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--secondary-light);
+}
+
+/* Footer y Botón de Cobro */
+.footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.confirmBtn {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.confirmBtnLoading {
+  opacity: 0.6;
+}
+
+/* Modal buscador de clientes */
+.customerModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.customerModalCard {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.customerSearchInput {
+  padding: 12px 14px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  margin: 16px;
+  margin-bottom: 8px;
+}
+
+.customerItem {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.customerItem:active {
+  background-color: var(--surface);
+}

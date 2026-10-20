@@ -3,7 +3,7 @@
 <div align="center">
 
 ![NeoFood Banner](https://img.shields.io/badge/NeoFood-SaaS%20%26%20POS-4f46e5?style=for-the-badge&logoColor=white)
-![Version](https://img.shields.io/badge/Versi%C3%B3n-1.8.0-10b981?style=for-the-badge)
+![Version](https://img.shields.io/badge/Versi%C3%B3n-1.8.1-10b981?style=for-the-badge)
 ![MultiTenant](https://img.shields.io/badge/Arquitectura-Multi--Tenant-blueviolet?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Estado-Producci%C3%B3n-blue?style=for-the-badge)
 ![Author](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
@@ -16,6 +16,7 @@
 
 [Manual de Usuario](MANUAL_DE_USUARIO.md) •
 [Certificado de Autoría](CERTIFICATE.md) •
+[Novedades v1.8.1](#-novedades-de-la-versión-181) •
 [Novedades v1.8.0](#-novedades-de-la-versión-180) •
 [Novedades v1.7.6](#-novedades-de-la-versión-176) •
 [Novedades v1.7.5](#-novedades-de-la-versión-175) •
@@ -55,7 +56,15 @@ Diseñado bajo principios de **arquitectura modular limpia**, **100% CSS Nativo*
 
 ---
 
-## 🆕 Novedades de la Versión 1.8.0
+## 🆕 Novedades de la Versión 1.8.1
+
+### Aplicación Móvil Android (Capacitor), Gestión de Cartera Móvil y Control de Abonos
+1. **Lanzamiento de NeoFood Móvil (`/mobile`):** Aplicación Android nativa construida con Capacitor y React 18, diseñada para meseros, cajeros y administradores en salón.
+2. **Selector y Probador de Conexión:** Detección de servidor local o nube (Cloudflare / Render) con prueba en tiempo real.
+3. **Módulo de Clientes & Cartera:** Filtro estricto para cobro exclusivo de facturas con crédito activo, selector de medios de pago sin recursión de deuda y campo de comprobante en solo lectura.
+4. **Módulo de Facturación & Caja:** Ocultamiento dinámico del botón "Abonar" en facturas canceladas o saldadas al 100%, con indicador visual de pago completado.
+
+## 🌟 Novedades Anteriores (Versión 1.8.0)
 
 ### Seguridad, Pre-Verificación de Correo (Resend), Onboarding & Centro Legal
 1. **Pre-Verificación de Correo con Código OTP (Resend):** Arquitectura de validación en dos pasos donde el usuario recibe un código de 6 dígitos y valida su correo antes de registrar cualquier restaurante o usuario en la base de datos, erradicando registros basura y spam.
@@ -469,7 +478,7 @@ El proyecto cuenta con un ecosistema completo de documentación oficial, directr
 
 <div align="center">
 
-**NeoFood POS & ERP** — Versión **1.8.0 SaaS Cloud Edition**  
+**NeoFood POS & ERP** — Versión **1.8.1 SaaS Cloud Edition**  
 Diseñado, Creado y Arquitectado Exclusivamente por **Leonardo Ramirez**  
 *Autor y Titular de los Derechos Morales y Patrimoniales de la Obra de Software*  
 *Sistema Integral de Gestión Gastronómica &copy; 2026. Todos los derechos reservados.*

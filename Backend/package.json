@@ -1,6 +1,6 @@
 {
   "name": "neofood-backend",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "API REST para CRM de restaurante",
   "main": "src/server.js",
   "scripts": {

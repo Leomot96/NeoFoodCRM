@@ -309,7 +309,7 @@ export const printerService = {
         <div class="text-center footer-section">
           ${printerConfig.footerText ? `<div>${printerConfig.footerText}</div>` : ''}
           <div style="margin-top: 6px; font-weight: bold; letter-spacing: 1px;">*** DOCUMENTO DE CONTROL INTERNO ***</div>
-          <div style="font-size: 8px; color: #444; margin-top: 2px;">Software NeoFood POS v1.8.0</div>
+          <div style="font-size: 8px; color: #444; margin-top: 2px;">Software NeoFood POS v1.8.1</div>
         </div>
 
         <div class="cut-space"></div>
