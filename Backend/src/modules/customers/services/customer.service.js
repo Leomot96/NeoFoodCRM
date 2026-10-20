@@ -1,15 +1,27 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class CustomerService {
   async getAllCustomers() {
+    const tenantId = getTenantId();
+    const where = {};
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
     return await prisma.customer.findMany({
+      where,
       orderBy: { name: 'asc' }
     });
   }
 
   async createCustomer(data) {
     try {
-      return await prisma.customer.create({ data });
+      const tenantId = getTenantId();
+      const customerData = {
+        ...data,
+        ...(tenantId && !data.tenantId ? { tenantId } : {})
+      };
+      return await prisma.customer.create({ data: customerData });
     } catch (err) {
       if (err.code === 'P2002') {
         const error = new Error('Ya existe un cliente registrado con ese número de documento.');
@@ -22,6 +34,18 @@ class CustomerService {
 
   async editCustomer(id, data) {
     try {
+      const tenantId = getTenantId();
+      if (tenantId) {
+        const existing = await prisma.customer.findFirst({
+          where: { id, tenantId }
+        });
+        if (!existing) {
+          const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
+          error.statusCode = 404;
+          throw error;
+        }
+      }
+
       return await prisma.customer.update({
         where: { id },
         data
@@ -37,6 +61,18 @@ class CustomerService {
   }
 
   async deleteCustomer(id) {
+    const tenantId = getTenantId();
+    if (tenantId) {
+      const existing = await prisma.customer.findFirst({
+        where: { id, tenantId }
+      });
+      if (!existing) {
+        const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
+        error.statusCode = 404;
+        throw error;
+      }
+    }
+
     return await prisma.customer.delete({
       where: { id }
     });
@@ -46,6 +82,16 @@ class CustomerService {
   // HISTORIAL DE CRÉDITO
   // =====================================
   async getCustomerCredits(customerId) {
+    const tenantId = getTenantId();
+    if (tenantId) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: customerId, tenantId }
+      });
+      if (!customer) {
+        return [];
+      }
+    }
+
     return await prisma.customerCredit.findMany({
       where: { customerId },
       include: { 
