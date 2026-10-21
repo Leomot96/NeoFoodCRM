@@ -209,7 +209,7 @@ model Product {
   tenantId        String?
   tenant          Tenant?                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name            String
-  description     String?
+  description     String?                 @db.Text
   price           Decimal                 @db.Decimal(10, 2)
   imageUrl        String?                 @db.MediumText
   categoryId      String
