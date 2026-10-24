@@ -1,7 +1,20 @@
 import axios from 'axios';
 import { Preferences } from '@capacitor/preferences';
 
-const DEFAULT_SERVER_URL = 'http://192.168.0.16:4000/api/v1';
+const DEFAULT_SERVER_URL = import.meta.env?.VITE_API_URL || 'http://192.168.0.16:4000/api/v1';
+
+// Determina si un host es IP de red local/loopback (permite http:// en LAN) o dominio remoto (fuerza https://)
+const normalizeServerUrl = (rawUrl) => {
+  let cleanUrl = (rawUrl || '').trim();
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    const isLocalHost = /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?(\/|$)/i.test(cleanUrl);
+    cleanUrl = `${isLocalHost ? 'http' : 'https'}://${cleanUrl}`;
+  }
+  if (!cleanUrl.includes('/api/v1')) {
+    cleanUrl = cleanUrl.endsWith('/') ? `${cleanUrl}api/v1` : `${cleanUrl}/api/v1`;
+  }
+  return cleanUrl;
+};
 
 // Función para obtener la URL del servidor almacenada o por defecto
 export const getServerUrl = async () => {
@@ -15,13 +28,7 @@ export const getServerUrl = async () => {
 
 // Función para guardar la nueva URL del servidor
 export const setServerUrl = async (url) => {
-  let cleanUrl = url.trim();
-  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-    cleanUrl = `http://${cleanUrl}`;
-  }
-  if (!cleanUrl.includes('/api/v1')) {
-    cleanUrl = cleanUrl.endsWith('/') ? `${cleanUrl}api/v1` : `${cleanUrl}/api/v1`;
-  }
+  const cleanUrl = normalizeServerUrl(url);
   
   try {
     await Preferences.set({ key: 'neofood_server_url', value: cleanUrl });
@@ -48,31 +55,24 @@ export const setOnUnauthorizedCallback = (cb) => {
   unauthorizedCallback = cb;
 };
 
-// Interceptor para inyectar token y tenant en cada solicitud
+// Interceptor para inyectar token en cada solicitud
 api.interceptors.request.use(async (config) => {
   try {
     let token = sessionStorage.getItem('neofood_token');
-    let tenantId = sessionStorage.getItem('neofood_tenant_id');
     
-    if (!token || !tenantId) {
+    if (!token) {
       try {
         const tokenPref = await Preferences.get({ key: 'neofood_token' });
         if (!token) token = tokenPref.value;
-        const tenantPref = await Preferences.get({ key: 'neofood_tenant_id' });
-        if (!tenantId) tenantId = tenantPref.value;
       } catch (err) {
         // Fallback
       }
     }
 
     if (!token) token = localStorage.getItem('neofood_token');
-    if (!tenantId) tenantId = localStorage.getItem('neofood_tenant_id');
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    }
-    if (tenantId) {
-      config.headers['x-tenant-id'] = tenantId;
     }
   } catch (e) {
     console.error('Error in request interceptor:', e);
@@ -104,13 +104,7 @@ api.interceptors.response.use(
 // Probar conexión con el servidor
 export const pingServer = async (testUrl) => {
   try {
-    let url = testUrl || (await getServerUrl());
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `http://${url}`;
-    }
-    if (!url.includes('/api/v1')) {
-      url = url.endsWith('/') ? `${url}api/v1` : `${url}/api/v1`;
-    }
+    const url = normalizeServerUrl(testUrl || (await getServerUrl()));
     const res = await axios.get(`${url}/health`, { timeout: 4000 }).catch(() => {
       // Si no hay endpoint /health, probar con un get a auth
       return axios.get(`${url}/auth/login`, { timeout: 4000 });

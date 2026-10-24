@@ -84,11 +84,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    setUser(null);
+  const logout = async () => {
+    try {
+      if (localStorage.getItem('accessToken')) {
+        await api.post('/auth/logout');
+      }
+    } catch {
+      // Continuar con limpieza local aunque falle la red
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   };
 
   return (
