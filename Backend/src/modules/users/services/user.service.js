@@ -110,6 +110,27 @@ class UserService {
 
   // 4. Actualizar Usuario
   async updateUser(id, data) {
+    const existingUser = await prisma.user.findUnique({ where: { id } });
+    if (!existingUser) {
+      const error = new Error('Usuario no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Protección de seguridad para cuentas demo
+    if (existingUser.email && existingUser.email.endsWith('@demo.com')) {
+      if (data.password && data.password.trim() !== '') {
+        const error = new Error('Por seguridad, la contraseña de las cuentas de demostración no puede ser modificada.');
+        error.statusCode = 403;
+        throw error;
+      }
+      if (data.email && data.email !== existingUser.email) {
+        const error = new Error('El correo de las cuentas de demostración no puede ser alterado.');
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
     const updateData = {
       name: data.name,
       email: data.email,
@@ -153,6 +174,13 @@ class UserService {
     if (!user) {
       const error = new Error('Usuario no encontrado');
       error.statusCode = 404;
+      throw error;
+    }
+
+    // Protección de seguridad para cuentas demo
+    if (user.email && user.email.endsWith('@demo.com')) {
+      const error = new Error('Las cuentas de demostración oficiales están protegidas y no pueden ser eliminadas.');
+      error.statusCode = 403;
       throw error;
     }
 

@@ -530,6 +530,12 @@ class SaasService {
       throw error;
     }
 
+    if (tenant.slug && (tenant.slug.startsWith('demo-') || tenant.id === 'default-tenant-001')) {
+      const error = new Error('Los restaurantes de demostración oficiales están protegidos y no pueden ser eliminados.');
+      error.statusCode = 403;
+      throw error;
+    }
+
     // Ejecución transaccional en orden inverso de dependencias de Clave Foránea
     await prisma.$transaction(async (tx) => {
       // 1. Eliminar relaciones de Ventas
@@ -692,6 +698,72 @@ class SaasService {
   async deletePlatformUser(userId) {
     const userService = require('../../users/services/user.service');
     return await userService.deleteUser(userId);
+  }
+
+  /**
+   * Restablece y limpia los datos de prueba transaccionales de los restaurantes demo (órdenes, ventas, turnos de caja)
+   */
+  async resetDemoTenants() {
+    const demoSlugs = ['demo-pizzeria', 'demo-cafe', 'demo-parrilla', 'demo-gastrobar', 'demo-rapidas'];
+    const demoTenants = await prisma.tenant.findMany({
+      where: { slug: { in: demoSlugs } },
+      select: { id: true, slug: true, name: true }
+    });
+
+    const tenantIds = demoTenants.map(t => t.id);
+    if (tenantIds.length === 0) return { count: 0, message: 'No hay tenants demo configurados' };
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Eliminar ventas y pagos de prueba
+      const sales = await tx.sale.findMany({
+        where: { tenantId: { in: tenantIds } },
+        select: { id: true }
+      });
+      const saleIds = sales.map(s => s.id);
+      if (saleIds.length > 0) {
+        await tx.salePayment.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.saleDetailAddition.deleteMany({ where: { saleDetail: { saleId: { in: saleIds } } } });
+        await tx.saleDetailVariation.deleteMany({ where: { saleDetail: { saleId: { in: saleIds } } } });
+        await tx.saleDetail.deleteMany({ where: { saleDetail: { saleId: { in: saleIds } } } }).catch(() => {});
+        await tx.saleDetail.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
+      }
+
+      // 2. Eliminar órdenes de prueba
+      const orders = await tx.order.findMany({
+        where: { tenantId: { in: tenantIds } },
+        select: { id: true }
+      });
+      const orderIds = orders.map(o => o.id);
+      if (orderIds.length > 0) {
+        await tx.orderDetail.deleteMany({ where: { orderId: { in: orderIds } } });
+        await tx.order.deleteMany({ where: { id: { in: orderIds } } });
+      }
+
+      // 3. Limpiar sesiones de caja y movimientos
+      const cashSessions = await tx.cashSession.findMany({
+        where: { tenantId: { in: tenantIds } },
+        select: { id: true }
+      });
+      const sessionIds = cashSessions.map(cs => cs.id);
+      if (sessionIds.length > 0) {
+        await tx.cashAudit.deleteMany({ where: { cashSessionId: { in: sessionIds } } });
+        await tx.cashMovement.deleteMany({ where: { cashSessionId: { in: sessionIds } } });
+        await tx.cashSession.deleteMany({ where: { id: { in: sessionIds } } });
+      }
+
+      // 4. Liberar todas las mesas
+      await tx.table.updateMany({
+        where: { tenantId: { in: tenantIds } },
+        data: { isActive: true }
+      });
+    });
+
+    return {
+      success: true,
+      count: demoTenants.length,
+      tenants: demoTenants.map(t => t.name)
+    };
   }
 }
 

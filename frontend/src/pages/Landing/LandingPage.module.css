@@ -112,9 +112,10 @@
 }
 
 .navContainer {
-  max-width: 1280px;
+  max-width: 1560px;
+  width: 95%;
   margin: 0 auto;
-  padding: 0.9rem 1.5rem;
+  padding: 0.85rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -126,6 +127,7 @@
   align-items: center;
   text-decoration: none;
   gap: 0.65rem;
+  flex-shrink: 0;
 }
 
 .navIsotipoImg {
@@ -134,12 +136,13 @@
   object-fit: contain;
   display: block;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(79, 70, 229, 0.25));
 }
 
 .navLogoImg {
-  height: 34px;
+  height: 32px;
   width: auto;
-  max-width: 220px;
+  max-width: 200px;
   object-fit: contain;
   display: block;
 }
@@ -177,14 +180,14 @@
 }
 
 .brandBadge {
-  margin-left: 0.5rem;
+  margin-left: 0.35rem;
   font-size: 0.65rem;
   font-weight: 800;
   background: rgba(79, 70, 229, 0.15);
   border: 1px solid rgba(79, 70, 229, 0.4);
   color: #a5b4fc;
-  padding: 0.15rem 0.5rem;
-  border-radius: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -192,64 +195,94 @@
 .navLinks {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.3rem 0.5rem;
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
 }
 
 .navLink {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: #94a3b8;
+  border-radius: 9999px;
   text-decoration: none;
-  font-size: 0.925rem;
-  font-weight: 500;
-  transition: color 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navLink:hover {
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
 .navActions {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .loginBtn {
-  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f1f5f9;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  padding: 0.55rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 0.55rem 1.15rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
   transition: all 0.2s ease;
 }
 
 .loginBtn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .trialNavBtn {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #10b981 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #10b981 100%);
   color: #ffffff;
   border: none;
-  padding: 0.58rem 1.15rem;
-  border-radius: 0.55rem;
+  padding: 0.58rem 1.35rem;
+  border-radius: 0.65rem;
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
   transition: all 0.2s ease;
 }
 
 .trialNavBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 6px 22px rgba(16, 185, 129, 0.45);
+  filter: brightness(1.08);
+}
+
+.trialNavTextLong {
+  display: inline;
+}
+
+.trialNavTextShort {
+  display: none;
 }
 
 /* 3. HERO SECTION */
@@ -300,8 +333,17 @@
 }
 
 @keyframes pulseGlow {
-  0%, 100% { opacity: 0.7; transform: scale(0.95); }
-  50% { opacity: 1; transform: scale(1.1); }
+
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
 .heroTitle {
@@ -447,9 +489,17 @@
   border-radius: 50%;
 }
 
-.dotRed { background: #ef4444; }
-.dotYellow { background: #f59e0b; }
-.dotGreen { background: #10b981; }
+.dotRed {
+  background: #ef4444;
+}
+
+.dotYellow {
+  background: #f59e0b;
+}
+
+.dotGreen {
+  background: #10b981;
+}
 
 .windowAddress {
   display: flex;
@@ -482,8 +532,15 @@
 }
 
 @keyframes liveBlink {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .mockupTabsBar {
@@ -694,6 +751,394 @@
   font-size: 0.75rem;
   color: #fcd34d;
   font-weight: 500;
+}
+
+/* ========================================================
+   MODALIDAD PANTALLAZO REAL DE CADA MÓDULO (HERO MOCKUP)
+   ======================================================== */
+
+.screenHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.screenTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.screenTitleText {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.screenStatusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* 1. POS Screens */
+.posTablesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.posTableCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.posTableCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.posTableHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.posTableName {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.posTableStatus {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.posTableDetails {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 0.2rem;
+}
+
+.posTableTotal {
+  font-weight: 800;
+  color: #38bdf8;
+  font-size: 0.8rem;
+}
+
+.posBottomOrderBar {
+  background: rgba(79, 70, 229, 0.12);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.posOrderText {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.posOrderBtn {
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.45rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* 2. KDS Screens */
+.kdsTicketsStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.kdsTicketCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.kdsTicketTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.kdsOrderNum {
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.kdsTimerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.kdsItemList {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+  padding-left: 0.5rem;
+  margin: 0.15rem 0;
+}
+
+.kdsActionBtn {
+  align-self: flex-end;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 0.4rem;
+  border: none;
+  cursor: pointer;
+}
+
+/* 3. Tienda Virtual Screens */
+.storePreviewBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.storeBannerMini {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.storeItemsMiniList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.storeItemMiniRow {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.storeItemName {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.storeItemPrice {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.storeAddBtn {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.storeWhatsappFloatBar {
+  background: #059669;
+  color: #ffffff;
+  border-radius: 0.65rem;
+  padding: 0.6rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+  cursor: pointer;
+}
+
+/* 4. Caja Screens */
+.cashKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.cashKpiBox {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.cashMovementsList {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.72rem;
+}
+
+.cashCloseBtn {
+  width: 100%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.55rem;
+  font-size: 0.775rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+/* 5. Producción Screens */
+.productionItemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.productionItemRow {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.productionBatchBanner {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.725rem;
+  color: #fde68a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 6. Reportes Screens */
+.reportsKpiRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.reportsMiniChartCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.reportsBarsWrapper {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 60px;
+  padding: 0 1rem;
+  margin-top: 0.5rem;
+}
+
+.reportsBarItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 28px;
+}
+
+.reportsBarFill {
+  width: 100%;
+  background: linear-gradient(180deg, #818cf8 0%, #4f46e5 100%);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+
+.reportsBarLabel {
+  font-size: 0.65rem;
+  color: #94a3b8;
+}
+
+.reportsDownloadBtn {
+  width: 100%;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #c4b5fd;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
 }
 
 /* 4. STATS IMPACT COUNTERS */
@@ -1839,5 +2284,398 @@
 
   .mockupBody {
     padding: 1.25rem;
+  }
+
+  .demosGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .demoActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================================
+   DEMOS SECTION - INTERACTIVE RESTAURANT CONCEPTS
+   ======================================================== */
+.demosSection {
+  padding: 6.5rem 1.5rem;
+  max-width: 1240px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.demosGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+
+.demoCard {
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.demoCard:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+}
+
+.demoCardGlow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.demoCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.demoIconWrapper {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.demoTagBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+.demoTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 0.35rem 0;
+}
+
+.demoCategory {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 0.85rem;
+  display: block;
+}
+
+.demoDesc {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin-bottom: 1.25rem;
+}
+
+.demoHighlightsList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.demoHighlightItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+.demoHighlightIcon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.demoActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: auto;
+}
+
+.demoBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: #4f46e5;
+  color: #ffffff;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.demoBtnPrimary:hover {
+  background: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.45);
+}
+
+.demoBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.demoBtnSecondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ========================================================
+   RESPONSIVE DESIGN & MOBILE OPTIMIZATIONS
+   ======================================================== */
+
+@media (max-width: 1200px) {
+  .navContainer {
+    width: 98%;
+    padding: 0.8rem 1.25rem;
+  }
+
+  .navLinks {
+    gap: 0.25rem;
+  }
+
+  .navLink {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.825rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .topAnnouncement {
+    padding: 0.45rem 0.75rem;
+  }
+
+  .topAnnouncementInner {
+    gap: 0.5rem;
+  }
+
+  .announcementText {
+    font-size: 0.75rem;
+  }
+
+  .navContainer {
+    flex-wrap: wrap;
+    padding: 0.65rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .navLinks {
+    width: 100%;
+    order: 3;
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.35rem;
+    padding: 0.35rem 0 0.15rem 0;
+    margin-top: 0.15rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .navLinks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navLink {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.775rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    color: #cbd5e1;
+    flex-shrink: 0;
+  }
+
+  .navActions {
+    gap: 0.5rem;
+  }
+
+  .trialNavBtn {
+    padding: 0.5rem 1.05rem;
+    font-size: 0.8125rem;
+  }
+
+  .heroTitle {
+    font-size: 2.75rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .topAnnouncement {
+    padding: 0.38rem 0.65rem;
+  }
+
+  .topAnnouncementInner {
+    justify-content: space-between;
+    gap: 0.4rem;
+  }
+
+  .announcementText {
+    display: none;
+  }
+
+  .announcementBadge {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.45rem;
+  }
+
+  .announcementCta {
+    font-size: 0.7rem;
+    padding: 0.18rem 0.5rem;
+  }
+
+  .navContainer {
+    padding: 0.55rem 0.85rem;
+  }
+
+  .brandLink {
+    gap: 0.45rem;
+  }
+
+  .navIsotipoImg {
+    height: 30px;
+  }
+
+  .navLogoImg {
+    height: 26px;
+    max-width: 140px;
+  }
+
+  .brandBadge {
+    display: none;
+  }
+
+  .navActions {
+    gap: 0.35rem;
+  }
+
+  .loginBtn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.775rem;
+  }
+
+  .trialNavBtn {
+    padding: 0.42rem 0.8rem;
+    font-size: 0.775rem;
+    gap: 0.35rem;
+  }
+
+  .trialNavTextLong {
+    display: none !important;
+  }
+
+  .trialNavTextShort {
+    display: inline !important;
+  }
+
+  .heroSection {
+    padding: 3rem 1rem 2.5rem 1rem;
+  }
+
+  .heroTitle {
+    font-size: 2.15rem;
+    line-height: 1.2;
+  }
+
+  .heroSubtitle {
+    font-size: 0.95rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .heroCtaGroup {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.65rem;
+  }
+
+  .heroPrimaryBtn,
+  .heroSecondaryBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .demoActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .navContainer {
+    padding: 0.45rem 0.65rem;
+  }
+
+  .navLogoImg {
+    height: 24px;
+    max-width: 120px;
+  }
+
+  .loginBtn {
+    padding: 0.36rem 0.55rem;
+    font-size: 0.73rem;
+  }
+
+  .trialNavBtn {
+    padding: 0.38rem 0.65rem;
+    font-size: 0.73rem;
+  }
+
+  .heroTitle {
+    font-size: 1.85rem;
   }
 }

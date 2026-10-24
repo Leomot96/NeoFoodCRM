@@ -30,7 +30,17 @@ import {
   BarChart3,
   HelpCircle,
   ExternalLink,
-  Shield
+  Shield,
+  Pizza,
+  Coffee,
+  Flame,
+  Beer,
+  UtensilsCrossed,
+  Utensils,
+  Sandwich,
+  MapPin,
+  KeyRound,
+  LogIn
 } from 'lucide-react';
 import api from '../../api/axios';
 import {
@@ -74,6 +84,69 @@ const FAQS = [
   {
     q: '¿Puedo cambiar de plan o cancelar en cualquier momento?',
     a: 'Sí, totalmente. No tenemos cláusulas de permanencia mínima obligatoria. Puedes subir de plan cuando tu restaurante crezca o cambiar tu ciclo de facturación cuando lo desees.'
+  }
+];
+
+const DEMOS_DATA = [
+  {
+    id: 'pizzeria',
+    title: 'Bella Napoli Pizzería',
+    category: 'Pizzería & Trattoria Italiana',
+    tag: 'Pizzas & Pastas',
+    icon: Pizza,
+    color: '#e11d48',
+    description: 'Pizzas artesanales al horno de piedra con tamaños personal/mediana/familiar, bordes de queso mozzarella, pastas y lasagnas.',
+    highlights: ['14 Platillos con precios reales', 'Modificadores de tamaño y bordes', '8 Mesas activas configuradas'],
+    email: 'pizzeria@demo.com',
+    slug: 'demo-pizzeria'
+  },
+  {
+    id: 'cafe',
+    title: 'Café Origen & Brunch',
+    category: 'Cafetería de Especialidad & Brunch',
+    tag: 'Café & Repostería',
+    icon: Coffee,
+    color: '#d97706',
+    description: 'Espressos, lattes con tipo de leche (entera/almendras), frappés fríos, tostadas francesas y repostería artesanal.',
+    highlights: ['15 Bebidas y opciones de brunch', 'Opciones de leche y adiciones', 'Tienda virtual con WhatsApp'],
+    email: 'cafe@demo.com',
+    slug: 'demo-cafe'
+  },
+  {
+    id: 'parrilla',
+    title: 'Fuego Criollo Parrilla',
+    category: 'Parrilla, Carnes & Asados',
+    tag: 'Cortes & Brasa',
+    icon: Flame,
+    color: '#ea580c',
+    description: 'Baby beef, punta de anca, términos de cocción, costillas BBQ ahumadas en leña de manzano y picadas campesinas.',
+    highlights: ['10 Cortes y asados al carbón', 'Términos de carne y guarniciones', '8 Mesas para salón y terraza'],
+    email: 'parrilla@demo.com',
+    slug: 'demo-parrilla'
+  },
+  {
+    id: 'gastrobar',
+    title: 'La Taberna Gastrobar',
+    category: 'Cervecería Artesanal & Gastrobar',
+    tag: 'Cervezas & Tapas',
+    icon: Beer,
+    color: '#8b5cf6',
+    description: 'Cervezas de barril en pintas o jarras, alitas doradas con salsas de autor, nachos supremos, coctelería y picoteo.',
+    highlights: ['13 Opciones de bebidas y tapas', 'Alitas con salsas y nachos loaded', 'KDS de cocina en tiempo real'],
+    email: 'gastrobar@demo.com',
+    slug: 'demo-gastrobar'
+  },
+  {
+    id: 'rapidas',
+    title: 'Burger & Street Food',
+    category: 'Comidas Rápidas & Burgers',
+    tag: 'Burgers & Salchipapas',
+    icon: UtensilsCrossed,
+    color: '#2563eb',
+    description: 'Smash burgers en pan brioche, salchipapas familiares, perros calientes americanos, desgranados y malteadas.',
+    highlights: ['11 Platillos urbanos apetitosos', 'Combos y adiciones de tocineta', 'POS táctil ágil para mostrador'],
+    email: 'rapidas@demo.com',
+    slug: 'demo-rapidas'
   }
 ];
 
@@ -209,7 +282,7 @@ const LandingPage = () => {
       <div className={styles.topAnnouncement}>
         <div className={styles.topAnnouncementInner}>
           <span className={styles.announcementBadge}>
-            <Sparkles size={13} /> ¡Lanzamiento v1.9.0!
+            <Sparkles size={12} /> Lanzamiento v1.9.0
           </span>
           <span className={styles.announcementText}>
             Prueba <strong>NeoFood Gratis por {TRIAL_DAYS} Días</strong> con acceso completo a todos los módulos. Sin tarjeta de crédito.
@@ -226,15 +299,29 @@ const LandingPage = () => {
       {/* 2. NAVBAR NAVEGACIÓN */}
       <header className={styles.navbar}>
         <div className={styles.navContainer}>
-          <Link to="/" className={styles.brandLink}>
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              const wrapper = document.querySelector(`.${styles.landingWrapper}`) || window;
+              if (wrapper.scrollTo) {
+                wrapper.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            className={styles.brandLink}
+            title="Volver al inicio de NeoFood"
+          >
             <img src="/isotipo.svg" alt="NeoFood" className={styles.navIsotipoImg} />
             <img src="/logo_blanco.svg" alt="NeoFood POS & CRM" className={styles.navLogoImg} />
             <span className={styles.brandBadge}>POS & CRM</span>
-          </Link>
+          </a>
 
           <nav className={styles.navLinks}>
             <a href="#modulos" onClick={(e) => scrollToSection(e, 'modulos')} className={styles.navLink}>Módulos</a>
             <a href="#whatsapp" onClick={(e) => scrollToSection(e, 'whatsapp')} className={styles.navLink}>Tienda WhatsApp</a>
+            <a href="#demos" onClick={(e) => scrollToSection(e, 'demos')} className={styles.navLink}>Demos en Vivo</a>
             <a href="#precios" onClick={(e) => scrollToSection(e, 'precios')} className={styles.navLink}>Planes & Precios</a>
             <a href="#faq" onClick={(e) => scrollToSection(e, 'faq')} className={styles.navLink}>Preguntas</a>
           </nav>
@@ -246,9 +333,11 @@ const LandingPage = () => {
             <button
               onClick={() => handleStartTrial('pro')}
               className={styles.trialNavBtn}
+              title={`Iniciar prueba gratuita de ${TRIAL_DAYS} días`}
             >
-              <Sparkles size={15} />
-              <span>Prueba {TRIAL_DAYS} Días Gratis</span>
+              <Sparkles size={14} />
+              <span className={styles.trialNavTextLong}>Prueba {TRIAL_DAYS} Días Gratis</span>
+              <span className={styles.trialNavTextShort}>Prueba Gratis</span>
             </button>
           </div>
         </div>
@@ -269,8 +358,8 @@ const LandingPage = () => {
           </h1>
 
           <p className={styles.heroSubtitle}>
-            Unifica tu <strong>Punto de Venta (POS)</strong>, <strong>Pantalla de Cocina (KDS)</strong>, 
-            <strong> Tienda Virtual con pedidos por WhatsApp</strong>, <strong>Control de Caja</strong>, 
+            Unifica tu <strong>Punto de Venta (POS)</strong>, <strong>Pantalla de Cocina (KDS)</strong>,
+            <strong> Tienda Virtual con pedidos por WhatsApp</strong>, <strong>Control de Caja</strong>,
             <strong> Sub-Recetas e Inventario CMP</strong> en una sola plataforma en la nube.
           </p>
 
@@ -374,49 +463,339 @@ const LandingPage = () => {
                     </div>
                   </div>
 
-                  {/* Visual Preview Graphic */}
+                  {/* Visual Preview Graphic Screen (Pantallazo real por cada módulo) */}
                   <div className={styles.mockupGraphicCard}>
-                    <div className={styles.graphicHeader}>
-                      <div className={styles.graphicIconWrapper} style={{ backgroundColor: `${activeModule.color}15`, color: activeModule.color }}>
-                        {React.createElement(activeModule.icon, { size: 28 })}
-                      </div>
+                    {activeTab === 'pos' && (
                       <div>
-                        <span className={styles.graphicKpiLabel}>Estado del Sistema</span>
-                        <h4 className={styles.graphicKpiValue}>100% Operativo</h4>
-                      </div>
-                    </div>
+                        <div className={styles.screenHeaderRow}>
+                          <div className={styles.screenTitleGroup}>
+                            <ShoppingCart size={18} style={{ color: '#4f46e5' }} />
+                            <span className={styles.screenTitleText}>Punto de Venta POS & Salón</span>
+                          </div>
+                          <span className={styles.screenStatusPill} style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            <span className={styles.livePulse}></span> En Servicio
+                          </span>
+                        </div>
 
-                    <div className={styles.graphicMetricsGrid}>
-                      <div className={styles.graphicMetricBox}>
-                        <span className={styles.metricLabel}>Mesas Activas</span>
-                        <span className={styles.metricVal}>14 / 20</span>
-                        <div className={styles.metricBar}>
-                          <div className={styles.metricBarFill} style={{ width: '70%', backgroundColor: '#4f46e5' }}></div>
+                        <div className={styles.posTablesGrid}>
+                          <div className={styles.posTableCard}>
+                            <div className={styles.posTableHeader}>
+                              <span className={styles.posTableName}>Mesa 1</span>
+                              <span className={styles.posTableStatus} style={{ backgroundColor: '#ef444420', color: '#f87171' }}>Ocupada</span>
+                            </div>
+                            <div className={styles.posTableDetails}>
+                              <span>4 Personas</span>
+                              <span className={styles.posTableTotal}>$78.000</span>
+                            </div>
+                          </div>
+
+                          <div className={styles.posTableCard}>
+                            <div className={styles.posTableHeader}>
+                              <span className={styles.posTableName}>Mesa 2</span>
+                              <span className={styles.posTableStatus} style={{ backgroundColor: '#10b98120', color: '#34d399' }}>Libre</span>
+                            </div>
+                            <div className={styles.posTableDetails}>
+                              <span>Disponible</span>
+                              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>$0</span>
+                            </div>
+                          </div>
+
+                          <div className={styles.posTableCard}>
+                            <div className={styles.posTableHeader}>
+                              <span className={styles.posTableName}>Mesa 3</span>
+                              <span className={styles.posTableStatus} style={{ backgroundColor: '#3b82f620', color: '#60a5fa' }}>Cuenta</span>
+                            </div>
+                            <div className={styles.posTableDetails}>
+                              <span>Pedir Factura</span>
+                              <span className={styles.posTableTotal}>$112.500</span>
+                            </div>
+                          </div>
+
+                          <div className={styles.posTableCard}>
+                            <div className={styles.posTableHeader}>
+                              <span className={styles.posTableName}>Mesa 4</span>
+                              <span className={styles.posTableStatus} style={{ backgroundColor: '#f59e0b20', color: '#fbbf24' }}>En Cocina</span>
+                            </div>
+                            <div className={styles.posTableDetails}>
+                              <span>2 Personas</span>
+                              <span className={styles.posTableTotal}>$45.000</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className={styles.posBottomOrderBar}>
+                          <span className={styles.posOrderText}>
+                            <strong>Mesa 3:</strong> 1x Pizza Familiar, 2x Bebidas, 1x Postre
+                          </span>
+                          <button
+                            className={styles.posOrderBtn}
+                          >
+                            Facturar $112.500 →
+                          </button>
                         </div>
                       </div>
-                      <div className={styles.graphicMetricBox}>
-                        <span className={styles.metricLabel}>Tiempo Promedio Cocina</span>
-                        <span className={styles.metricVal}>11 min</span>
-                        <div className={styles.metricBar}>
-                          <div className={styles.metricBarFill} style={{ width: '45%', backgroundColor: '#10b981' }}></div>
+                    )}
+
+                    {(activeTab === 'cocina' || activeTab === 'kds') && (
+                      <div>
+                        <div className={styles.screenHeaderRow}>
+                          <div className={styles.screenTitleGroup}>
+                            <ChefHat size={18} style={{ color: '#ef4444' }} />
+                            <span className={styles.screenTitleText}>Pantalla de Cocina (KDS en Vivo)</span>
+                          </div>
+                          <span className={styles.screenStatusPill} style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                            2 Comandas Activas
+                          </span>
+                        </div>
+
+                        <div className={styles.kdsTicketsStack}>
+                          <div className={styles.kdsTicketCard}>
+                            <div className={styles.kdsTicketTop}>
+                              <span className={styles.kdsOrderNum}>Comanda #108 • Mesa 1</span>
+                              <span className={styles.kdsTimerBadge} style={{ backgroundColor: '#ef444420', color: '#f87171' }}>
+                                <Clock size={12} /> Hace 6 min
+                              </span>
+                            </div>
+                            <div className={styles.kdsItemList}>
+                              <span>&bull; 1x Pizza Suprema Familiar (Sin cebolla)</span>
+                              <span>&bull; 2x Lasaña Bolognese Artesanal</span>
+                            </div>
+                            <button
+                              className={styles.kdsActionBtn}
+                              style={{ backgroundColor: '#059669', color: '#ffffff' }}
+                            >
+                              ✓ Listo para Despachar
+                            </button>
+                          </div>
+
+                          <div className={styles.kdsTicketCard}>
+                            <div className={styles.kdsTicketTop}>
+                              <span className={styles.kdsOrderNum}>Comanda #109 • Domicilio WhatsApp #24</span>
+                              <span className={styles.kdsTimerBadge} style={{ backgroundColor: '#f59e0b20', color: '#fbbf24' }}>
+                                <Clock size={12} /> Hace 2 min
+                              </span>
+                            </div>
+                            <div className={styles.kdsItemList}>
+                              <span>&bull; 2x Hamburguesas Monster con Papas Rústicas</span>
+                            </div>
+                            <button
+                              className={styles.kdsActionBtn}
+                              style={{ backgroundColor: '#d97706', color: '#ffffff' }}
+                            >
+                              En Preparación...
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className={styles.graphicMetricBox}>
-                        <span className={styles.metricLabel}>Ventas del Turno</span>
-                        <span className={styles.metricVal}>$1.840.000</span>
-                        <span className={styles.metricSub}>+18% vs ayer</span>
-                      </div>
-                      <div className={styles.graphicMetricBox}>
-                        <span className={styles.metricLabel}>Pedidos WhatsApp</span>
-                        <span className={styles.metricVal}>28 Despachados</span>
-                        <span className={styles.metricSub}>0% comisiones</span>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className={styles.graphicAlertBanner}>
-                      <Zap size={15} style={{ color: '#f59e0b' }} />
-                      <span>Stock y recetas calculados con Costo Medio Ponderado (CMP)</span>
-                    </div>
+                    {activeTab === 'tienda' && (
+                      <div>
+                        <div className={styles.screenHeaderRow}>
+                          <div className={styles.screenTitleGroup}>
+                            <ShoppingBag size={18} style={{ color: '#06b6d4' }} />
+                            <span className={styles.screenTitleText}>Tienda Virtual & Catálogo WhatsApp</span>
+                          </div>
+                          <span className={styles.screenStatusPill} style={{ backgroundColor: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.3)' }}>
+                            0% Comisión
+                          </span>
+                        </div>
+
+                        <div className={styles.storePreviewBox}>
+                          <div className={styles.storeBannerMini}>
+                            <div>
+                              <strong style={{ fontSize: '0.825rem', color: '#ffffff', display: 'block' }}>Bella Napoli Pizzería</strong>
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Abierto hoy hasta las 11:00 PM &bull; 4.9 ★</span>
+                            </div>
+                            <span style={{ fontSize: '0.7rem', background: '#059669', color: '#fff', padding: '0.15rem 0.5rem', borderRadius: '0.35rem', fontWeight: 700 }}>WhatsApp Directo</span>
+                          </div>
+
+                          <div className={styles.storeItemsMiniList}>
+                            <div className={styles.storeItemMiniRow}>
+                              <div>
+                                <span className={styles.storeItemName}>Pizza Margherita al Horno</span>
+                                <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Masa madre, pomodoro y mozzarella</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span className={styles.storeItemPrice}>$36.000</span>
+                                <button className={styles.storeAddBtn}>+ Agregar</button>
+                              </div>
+                            </div>
+
+                            <div className={styles.storeItemMiniRow}>
+                              <div>
+                                <span className={styles.storeItemName}>Pasta Carbonara Tradizionale</span>
+                                <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Guanciale, pecorino y pimienta</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span className={styles.storeItemPrice}>$28.000</span>
+                                <button className={styles.storeAddBtn}>+ Agregar</button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={styles.storeWhatsappFloatBar}>
+                            <span>2 Platillos en Carrito &bull; $64.000</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <MessageCircle size={14} /> Enviar Pedido →
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'caja' && (
+                      <div>
+                        <div className={styles.screenHeaderRow}>
+                          <div className={styles.screenTitleGroup}>
+                            <Wallet size={18} style={{ color: '#10b981' }} />
+                            <span className={styles.screenTitleText}>Control de Caja & Turno #142</span>
+                          </div>
+                          <span className={styles.screenStatusPill} style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            Caja Abierta
+                          </span>
+                        </div>
+
+                        <div className={styles.cashKpiGrid}>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Base Inicial</span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#f1f5f9' }}>$200.000</span>
+                          </div>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Ventas Efectivo</span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#10b981' }}>$890.000</span>
+                          </div>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Datafono / Transf.</span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#38bdf8' }}>$1.450.000</span>
+                          </div>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block' }}>Total del Turno</span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#a78bfa' }}>$2.340.000</span>
+                          </div>
+                        </div>
+
+                        <div className={styles.cashMovementsList}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#34d399' }}>+ Cobro Factura #107 (Efectivo)</span>
+                            <span style={{ fontWeight: 700, color: '#f1f5f9' }}>+$54.000</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#f87171' }}>- Gasto Menor: Hielo & Limones</span>
+                            <span style={{ fontWeight: 700, color: '#f87171' }}>-$14.000</span>
+                          </div>
+                        </div>
+
+                        <button
+                          className={styles.cashCloseBtn}
+                        >
+                          <ShieldCheck size={14} /> Realizar Cierre Ciego de Turno
+                        </button>
+                      </div>
+                    )}
+
+                    {activeTab === 'produccion' && (
+                      <div>
+                        <div className={styles.screenHeaderRow}>
+                          <div className={styles.screenTitleGroup}>
+                            <Factory size={18} style={{ color: '#f59e0b' }} />
+                            <span className={styles.screenTitleText}>Inventario & Sub-Recetas (CMP)</span>
+                          </div>
+                          <span className={styles.screenStatusPill} style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                            Costos Reales
+                          </span>
+                        </div>
+
+                        <div className={styles.productionItemsList}>
+                          <div className={styles.productionItemRow}>
+                            <div>
+                              <strong style={{ color: '#ffffff', display: 'block' }}>Masa de Pizza Italiana</strong>
+                              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Stock: 24 Unidades &bull; CMP: $2.800/ud</span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', color: '#10b981', background: '#10b98120', padding: '0.15rem 0.45rem', borderRadius: '0.35rem', fontWeight: 700 }}>Óptimo</span>
+                          </div>
+
+                          <div className={styles.productionItemRow}>
+                            <div>
+                              <strong style={{ color: '#ffffff', display: 'block' }}>Queso Mozzarella Búfala</strong>
+                              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Stock: 3.8 Kg &bull; CMP: $24.000/kg</span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', color: '#f59e0b', background: '#f59e0b20', padding: '0.15rem 0.45rem', borderRadius: '0.35rem', fontWeight: 700 }}>Stock Bajo</span>
+                          </div>
+
+                          <div className={styles.productionItemRow}>
+                            <div>
+                              <strong style={{ color: '#ffffff', display: 'block' }}>Salsa Pomodoro Lote #12</strong>
+                              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Stock: 12 Litros &bull; CMP: $7.900/L</span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', color: '#10b981', background: '#10b98120', padding: '0.15rem 0.45rem', borderRadius: '0.35rem', fontWeight: 700 }}>Elaborado</span>
+                          </div>
+                        </div>
+
+                        <div className={styles.productionBatchBanner}>
+                          <Zap size={16} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                          <span>Lotes de sub-recetas descuentan insumos base automáticamente.</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'reportes' && (
+                      <div>
+                        <div className={styles.screenHeaderRow}>
+                          <div className={styles.screenTitleGroup}>
+                            <FileText size={18} style={{ color: '#8b5cf6' }} />
+                            <span className={styles.screenTitleText}>Facturación & Reportes Ejecutivos</span>
+                          </div>
+                          <span className={styles.screenStatusPill} style={{ backgroundColor: 'rgba(139, 92, 246, 0.15)', color: '#c4b5fd', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                            PDF Certificado
+                          </span>
+                        </div>
+
+                        <div className={styles.reportsKpiRow}>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'block' }}>Ventas Brutas</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f1f5f9' }}>$48.650.000</span>
+                          </div>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'block' }}>Costo (COGS)</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f87171' }}>$15.200.000</span>
+                          </div>
+                          <div className={styles.cashKpiBox}>
+                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'block' }}>Margen Real</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#10b981' }}>68.8%</span>
+                          </div>
+                        </div>
+
+                        <div className={styles.reportsMiniChartCard}>
+                          <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 700 }}>Ventas Semanales del Mes</span>
+                          <div className={styles.reportsBarsWrapper}>
+                            <div className={styles.reportsBarItem}>
+                              <div className={styles.reportsBarFill} style={{ height: '35px' }}></div>
+                              <span className={styles.reportsBarLabel}>S1</span>
+                            </div>
+                            <div className={styles.reportsBarItem}>
+                              <div className={styles.reportsBarFill} style={{ height: '44px' }}></div>
+                              <span className={styles.reportsBarLabel}>S2</span>
+                            </div>
+                            <div className={styles.reportsBarItem}>
+                              <div className={styles.reportsBarFill} style={{ height: '52px' }}></div>
+                              <span className={styles.reportsBarLabel}>S3</span>
+                            </div>
+                            <div className={styles.reportsBarItem}>
+                              <div className={styles.reportsBarFill} style={{ height: '58px', background: 'linear-gradient(180deg, #34d399 0%, #059669 100%)' }}></div>
+                              <span className={styles.reportsBarLabel}>S4</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleStartTrial('pro')}
+                          className={styles.reportsDownloadBtn}
+                        >
+                          <FileText size={14} /> Descargar Reporte PDF de Alta Fidelidad
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -562,7 +941,9 @@ const LandingPage = () => {
               <div className={styles.phoneSpeaker}></div>
               <div className={styles.phoneScreen}>
                 <div className={styles.phoneAppHeader}>
-                  <div className={styles.phoneLogoBadge}>🍽️</div>
+                  <div className={styles.phoneLogoBadge}>
+                    <Utensils size={18} style={{ color: '#4f46e5' }} />
+                  </div>
                   <div>
                     <h5 className={styles.phoneStoreName}>Burger & Grill Co.</h5>
                     <span className={styles.phoneStatusBadge}>● Abierto Ahora</span>
@@ -570,12 +951,17 @@ const LandingPage = () => {
                 </div>
 
                 <div className={styles.phoneBanner}>
-                  <span>🔥 20% OFF en Combos Especiales</span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Flame size={14} style={{ color: '#ef4444' }} />
+                    <span>20% OFF en Combos Especiales</span>
+                  </div>
                 </div>
 
                 <div className={styles.phoneMenuGrid}>
                   <div className={styles.phoneDishCard}>
-                    <div className={styles.dishEmoji}>🍔</div>
+                    <div className={styles.dishEmoji}>
+                      <Sandwich size={20} style={{ color: '#f59e0b' }} />
+                    </div>
                     <div className={styles.dishInfo}>
                       <h6>Smash Doble Queso</h6>
                       <span>Pan brioche, carne madurada</span>
@@ -583,7 +969,9 @@ const LandingPage = () => {
                     </div>
                   </div>
                   <div className={styles.phoneDishCard}>
-                    <div className={styles.dishEmoji}>🍟</div>
+                    <div className={styles.dishEmoji}>
+                      <Package size={20} style={{ color: '#eab308' }} />
+                    </div>
                     <div className={styles.dishInfo}>
                       <h6>Papas Rústicas Trufadas</h6>
                       <span>Con queso parmesano</span>
@@ -599,16 +987,93 @@ const LandingPage = () => {
                     <span>WhatsApp del Restaurante</span>
                   </div>
                   <p className={styles.chatMessage}>
-                    👋 ¡Hola! Nuevo Pedido #1042<br />
+                    <span style={{ fontWeight: 700, color: '#15803d' }}>Nuevo Pedido #1042</span><br />
                     • 1x Smash Doble Queso ($28.900)<br />
                     • 1x Papas Rústicas ($14.500)<br />
-                    📍 Domicilio: Cra 15 # 85-20<br />
-                    💵 Total: $43.400 (Pago: Efectivo)
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                      <MapPin size={11} /> Domicilio: Cra 15 # 85-20
+                    </span><br />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontWeight: 700 }}>
+                      <CreditCard size={11} /> Total: $43.400 (Pago: Efectivo)
+                    </span>
                   </p>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* 6.5. DEMOS EN VIVO INTERACTIVAS POR CONCEPTO */}
+      <section id="demos" className={styles.demosSection}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.sectionPill}>
+            <Sparkles size={13} /> Acceso Inmediato Sin Registro
+          </span>
+          <h2 className={styles.sectionTitle}>
+            Prueba NeoFood en Vivo para tu Tipo de Negocio
+          </h2>
+          <p className={styles.sectionDesc}>
+            Explora una demostración real ya configurada con platillos, modificadores, mesas activas y tienda virtual. Elige tu concepto gastronómico y compruébalo tú mismo.
+          </p>
+        </div>
+
+        <div className={styles.demosGrid}>
+          {DEMOS_DATA.map((demo) => {
+            const Icon = demo.icon;
+            return (
+              <div key={demo.id} className={styles.demoCard}>
+                <div className={styles.demoCardGlow} style={{ backgroundColor: demo.color }}></div>
+
+                <div>
+                  <div className={styles.demoCardHeader}>
+                    <div
+                      className={styles.demoIconWrapper}
+                      style={{ backgroundColor: `${demo.color}15`, color: demo.color }}
+                    >
+                      <Icon size={26} />
+                    </div>
+                    <span className={styles.demoTagBadge}>{demo.tag}</span>
+                  </div>
+
+                  <h3 className={styles.demoTitle}>{demo.title}</h3>
+                  <span className={styles.demoCategory}>{demo.category}</span>
+                  <p className={styles.demoDesc}>{demo.description}</p>
+
+                  <ul className={styles.demoHighlightsList}>
+                    {demo.highlights.map((h, i) => (
+                      <li key={i} className={styles.demoHighlightItem}>
+                        <CheckCircle2 size={14} className={styles.demoHighlightIcon} />
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className={styles.demoActions}>
+                  <Link
+                    to={`/login?email=${demo.email}&demo=1`}
+                    className={styles.demoBtnPrimary}
+                    title="Entrar al panel de control y punto de venta POS"
+                  >
+                    <LogIn size={14} />
+                    <span>Probar POS</span>
+                  </Link>
+
+                  <a
+                    href={`/tienda/${demo.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.demoBtnSecondary}
+                    title="Ver la tienda digital interactiva en vivo"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Ver Tienda</span>
+                  </a>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -954,9 +1419,10 @@ const LandingPage = () => {
                     href={`https://wa.me/${SUPPORT_WHATSAPP}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: '#10b981', fontWeight: 600 }}
+                    style={{ color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                   >
-                    💬 WhatsApp de Asistencia
+                    <MessageCircle size={15} />
+                    <span>WhatsApp de Asistencia</span>
                   </a>
                 </li>
                 <li><span>Horario: Lun - Sáb (8:00 AM - 8:00 PM)</span></li>

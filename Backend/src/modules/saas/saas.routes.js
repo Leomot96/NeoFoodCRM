@@ -21,6 +21,7 @@ router.patch('/tenants/:id/status', saasController.updateStatus);
 router.patch('/tenants/:id/plan', saasController.updatePlan);
 router.patch('/tenants/:id/activate-plan', saasController.activatePlan);
 router.delete('/tenants/:id', saasController.deleteTenant);
+router.post('/demos/reset', saasController.resetDemos);
 
 // Gestión y filtrado global de Usuarios (por nombre, correo y restaurante)
 router.get('/users', saasController.getUsers);

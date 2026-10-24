@@ -5,6 +5,57 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/isotipo.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO Primario y Meta Descripción -->
+  <title>NeoFOOD | CRM & POS Gastronómico en la Nube</title>
+  <meta name="description" content="Sistema operativo todo-en-uno para restaurantes, pizzerías, cafeterías, gastrobares y comidas rápidas. Punto de Venta (POS) táctil, pantalla digital de cocina (KDS), tienda virtual con pedidos por WhatsApp, facturación electrónica e inventario con recetas." />
+  <meta name="keywords" content="POS restaurante, software gastronomico, sistema pos colombia, comandas cocina KDS, pedidos whatsapp restaurante, inventario restaurantes, software para cafeteria, software para pizzeria, software para gastrobar, CRM gastronomico" />
+  <meta name="author" content="NeoFood Technologies" />
+  <meta name="robots" content="index, follow" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="theme-color" content="#4f46e5" />
+
+  <!-- Open Graph / Redes Sociales (Facebook, LinkedIn, WhatsApp) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://neo-food-crm-ezb8.vercel.app/" />
+  <meta property="og:title" content="NeoFOOD | Sistema POS, Cocina KDS & CRM para Restaurantes" />
+  <meta property="og:description" content="Controla tus mesas, cocina, ventas y tienda virtual por WhatsApp sin comisiones. Pruébalo gratis por 7 días." />
+  <meta property="og:image" content="https://neo-food-crm-ezb8.vercel.app/logo_negro.svg" />
+  <meta property="og:site_name" content="NeoFood" />
+  <meta property="og:locale" content="es_CO" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://neo-food-crm-ezb8.vercel.app/" />
+  <meta name="twitter:title" content="NeoFOOD | POS & CRM Gastronómico" />
+  <meta name="twitter:description" content="El sistema operativo definitivo para restaurantes, cafés y gastrobares. 0% comisiones." />
+  <meta name="twitter:image" content="https://neo-food-crm-ezb8.vercel.app/logo_negro.svg" />
+
+  <!-- Datos Estructurados Schema.org (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "NeoFood POS & CRM Gastronómico",
+    "operatingSystem": "Web, iOS, Android, Windows, macOS",
+    "applicationCategory": "BusinessApplication",
+    "offers": {
+      "@type": "AggregateOffer",
+      "priceCurrency": "COP",
+      "lowPrice": "49000",
+      "highPrice": "149000",
+      "offerCount": "3"
+    },
+    "description": "Plataforma integral en la nube para gestión de restaurantes: punto de venta, comandas de cocina KDS, tienda virtual WhatsApp y control de inventario con costeo CMP.",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "reviewCount": "128"
+    }
+  }
+  </script>
+
+  <!-- Preconnect y Google Fonts optimizadas -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
@@ -15,14 +66,25 @@
     rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Oleo+Script:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet" />
-  <title>NeoFOOD | CRM & POS Gastronómico</title>
 </head>
 
 <body class="antialiased font-sans">
-
-  <div id="root"></div>
+  <div id="root">
+    <!-- Contenido semántico inicial para evaluadores de rastreo SEO -->
+    <noscript>
+      <h1>NeoFOOD - Sistema Operativo y POS para Restaurantes</h1>
+      <p>NeoFood es la solución definitiva en la nube para restaurantes, pizzerías, cafeterías, gastrobares y negocios de comida rápida. Incluye punto de venta POS, pantalla de cocina KDS, tienda virtual con pedidos por WhatsApp y gestión de inventario.</p>
+      <ul>
+        <li><a href="/login">Iniciar Sesión</a></li>
+        <li><a href="/registro">Registrar Restaurante Gratis</a></li>
+        <li><a href="/tienda/demo-pizzeria">Demo Pizzería</a></li>
+        <li><a href="/tienda/demo-cafe">Demo Cafetería</a></li>
+        <li><a href="/tienda/demo-parrilla">Demo Parrilla</a></li>
+        <li><a href="/tienda/demo-gastrobar">Demo Gastrobar</a></li>
+        <li><a href="/tienda/demo-rapidas">Demo Comidas Rápidas</a></li>
+      </ul>
+    </noscript>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

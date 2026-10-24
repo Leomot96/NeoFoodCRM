@@ -50,3 +50,4 @@ Backend/scratch_*.js
 # Respaldos de base de datos (contienen datos de clientes/usuarios)
 Backend/backups/
 *.bak
+*.sql

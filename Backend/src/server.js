@@ -23,7 +23,7 @@ const startServer = async () => {
         })
         .catch(err => console.error('Error en AutoPurge al iniciar:', err));
 
-      // Intervalo diario (cada 24 horas)
+      // Intervalo diario (cada 24 horas): Purga y limpieza de demos
       setInterval(() => {
         saasService.purgeExpiredInactiveTenants()
           .then(result => {
@@ -32,6 +32,14 @@ const startServer = async () => {
             }
           })
           .catch(err => console.error('Error en AutoPurge diario:', err));
+
+        saasService.resetDemoTenants()
+          .then(result => {
+            if (result.count > 0) {
+              console.log(`🔄 [AutoDemoReset] Se limpiaron y restauraron ${result.count} restaurantes de demostración.`);
+            }
+          })
+          .catch(err => console.error('Error en AutoDemoReset diario:', err));
       }, 24 * 60 * 60 * 1000);
     });
   } catch (error) {

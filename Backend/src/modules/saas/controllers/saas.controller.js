@@ -160,6 +160,19 @@ class SaasController {
       next(error);
     }
   }
+
+  async resetDemos(req, res, next) {
+    try {
+      const result = await saasService.resetDemoTenants();
+      res.status(200).json({
+        success: true,
+        message: 'Los restaurantes de demostración fueron restablecidos y limpiados correctamente.',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new SaasController();

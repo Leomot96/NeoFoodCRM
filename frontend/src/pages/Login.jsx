@@ -1,16 +1,68 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, Store } from 'lucide-react';
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Store,
+  MessageCircle,
+  Pizza,
+  Coffee,
+  Flame,
+  Beer,
+  UtensilsCrossed,
+  Sparkles,
+  CheckCircle2
+} from 'lucide-react';
 import styles from './Login.module.css';
+
+const QUICK_DEMOS = [
+  { id: 'pizzeria', name: 'Pizzería', email: 'pizzeria@demo.com', icon: Pizza, color: '#e11d48' },
+  { id: 'cafe', name: 'Café', email: 'cafe@demo.com', icon: Coffee, color: '#d97706' },
+  { id: 'parrilla', name: 'Parrilla', email: 'parrilla@demo.com', icon: Flame, color: '#ea580c' },
+  { id: 'gastrobar', name: 'Gastrobar', email: 'gastrobar@demo.com', icon: Beer, color: '#8b5cf6' },
+  { id: 'rapidas', name: 'Rápidas', email: 'rapidas@demo.com', icon: UtensilsCrossed, color: '#2563eb' }
+];
 
 const Login = () => {
   const { login } = useAuth();
+  const [searchParams] = useSearchParams();
+  const urlEmail = searchParams.get('email');
+  const isDemoFromUrl = searchParams.get('demo') === '1' || !!urlEmail;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeDemoName, setActiveDemoName] = useState('');
+
+  useEffect(() => {
+    if (urlEmail) {
+      setEmail(urlEmail);
+      setPassword('demo1234');
+      const found = QUICK_DEMOS.find(d => d.email.toLowerCase() === urlEmail.toLowerCase());
+      if (found) setActiveDemoName(found.name);
+    }
+  }, [urlEmail]);
+
+  const handleSelectDemo = (demo) => {
+    if (email.toLowerCase() === demo.email.toLowerCase()) {
+      // Al volver a clickear el demo activo: deseleccionar y limpiar campos
+      setEmail('');
+      setPassword('');
+      setActiveDemoName('');
+      setError('');
+      return;
+    }
+    setEmail(demo.email);
+    setPassword('demo1234');
+    setActiveDemoName(demo.name);
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,19 +81,8 @@ const Login = () => {
     <div className={styles.loginPage}>
       <div className={styles.loginCard}>
         <div className={styles.loginHeader}>
-          <div style={{ marginBottom: '0.75rem', textAlign: 'center' }}>
-            <Link
-              to="/landing"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.8rem',
-                color: '#4f46e5',
-                textDecoration: 'none',
-                fontWeight: 600
-              }}
-            >
+          <div className={styles.loginTopNavRow}>
+            <Link to="/landing" className={styles.loginBackLink}>
               ← Conoce más sobre NeoFood
             </Link>
           </div>
@@ -49,7 +90,52 @@ const Login = () => {
             <img src="/isotipo.svg" alt="NeoFood" className={styles.loginIsotipoImg} />
             <img src="/logo_negro.svg" alt="NeoFood" className={styles.loginLogoTextImg} />
           </div>
-          <p className={styles.loginSubtitle}>Ingresa tus credenciales para acceder</p>
+          {/* Quick Demos Selector Bar (En una sola línea) */}
+          <div className={styles.loginDemosBox}>
+            <div className={styles.loginDemosHeader}>
+              <Sparkles size={13} style={{ color: '#4f46e5' }} />
+              <span>Acceso Rápido a Demos en Vivo:</span>
+            </div>
+            <div className={styles.loginDemosRow}>
+              {QUICK_DEMOS.map((d) => {
+                const Icon = d.icon;
+                const isSelected = email === d.email;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => handleSelectDemo(d)}
+                    className={`${styles.loginDemoPill} ${isSelected ? styles.loginDemoPillActive : ''}`}
+                    style={{
+                      '--demo-color': d.color
+                    }}
+                    title={isSelected ? `Demo ${d.name} activa (Clic para deseleccionar)` : `Entrar como Demo ${d.name}`}
+                  >
+                    <Icon size={13} style={{ color: isSelected ? '#ffffff' : d.color }} />
+                    <span>{d.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {activeDemoName && (
+              <div className={styles.loginDemoActiveNotice}>
+                <CheckCircle2 size={13} />
+                <span>Demo {activeDemoName} activa &bull;</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('');
+                    setPassword('');
+                    setActiveDemoName('');
+                  }}
+                  className={styles.loginDemoClearBtn}
+                  title="Limpiar campos para escribir mi correo y contraseña"
+                >
+                  Deseleccionar
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={styles.loginBody}>
@@ -76,7 +162,8 @@ const Login = () => {
                       textDecoration: 'none'
                     }}
                   >
-                    <span>💬 Contactar a Soporte por WhatsApp</span>
+                    <MessageCircle size={14} />
+                    <span>Contactar a Soporte por WhatsApp</span>
                   </a>
                 </div>
               )}
@@ -96,7 +183,10 @@ const Login = () => {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (activeDemoName) setActiveDemoName('');
+                  }}
                   className={styles.loginInput}
                   placeholder="admin@neofood.com"
                 />
@@ -115,7 +205,10 @@ const Login = () => {
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (activeDemoName) setActiveDemoName('');
+                  }}
                   className={`${styles.loginInput} ${styles.loginInputPassword}`}
                   placeholder="••••••••"
                 />
@@ -159,25 +252,17 @@ const Login = () => {
       </div>
 
       <footer className={styles.loginPageFooter}>
-        <div className={styles.loginPageFooterBrandRow}>
-          <img src="/isotipo.svg" alt="NeoFood" className={styles.loginFooterIsotipo} />
-          <img src="/logo_negro.svg" alt="NeoFood" className={styles.loginFooterBrandLogo} />
-        </div>
-        <p className={styles.loginFooterTagline}>Sistema Integral de Gestión Gastronómica</p>
-        <p className={styles.loginFooterCopy}>
-          &copy; {new Date().getFullYear()} Todos los derechos reservados &bull; v1.9.0
-        </p>
         <div className={styles.loginFooterLegalLinks}>
           <Link to="/terminos" target="_blank">Términos de Servicio</Link>
           <span>&bull;</span>
-          <Link to="/privacidad" target="_blank">Privacidad & Habeas Data</Link>
+          <Link to="/privacidad" target="_blank">Privacidad</Link>
           <span>&bull;</span>
           <Link to="/cookies" target="_blank">Cookies</Link>
           <span>&bull;</span>
-          <Link to="/sla" target="_blank">Garantía SLA</Link>
+          <Link to="/sla" target="_blank">SLA</Link>
         </div>
-        <p className={styles.loginFooterAuthor}>
-          Diseñado por <strong>Leonardo Ramirez</strong>
+        <p className={styles.loginFooterCopy}>
+          &copy; {new Date().getFullYear()} NeoFood &bull; v1.9.0 &bull; Diseñado por <strong>Leonardo Ramirez</strong>
         </p>
       </footer>
     </div>
