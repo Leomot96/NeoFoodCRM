@@ -354,7 +354,7 @@ const LandingPage = () => {
 
           <h1 className={styles.heroTitle}>
             El Sistema Operativo Definitivo para{' '}
-            <span className={styles.heroGradientText}>tu Restaurante</span>
+            <span className={styles.heroGradientText}>Tu Restaurante</span>
           </h1>
 
           <p className={styles.heroSubtitle}>
