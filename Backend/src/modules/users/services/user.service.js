@@ -6,7 +6,12 @@ const { validatePassword } = require('../../../utils/passwordValidator');
 class UserService {
   // 1. Obtener todos los roles para el formulario del Frontend
   async getRoles() {
+    const where = {};
+    if (!isSuperAdmin()) {
+      where.name = { notIn: ['SuperAdmin', 'SUPERADMIN'] };
+    }
     return await prisma.role.findMany({
+      where,
       orderBy: { name: 'asc' }
     });
   }
@@ -26,8 +31,12 @@ class UserService {
   // 2. Obtener usuarios (excluyendo password e incluyendo los datos del Rol, Teléfono y Establecimiento)
   async getAllUsers(filters = {}) {
     const where = {};
-    if (filters.tenantId && filters.tenantId !== 'ALL') {
-      where.tenantId = filters.tenantId;
+    if (isSuperAdmin()) {
+      if (filters.tenantId && filters.tenantId !== 'ALL') {
+        where.tenantId = filters.tenantId;
+      }
+    } else {
+      where.tenantId = getTenantId();
     }
 
     return await prisma.user.findMany({
@@ -54,7 +63,7 @@ class UserService {
     });
   }
 
-  // 3. Crear Usuario (ahora valida límite de maxUsers y usa roleId)
+  // 3. Crear Usuario (ahora valida límite de maxUsers y pertenencia de roleId)
   async createUser(data) {
     const tenantId = (isSuperAdmin() && data.tenantId) ? data.tenantId : getTenantId();
     if (tenantId) {
@@ -83,6 +92,23 @@ class UserService {
       throw error;
     }
 
+    const targetRole = await prisma.role.findFirst({
+      where: {
+        id: data.roleId,
+        ...(tenantId ? { tenantId } : {})
+      }
+    });
+    if (!targetRole) {
+      const error = new Error('El rol seleccionado no existe o no pertenece a este establecimiento');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (!isSuperAdmin() && (targetRole.name === 'SuperAdmin' || targetRole.name === 'SUPERADMIN')) {
+      const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
+      error.statusCode = 403;
+      throw error;
+    }
+
     const passwordValidation = validatePassword(data.password);
     if (!passwordValidation.isValid) {
       const error = new Error(passwordValidation.message);
@@ -99,7 +125,7 @@ class UserService {
         email: data.email,
         phone: data.phone ? data.phone.trim() : null,
         password: hashedPassword,
-        roleId: data.roleId,
+        roleId: targetRole.id,
         tenantId: tenantId || null
       }
     });
@@ -117,6 +143,13 @@ class UserService {
       throw error;
     }
 
+    const currentTenantId = getTenantId();
+    if (!isSuperAdmin() && currentTenantId && existingUser.tenantId !== currentTenantId) {
+      const error = new Error('No tienes permisos para modificar un usuario de otro establecimiento');
+      error.statusCode = 403;
+      throw error;
+    }
+
     // Protección de seguridad para cuentas demo
     if (existingUser.email && existingUser.email.endsWith('@demo.com')) {
       if (data.password && data.password.trim() !== '') {
@@ -131,13 +164,43 @@ class UserService {
       }
     }
 
+    const targetTenantForRole = (isSuperAdmin() && data.tenantId !== undefined)
+      ? (data.tenantId || existingUser.tenantId)
+      : existingUser.tenantId;
+
+    let validatedRoleId = undefined;
+    if (data.roleId) {
+      const targetRole = await prisma.role.findFirst({
+        where: {
+          id: data.roleId,
+          ...(targetTenantForRole ? { tenantId: targetTenantForRole } : {})
+        }
+      });
+      if (!targetRole) {
+        const error = new Error('El rol seleccionado no existe o no pertenece a este establecimiento');
+        error.statusCode = 400;
+        throw error;
+      }
+      if (!isSuperAdmin() && (targetRole.name === 'SuperAdmin' || targetRole.name === 'SUPERADMIN')) {
+        const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
+        error.statusCode = 403;
+        throw error;
+      }
+      validatedRoleId = targetRole.id;
+    }
+
     const updateData = {
       name: data.name,
       email: data.email,
       phone: data.phone !== undefined ? (data.phone ? data.phone.trim() : null) : undefined,
-      roleId: data.roleId,
+      ...(validatedRoleId ? { roleId: validatedRoleId } : {}),
       isActive: data.isActive
     };
+
+    // Si se desactiva al usuario, revocar su refreshToken inmediatamente
+    if (data.isActive === false) {
+      updateData.refreshToken = null;
+    }
 
     if (isSuperAdmin() && data.tenantId !== undefined) {
       updateData.tenantId = data.tenantId || null;

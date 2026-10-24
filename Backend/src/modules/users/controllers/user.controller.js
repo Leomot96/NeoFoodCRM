@@ -24,8 +24,12 @@ exports.getRestaurants = async (req, res, next) => {
 exports.getAllUsers = async (req, res, next) => {
   try {
     const filters = {};
-    if (req.query.tenantId) {
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isSuper = roleName === 'SuperAdmin' || roleName === 'SUPERADMIN';
+    if (isSuper && req.query.tenantId) {
       filters.tenantId = req.query.tenantId;
+    } else if (!isSuper) {
+      filters.tenantId = req.user.tenantId;
     }
     const users = await userService.getAllUsers(filters);
     res.status(200).json({ success: true, data: users });

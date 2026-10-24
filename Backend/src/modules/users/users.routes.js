@@ -12,7 +12,7 @@ router.use(restrictTo(ROLES.ADMINISTRADOR));
 
 // OJO CON EL ORDEN: Las rutas más específicas ('/roles', '/restaurants') deben ir ANTES que las rutas dinámicas ('/:id')
 router.get('/roles', userController.getRoles);
-router.get('/restaurants', userController.getRestaurants);
+router.get('/restaurants', restrictTo(ROLES.SUPERADMIN), userController.getRestaurants);
 router.get('/', userController.getAllUsers);
 router.post('/', userController.createUser);
 router.put('/:id', userController.updateUser);
