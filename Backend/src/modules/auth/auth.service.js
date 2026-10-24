@@ -1,10 +1,28 @@
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const prisma = require('../../config/prisma');
+const { getTenantId, isSuperAdmin } = require('../../context/tenantContext');
 const { generateAccessToken, generateRefreshToken, verifyToken } = require('../../utils/jwt.util');
 const ROLES = require('../../constants/roles');
 const { validatePassword } = require('../../utils/passwordValidator');
 const emailService = require('../../services/email.service');
+
+// Hash bcrypt señuelo para mitigar ataques de enumeración por tiempo (Timing Attack) en login
+const DUMMY_BCRYPT_HASH = '$2b$10$CwTycUXWue0Thq9StjUM0uJ8D0R6V5G7Y9xL0K2p1m3N5v7B9c1eG';
+
+const hashTokenOrCode = (val) =>
+  crypto.createHash('sha256').update(String(val)).digest('hex');
+
+const safeCompareHex = (hexA, hexB) => {
+  if (typeof hexA !== 'string' || typeof hexB !== 'string' || hexA.length !== hexB.length) {
+    return false;
+  }
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hexA, 'utf8'), Buffer.from(hexB, 'utf8'));
+  } catch {
+    return false;
+  }
+};
 
 // Lista de dominios de correos temporales/desechables para prevención de spam
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
@@ -40,15 +58,12 @@ class AuthService {
       }
     });
 
-    if (!user || !user.isActive) {
-      const error = new Error('Credenciales inválidas o usuario inactivo');
-      error.statusCode = 401;
-      throw error;
-    }
+    // Ejecutar siempre bcrypt.compare para evitar enumeración de usuarios por canal lateral de tiempo
+    const targetHash = user?.password || DUMMY_BCRYPT_HASH;
+    const isPasswordValid = await bcrypt.compare(String(password || ''), targetHash);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      const error = new Error('Credenciales inválidas');
+    if (!user || !user.isActive || !isPasswordValid) {
+      const error = new Error('Credenciales inválidas o usuario inactivo');
       error.statusCode = 401;
       throw error;
     }
@@ -86,11 +101,12 @@ class AuthService {
     };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
+    const refreshTokenHash = hashTokenOrCode(refreshToken);
 
-    // Guardamos el refresh token en la base de datos
+    // Guardamos únicamente el hash SHA-256 del refresh token en la base de datos
     await prisma.user.update({
       where: { id: user.id },
-      data: { refreshToken }
+      data: { refreshToken: refreshTokenHash }
     });
 
     return {
@@ -127,7 +143,6 @@ class AuthService {
   }
 
   async logoutUser(userId) {
-    // Al hacer logout, limpiamos el refresh token de la BD
     await prisma.user.update({
       where: { id: userId },
       data: { refreshToken: null }
@@ -146,7 +161,7 @@ class AuthService {
       // 1. Verificamos la firma del Refresh Token
       const decoded = verifyToken(token, true);
 
-      // 2. Verificamos que el usuario exista y tenga el mismo token guardado
+      // 2. Verificamos que el usuario exista, esté activo y tenga el mismo token (hash o legacy)
       const user = await prisma.user.findUnique({
         where: { id: decoded.id },
         include: {
@@ -155,13 +170,33 @@ class AuthService {
         }
       });
 
-      if (!user || user.refreshToken !== token) {
-        const error = new Error('Refresh token inválido o expirado en DB');
+      const incomingHash = hashTokenOrCode(token);
+      const storedToken = user?.refreshToken || '';
+      const tokenMatches = safeCompareHex(storedToken, incomingHash) || storedToken === token;
+
+      if (!user || !user.isActive || !storedToken || !tokenMatches) {
+        const error = new Error('Refresh token inválido o revocado');
         error.statusCode = 401;
         throw error;
       }
 
-      // 3. Generamos nuevos tokens con contexto multi-tenant
+      // 3. Revalidar vigencia del tenant al refrescar
+      const isSuper = user.role?.name === 'SuperAdmin' || user.role?.name === 'SUPERADMIN';
+      if (!isSuper && user.tenant) {
+        const isExpired = user.tenant.subscriptionEndsAt && new Date(user.tenant.subscriptionEndsAt) < new Date();
+        if (
+          user.tenant.status === 'SUSPENDED' ||
+          user.tenant.status === 'INACTIVE' ||
+          user.tenant.paymentStatus === 'PENDING' ||
+          isExpired
+        ) {
+          const error = new Error('El establecimiento asociado se encuentra suspendido, inactivo o con suscripción vencida.');
+          error.statusCode = 403;
+          throw error;
+        }
+      }
+
+      // 4. Generamos nuevos tokens con rotación de Refresh Token
       const payload = {
         id: user.id,
         role: user.role.name,
@@ -170,11 +205,11 @@ class AuthService {
       };
       const newAccessToken = generateAccessToken(payload);
       const newRefreshToken = generateRefreshToken(payload);
+      const newRefreshTokenHash = hashTokenOrCode(newRefreshToken);
 
-      // 4. Actualizamos el Refresh Token en la BD
       await prisma.user.update({
         where: { id: user.id },
-        data: { refreshToken: newRefreshToken }
+        data: { refreshToken: newRefreshTokenHash }
       });
 
       return {
@@ -182,21 +217,40 @@ class AuthService {
         refreshToken: newRefreshToken
       };
     } catch (err) {
+      if (err.statusCode === 403) throw err;
       const error = new Error('Refresh token inválido o expirado');
       error.statusCode = 401;
       throw error;
     }
   }
 
-  // Método auxiliar para crear usuarios iniciales (Seed)
+  // Método auxiliar para crear usuarios (valida límite maxUsers y prohibe escalada a SuperAdmin)
   async registerUser(userData) {
     const { email, password, name, phone, roleName } = userData;
+    const tenantId = getTenantId();
 
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       const error = new Error(passwordValidation.message);
       error.statusCode = 400;
       throw error;
+    }
+
+    if (tenantId) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        include: { plan: true }
+      });
+      if (tenant?.plan && tenant.plan.maxUsers !== -1) {
+        const currentCount = await prisma.user.count({
+          where: { tenantId, isActive: true }
+        });
+        if (currentCount >= tenant.plan.maxUsers) {
+          const error = new Error(`Has alcanzado el límite máximo de ${tenant.plan.maxUsers} usuarios permitidos en tu ${tenant.plan.name}.`);
+          error.statusCode = 400;
+          throw error;
+        }
+      }
     }
 
     const userExists = await prisma.user.findUnique({ where: { email } });
@@ -206,12 +260,22 @@ class AuthService {
       throw error;
     }
 
-    // Buscamos el rol, si no existe o no se provee, asignamos Cajero por defecto
-    let role = await prisma.role.findFirst({ where: { name: roleName || ROLES.CAJERO } });
-    
-    // Si la BD está vacía y no existe el rol, fallamos con gracia
+    const requestedRoleName = roleName || ROLES.CAJERO;
+    if (!isSuperAdmin() && (requestedRoleName === 'SuperAdmin' || requestedRoleName === 'SUPERADMIN')) {
+      const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const role = await prisma.role.findFirst({
+      where: {
+        name: requestedRoleName,
+        ...(tenantId ? { tenantId } : {})
+      }
+    });
+
     if (!role) {
-      const error = new Error('El rol especificado no existe en el sistema');
+      const error = new Error('El rol especificado no existe en este establecimiento');
       error.statusCode = 400;
       throw error;
     }
@@ -226,6 +290,7 @@ class AuthService {
         name,
         phone: phone ? phone.trim() : null,
         roleId: role.id,
+        tenantId: tenantId || null
       },
       include: { role: true }
     });
@@ -313,15 +378,16 @@ class AuthService {
       }
     }
 
-    // C. Generar código numérico de 6 dígitos
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // C. Generar código numérico de 6 dígitos criptográficamente seguro y su hash SHA-256
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const codeHash = hashTokenOrCode(code);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Válido por 10 minutos
 
-    // D. Guardar o actualizar en base de datos
+    // D. Guardar el hash del OTP en la base de datos
     await prisma.emailVerification.upsert({
       where: { email: cleanEmail },
       update: {
-        code,
+        code: codeHash,
         expiresAt,
         attempts: 0,
         verified: false,
@@ -330,7 +396,7 @@ class AuthService {
       },
       create: {
         email: cleanEmail,
-        code,
+        code: codeHash,
         expiresAt,
         attempts: 0,
         verified: false
@@ -380,12 +446,15 @@ class AuthService {
       throw error;
     }
 
-    if (verif.code !== cleanCode) {
-      await prisma.emailVerification.update({
+    const incomingHash = hashTokenOrCode(cleanCode);
+    const isCodeValid = safeCompareHex(verif.code, incomingHash) || verif.code === cleanCode;
+
+    if (!isCodeValid) {
+      const updatedVerif = await prisma.emailVerification.update({
         where: { email: cleanEmail },
         data: { attempts: { increment: 1 } }
       });
-      const remaining = 5 - (verif.attempts + 1);
+      const remaining = Math.max(0, 5 - updatedVerif.attempts);
       const error = new Error(`Código incorrecto. ${remaining > 0 ? `Te quedan ${remaining} intento(s).` : 'Debes solicitar un nuevo código.'}`);
       error.statusCode = 400;
       throw error;
@@ -493,7 +562,7 @@ class AuthService {
     // 2. Determinar y verificar el slug
     let targetSlug = customSlug ? this.generateSlug(customSlug) : this.generateSlug(restaurantName);
     if (!targetSlug || targetSlug.length < 2) {
-      targetSlug = 'restaurante-' + Math.floor(1000 + Math.random() * 9000);
+      targetSlug = 'restaurante-' + crypto.randomInt(1000, 10000);
     }
 
     const existingTenant = await prisma.tenant.findUnique({
@@ -501,7 +570,7 @@ class AuthService {
     });
 
     if (existingTenant) {
-      targetSlug = `${targetSlug}-${Math.floor(100 + Math.random() * 900)}`;
+      targetSlug = `${targetSlug}-${crypto.randomInt(100, 1000)}`;
     }
 
     // 3. Buscar el plan solicitado
@@ -515,8 +584,6 @@ class AuthService {
       });
     }
 
-    // Todos los registros reciben 7 días de prueba garantizados con las características del plan seleccionado.
-    // Una vez terminan los 7 días, su estado pasa a requerir pago según el plan y ciclo elegido.
     const validCycles = ['monthly', 'semiannual', 'annual'];
     const effectiveBillingCycle = validCycles.includes(billingCycle) ? billingCycle : 'monthly';
 
@@ -528,7 +595,6 @@ class AuthService {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Crear Tenant con estado TRIAL activo durante 7 días y con su plan asignado
       const tenant = await tx.tenant.create({
         data: {
           name: restaurantName.trim(),
@@ -545,12 +611,20 @@ class AuthService {
         }
       });
 
-      // Crear Roles para este Tenant
+      // Crear los 4 Roles operativos para este Tenant (incluyendo Supervisor)
       const adminRole = await tx.role.create({
         data: {
           tenantId: tenant.id,
           name: 'Administrador',
           description: 'Control total de la sede y configuración'
+        }
+      });
+
+      await tx.role.create({
+        data: {
+          tenantId: tenant.id,
+          name: 'Supervisor',
+          description: 'Supervisión de inventario, compras, producción y arqueos'
         }
       });
 
@@ -587,7 +661,7 @@ class AuthService {
         }
       });
 
-      // Crear por defecto exactamente 3 mesas iniciales
+      // Crear por defecto 3 mesas iniciales
       for (let i = 1; i <= 3; i++) {
         await tx.table.create({
           data: {
@@ -659,7 +733,6 @@ class AuthService {
         }
       });
 
-      // Todos los registros inician de inmediato con 7 días de prueba garantizados
       const payload = {
         id: newUser.id,
         role: newUser.role.name,
@@ -669,10 +742,11 @@ class AuthService {
 
       const accessToken = generateAccessToken(payload);
       const refreshToken = generateRefreshToken(payload);
+      const refreshTokenHash = hashTokenOrCode(refreshToken);
 
       await tx.user.update({
         where: { id: newUser.id },
-        data: { refreshToken }
+        data: { refreshToken: refreshTokenHash }
       });
 
       return {

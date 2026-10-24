@@ -13,14 +13,16 @@ class EmailService {
    * @param {string} code 
    */
   async sendVerificationCode(toEmail, code) {
-    console.log(`\n======================================================`);
-    console.log(`📨 [NeoFood Mailer] Código de verificación generado:`);
-    console.log(`   Destinatario: ${toEmail}`);
-    console.log(`   Código OTP:   ${code}`);
-    console.log(`======================================================\n`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`\n======================================================`);
+      console.log(`📨 [NeoFood Mailer] Código de verificación generado (DEV):`);
+      console.log(`   Destinatario: ${toEmail}`);
+      console.log(`   Código OTP:   ${code}`);
+      console.log(`======================================================\n`);
+    }
 
     if (!this.client) {
-      console.warn('⚠️ [NeoFood Mailer] RESEND_API_KEY no configurado en .env. El código solo se imprimió en consola.');
+      console.warn('⚠️ [NeoFood Mailer] RESEND_API_KEY no configurado en .env.');
       return { success: true, simulated: true };
     }
 
