@@ -1,4 +1,5 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class ReportService {
   
@@ -132,9 +133,15 @@ class ReportService {
 
   async getTopProducts(startDate, endDate) {
     const dateFilter = this._getDateFilter(startDate, endDate);
+    const tenantId = getTenantId();
+    const whereClause = {
+      createdAt: dateFilter,
+      ...(tenantId ? { sale: { tenantId } } : {})
+    };
+
     const grouped = await prisma.saleDetail.groupBy({
       by: ['productId'],
-      where: { createdAt: dateFilter },
+      where: whereClause,
       _sum: { quantity: true, subtotal: true },
       orderBy: { _sum: { quantity: 'desc' } }
     });

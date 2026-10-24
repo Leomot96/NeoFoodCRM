@@ -1,4 +1,5 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 const MovementService = require('../../inventory/services/movement.service');
 
 class SaleService {
@@ -13,10 +14,10 @@ class SaleService {
       throw Object.assign(new Error('La venta debe incluir al menos un producto'), { statusCode: 400 });
     }
 
-    let effectiveTenantId = data.tenantId || null;
+    let effectiveTenantId = getTenantId() || data.tenantId || null;
 
     let activeSession = await prisma.cashSession.findFirst({
-      where: { userId, status: 'OPEN' }
+      where: { userId, status: 'OPEN', ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) }
     });
 
     // Si el usuario no tiene una sesión individual abierta, verificamos si hay una caja abierta en su mismo establecimiento
@@ -33,23 +34,105 @@ class SaleService {
 
     effectiveTenantId = effectiveTenantId || activeSession.tenantId || null;
 
+    const parsedDiscount = Math.max(0, parseFloat(discount) || 0);
+
     return await prisma.$transaction(async (tx) => {
       let subtotalTotal = 0;
       const processedDetails = [];
 
+      // Pre-cargar opciones de modificadores y adiciones válidas desde la BD para calcular precios seguros
+      const candidateVarIds = [];
+      const candidateAddIds = [];
+      details.forEach(item => {
+        (item.variations || item.modifiers || []).forEach(v => {
+          const vid = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.optionId || v.id);
+          if (vid) candidateVarIds.push(vid);
+        });
+        (item.additions || []).forEach(a => {
+          const aid = a.additionId || a.id;
+          if (aid) candidateAddIds.push(aid);
+        });
+      });
+
+      const validOptions = candidateVarIds.length > 0 
+        ? await tx.productModifierOption.findMany({
+            where: { id: { in: candidateVarIds } },
+            select: { id: true, name: true, priceExtra: true }
+          })
+        : [];
+      const validOptionsMap = new Map(validOptions.map(o => [o.id, o]));
+
+      const validAdditions = candidateAddIds.length > 0
+        ? await tx.productAddition.findMany({
+            where: {
+              id: { in: candidateAddIds },
+              ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {})
+            },
+            select: { id: true, name: true, price: true }
+          })
+        : [];
+      const validAdditionsMap = new Map(validAdditions.map(a => [a.id, a]));
+
       for (const item of details) {
         const prodId = item.productId || item.product?.id;
-        const product = await tx.product.findUnique({ 
-          where: { id: prodId },
-          include: { ingredients: true }
+        const product = await tx.product.findFirst({ 
+          where: {
+            id: prodId,
+            ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {})
+          },
+          include: {
+            ingredients: true,
+            modifierGroups: { include: { options: true } }
+          }
         });
 
         if (!product || !product.isAvailable) {
-          throw Object.assign(new Error(`Producto no disponible`), { statusCode: 400 });
+          throw Object.assign(new Error(`Producto no disponible o no pertenece a este establecimiento`), { statusCode: 400 });
         }
 
         const quantity = parseInt(item.quantity, 10);
-        const unitPrice = parseFloat(item.unitPrice || item.finalPrice || product.price);
+        if (!Number.isInteger(quantity) || quantity <= 0) {
+          throw Object.assign(new Error(`Cantidad inválida para el producto ${product.name}`), { statusCode: 400 });
+        }
+
+        // Calcular precio en el servidor basado en el precio base del producto + modificadores + adiciones de BD
+        let basePlusModifiersPrice = parseFloat(product.price);
+        const itemMods = item.variations || item.modifiers || [];
+        const prodOptions = (product.modifierGroups || []).flatMap(g => g.options || []);
+
+        const normalizedMods = itemMods.map(v => {
+          const rawId = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.optionId || v.id);
+          const explicitName = typeof v === 'object' ? (v.name || v.optionName) : null;
+          const dbOpt = validOptionsMap.get(rawId) || prodOptions.find(o => o.id === rawId || (explicitName && o.name === explicitName));
+          const extra = dbOpt ? parseFloat(dbOpt.priceExtra || 0) : Math.max(0, parseFloat(v?.price || v?.priceExtra || 0));
+          basePlusModifiersPrice += extra;
+          return {
+            variationId: dbOpt ? dbOpt.id : null,
+            name: dbOpt ? dbOpt.name : (explicitName || 'Variedad'),
+            price: extra,
+            priceExtra: extra
+          };
+        });
+
+        let additionsUnitSum = 0;
+        const itemAdds = item.additions || [];
+        const normalizedAdds = itemAdds.map(a => {
+          const rawId = a.additionId || a.id;
+          const dbAdd = validAdditionsMap.get(rawId);
+          const addQty = Math.max(1, parseInt(a.quantity, 10) || 1);
+          const addPrice = dbAdd ? parseFloat(dbAdd.price || 0) : Math.max(0, parseFloat(a.price || 0));
+          additionsUnitSum += addPrice * addQty;
+          return {
+            additionId: dbAdd ? dbAdd.id : null,
+            name: dbAdd ? dbAdd.name : (a.name || 'Adición Extra'),
+            quantity: addQty,
+            price: addPrice
+          };
+        });
+
+        // En POS, las adiciones pueden venir sumadas por unidad o al subtotal; garantizamos precio >= base de BD
+        const computedUnitPrice = basePlusModifiersPrice + additionsUnitSum;
+        const unitPrice = computedUnitPrice;
         const subtotal = quantity * unitPrice;
         subtotalTotal += subtotal;
 
@@ -60,15 +143,23 @@ class SaleService {
           subtotal, 
           unitPrice, 
           notes: item.notes,
-          modifiers: item.modifiers || item.variations || [],
-          additions: item.additions || []
+          modifiers: normalizedMods,
+          additions: normalizedAdds
         });
       }
 
-      const finalAmount = subtotalTotal - parseFloat(discount);
+      const finalAmount = Math.max(0, subtotalTotal - parsedDiscount);
 
       // Si no se especifica cliente, asociar automáticamente al "Consumidor final" del establecimiento
       let effectiveCustomerId = customerId || null;
+      if (effectiveCustomerId && effectiveTenantId) {
+        const checkCust = await tx.customer.findFirst({
+          where: { id: effectiveCustomerId, tenantId: effectiveTenantId }
+        });
+        if (!checkCust) {
+          throw Object.assign(new Error('El cliente seleccionado no pertenece a este establecimiento'), { statusCode: 400 });
+        }
+      }
       if (!effectiveCustomerId && effectiveTenantId) {
         const defaultCustomer = await tx.customer.findFirst({
           where: {
@@ -87,7 +178,9 @@ class SaleService {
       // 1. Obtener orden existente de mesa o crear una nueva
       let order;
       if (orderId) {
-        order = await tx.order.findUnique({ where: { id: orderId } });
+        order = await tx.order.findFirst({
+          where: { id: orderId, ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) }
+        });
         if (order) {
           await tx.orderDetail.deleteMany({ where: { orderId: order.id } });
           order = await tx.order.update({
@@ -169,16 +262,19 @@ class SaleService {
         throw Object.assign(new Error(`La suma de los pagos ($${Math.round(totalPaid).toLocaleString('es-CO')}) no coincide con el total de la venta ($${Math.round(finalAmount).toLocaleString('es-CO')})`), { statusCode: 400 });
       }
 
-      // Validar existencia de cada método de pago
+      // Validar existencia y pertenencia al tenant de cada método de pago
       const requestedMethodIds = [...new Set(paymentsToRecord.map(p => p.paymentMethodId))];
       const dbPaymentMethods = await tx.paymentMethod.findMany({
-        where: { id: { in: requestedMethodIds } }
+        where: {
+          id: { in: requestedMethodIds },
+          ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {})
+        }
       });
       const paymentMethodsMap = new Map(dbPaymentMethods.map(m => [m.id, m]));
 
       for (const p of paymentsToRecord) {
         if (!paymentMethodsMap.has(p.paymentMethodId)) {
-          throw Object.assign(new Error('Uno o más métodos de pago no son válidos o no existen'), { statusCode: 400 });
+          throw Object.assign(new Error('Uno o más métodos de pago no son válidos o no pertenecen a este establecimiento'), { statusCode: 400 });
         }
       }
 
@@ -188,30 +284,6 @@ class SaleService {
 
       // 3. Crear Venta
       const invoiceNumber = `FE-${Date.now().toString().slice(-6)}-${order.orderNumber}`;
-      
-      // Pre-verificar IDs válidos de opciones y adiciones para garantizar integridad
-      const candidateVarIds = [];
-      const candidateAddIds = [];
-      details.forEach(item => {
-        (item.variations || item.modifiers || []).forEach(v => {
-          const vid = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.id);
-          if (vid) candidateVarIds.push(vid);
-        });
-        (item.additions || []).forEach(a => {
-          const aid = a.additionId || a.id;
-          if (aid) candidateAddIds.push(aid);
-        });
-      });
-
-      const validOptions = candidateVarIds.length > 0 
-        ? await tx.productModifierOption.findMany({ where: { id: { in: candidateVarIds } }, select: { id: true, name: true } })
-        : [];
-      const validOptionsMap = new Map(validOptions.map(o => [o.id, o.name]));
-
-      const validAdditions = candidateAddIds.length > 0
-        ? await tx.productAddition.findMany({ where: { id: { in: candidateAddIds } }, select: { id: true, name: true } })
-        : [];
-      const validAdditionsMap = new Map(validAdditions.map(a => [a.id, a.name]));
 
       const costedDetails = await MovementService.processSaleInventoryAndCost(processedDetails, invoiceNumber, effectiveTenantId, userId, tx);
 
@@ -220,7 +292,7 @@ class SaleService {
           invoiceNumber,
           totalAmount: finalAmount,
           finalAmount: finalAmount,
-          discount: parseFloat(discount) || 0,
+          discount: parsedDiscount,
           tenantId: effectiveTenantId,
           orderId: order.id,
           paymentMethodId: primaryPaymentMethod.id,
@@ -238,36 +310,25 @@ class SaleService {
                 notes: item.notes
               };
 
-              // Si el producto trajo adiciones, las conectamos con su nombre
               if (item.additions && item.additions.length > 0) {
                 detailData.saleDetailAdditions = {
-                  create: item.additions.map(add => {
-                    const rawId = add.additionId || add.id;
-                    const isValid = validAdditionsMap.has(rawId);
-                    return {
-                      additionId: isValid ? rawId : null,
-                      name: add.name || (isValid ? validAdditionsMap.get(rawId) : 'Adición Extra'),
-                      quantity: add.quantity || 1,
-                      price: parseFloat(add.price) || 0
-                    };
-                  })
+                  create: item.additions.map(add => ({
+                    additionId: add.additionId || null,
+                    name: add.name || 'Adición Extra',
+                    quantity: add.quantity || 1,
+                    price: parseFloat(add.price) || 0
+                  }))
                 };
               }
 
-              // Normalizamos variaciones o modificadores y guardamos su nombre
               const variationsList = item.variations || item.modifiers || [];
               if (variationsList.length > 0) {
                 detailData.saleDetailVariations = {
-                  create: variationsList.map(v => {
-                    const rawId = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.id);
-                    const isValid = validOptionsMap.has(rawId);
-                    const explicitName = typeof v === 'object' ? (v.name || v.optionName) : null;
-                    return {
-                      variationId: isValid ? rawId : null,
-                      name: explicitName || (isValid ? validOptionsMap.get(rawId) : 'Variedad'),
-                      price: parseFloat(v.price || v.priceExtra) || 0 
-                    };
-                  })
+                  create: variationsList.map(v => ({
+                    variationId: v.variationId || null,
+                    name: v.name || 'Variedad',
+                    price: parseFloat(v.price || v.priceExtra) || 0 
+                  }))
                 };
               }
 
@@ -295,13 +356,11 @@ class SaleService {
       if (totalCredit > 0) {
         if (!effectiveCustomerId) throw Object.assign(new Error('Cliente obligatorio para ventas a crédito o cuenta dividida con crédito'), { statusCode: 400 });
 
-        // Sumar a deuda
         await tx.customer.update({
           where: { id: effectiveCustomerId },
           data: { balance: { increment: totalCredit } }
         });
 
-        // Registrar en historial de crédito
         await tx.customerCredit.create({
           data: {
             customerId: effectiveCustomerId,
@@ -372,7 +431,7 @@ class SaleService {
         where: whereClause,
         skip,
         take: parseInt(limit),
-        select: { // <-- OPTIMIZACIÓN: Solo traemos lo que la tabla UI necesita
+        select: {
           id: true,
           invoiceNumber: true,
           finalAmount: true,
@@ -420,7 +479,6 @@ class SaleService {
 
     if (!sale) throw Object.assign(new Error('Venta no encontrada'), { statusCode: 404 });
 
-    // Configuración típica para restaurantes (Impuesto al consumo del 8% incluido o discriminado)
     const TAX_RATE = 0.08;
     const taxAmount = parseFloat(sale.finalAmount) * TAX_RATE;
     const baseAmount = parseFloat(sale.finalAmount) - taxAmount;
@@ -449,7 +507,7 @@ class SaleService {
         subtotal: sale.totalAmount,
         discount: sale.discount,
         baseAmount: baseAmount.toFixed(2),
-        taxAmount: taxAmount.toFixed(2), // Impuesto al consumo
+        taxAmount: taxAmount.toFixed(2),
         total: sale.finalAmount,
         paymentMethod: sale.paymentMethod.name,
         payments: sale.payments?.map(p => ({
@@ -465,10 +523,12 @@ class SaleService {
   // REPORTE DE UTILIDAD (VENTAS VS COSTOS)
   // ==========================================
   async getUtilityReport(startDate, endDate) {
-    // 1. Obtener todas las ventas del periodo
+    const tenantId = getTenantId();
+    // 1. Obtener todas las ventas del periodo filtradas estrictamente por tenantId
     const sales = await prisma.saleDetail.findMany({
       where: {
         sale: {
+          ...(tenantId ? { tenantId } : {}),
           createdAt: {
             gte: new Date(startDate),
             lte: new Date(endDate)
@@ -492,11 +552,8 @@ class SaleService {
       let productCost = 0;
 
       if (sd.product.trackStock) {
-        // Asumimos un costo estándar si es compra directa (idealmente guardado en producto)
-        // Para simplificar, tomamos el 60% como costo si no hay receta
         productCost = saleRevenue * 0.60; 
       } else {
-        // Sumar el costo de los ingredientes según la receta
         sd.product.ingredients.forEach(prodIng => {
           const qtyRequired = parseFloat(prodIng.quantity);
           const ingCost = parseFloat(prodIng.ingredient.costPerUnit);
@@ -522,7 +579,7 @@ class SaleService {
         grossRevenue: totalRevenue,
         discounts: totalDiscounts,
         netRevenue: netRevenue,
-        cogs: totalCost, // Cost of Goods Sold
+        cogs: totalCost,
         grossProfit: grossProfit,
         marginPercent: profitMargin.toFixed(2) + '%'
       }
@@ -534,12 +591,11 @@ class SaleService {
   // ==========================================
   async getDashboardSummary() {
     const now = new Date();
+    const tenantId = getTenantId();
     
-    // Rango del día actual (00:00:00 a 23:59:59)
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    // Rango del mes actual
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
@@ -617,9 +673,10 @@ class SaleService {
       });
     }
 
-    // 7. Top 5 Productos más vendidos
+    // 7. Top 5 Productos más vendidos (filtrado por tenantId de la venta)
     const topSaleDetails = await prisma.saleDetail.groupBy({
       by: ['productId'],
+      where: tenantId ? { sale: { tenantId } } : undefined,
       _sum: { quantity: true, subtotal: true },
       orderBy: { _sum: { quantity: 'desc' } },
       take: 5
