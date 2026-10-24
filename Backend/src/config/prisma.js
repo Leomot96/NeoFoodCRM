@@ -13,6 +13,7 @@ const TENANT_MODELS = [
   'category',
   'product',
   'ingredient',
+  'productionorder',
   'supplier',
   'purchase',
   'inventorymovement',
@@ -44,6 +45,20 @@ const STRICTLY_SCOPED_MODELS = [
   'cashsession'
 ];
 
+function applyReadWhereScope(modelLower, args) {
+  const tenantId = getTenantId();
+  if (!tenantId || !TENANT_MODELS.includes(modelLower)) return;
+  if (!isSuperAdmin()) {
+    // Usuario regular de sede: forzar siempre su propio tenantId sin permitir override por query/body
+    args.where = { ...args.where, tenantId };
+  } else if (STRICTLY_SCOPED_MODELS.includes(modelLower)) {
+    // SuperAdmin: aislar por defecto en módulos POS locales salvo que consulte explícitamente un tenantId (ej. gestión SaaS)
+    if (!args.where || !args.where.tenantId) {
+      args.where = { ...args.where, tenantId };
+    }
+  }
+}
+
 /**
  * Cliente de Prisma extendido con auto-scoping de Multi-Tenancy.
  * Inyecta automáticamente el tenantId en consultas de lectura y operaciones de escritura,
@@ -53,25 +68,11 @@ const prisma = basePrisma.$extends({
   query: {
     $allModels: {
       async findMany({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          if (!args.where || !args.where.tenantId) {
-            args.where = { ...args.where, tenantId };
-          }
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
       async findFirst({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          if (!args.where || !args.where.tenantId) {
-            args.where = { ...args.where, tenantId };
-          }
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
       async findUnique({ model, operation, args, query }) {
@@ -108,48 +109,30 @@ const prisma = basePrisma.$extends({
         return query(args);
       },
       async count({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          if (!args.where || !args.where.tenantId) {
-            args.where = { ...args.where, tenantId };
-          }
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
       async aggregate({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          if (!args.where || !args.where.tenantId) {
-            args.where = { ...args.where, tenantId };
-          }
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
       async groupBy({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          if (!args.where || !args.where.tenantId) {
-            args.where = { ...args.where, tenantId };
-          }
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
       async create({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && TENANT_MODELS.includes(model.toLowerCase())) {
-          if (!args.data.tenantId && !args.data.tenant) {
+        const modelLower = model.toLowerCase();
+        if (tenantId && TENANT_MODELS.includes(modelLower) && args.data) {
+          const forceTenant = !isSuperAdmin();
+          if (forceTenant || (!args.data.tenantId && !args.data.tenant)) {
             const hasConnect = Object.values(args.data).some(
               v => v && typeof v === 'object' && ('connect' in v)
             );
-            if (hasConnect) {
+            if (hasConnect && !args.data.tenantId) {
               args.data.tenant = { connect: { id: tenantId } };
             } else {
+              delete args.data.tenant;
               args.data.tenantId = tenantId;
             }
           }
@@ -158,11 +141,13 @@ const prisma = basePrisma.$extends({
       },
       async createMany({ model, operation, args, query }) {
         const tenantId = getTenantId();
-        if (tenantId && TENANT_MODELS.includes(model.toLowerCase())) {
+        const modelLower = model.toLowerCase();
+        if (tenantId && TENANT_MODELS.includes(modelLower)) {
+          const forceTenant = !isSuperAdmin();
           if (Array.isArray(args.data)) {
             args.data = args.data.map(item => ({
               ...item,
-              tenantId: item.tenantId || tenantId
+              tenantId: forceTenant ? tenantId : (item.tenantId || tenantId)
             }));
           }
         }
@@ -182,16 +167,14 @@ const prisma = basePrisma.$extends({
             error.statusCode = 404;
             throw error;
           }
+          if (!isSuperAdmin() && args.data && 'tenantId' in args.data) {
+            args.data.tenantId = tenantId;
+          }
         }
         return query(args);
       },
       async updateMany({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          args.where = { ...args.where, tenantId };
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
       async delete({ model, operation, args, query }) {
@@ -212,12 +195,7 @@ const prisma = basePrisma.$extends({
         return query(args);
       },
       async deleteMany({ model, operation, args, query }) {
-        const tenantId = getTenantId();
-        const modelLower = model.toLowerCase();
-        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
-        if (mustScope) {
-          args.where = { ...args.where, tenantId };
-        }
+        applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       }
     }

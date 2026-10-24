@@ -41,6 +41,13 @@ const protectRoute = async (req, res, next) => {
 
     // Verificar si el tenant asociado está activo (si no es SuperAdmin)
     const isSuper = user.role?.name === 'SuperAdmin' || user.role?.name === 'SUPERADMIN';
+    if (!isSuper && !user.tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: 'La cuenta de usuario no tiene un establecimiento asignado.'
+      });
+    }
+
     if (!isSuper && user.tenant) {
       if (user.tenant.status === 'SUSPENDED') {
         return res.status(403).json({

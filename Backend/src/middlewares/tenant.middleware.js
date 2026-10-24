@@ -15,12 +15,7 @@ const tenantMiddleware = async (req, res, next) => {
       tenant = req.user.tenant;
     }
 
-    // 2. Si no viene en req.user, revisar cabeceras explícitas (x-tenant-id o x-tenant-slug)
-    if (!tenantId && req.headers['x-tenant-id']) {
-      tenantId = req.headers['x-tenant-id'];
-    }
-
-    // 3. Si no hay tenantId, buscar por subdominio o header slug
+    // 2. Si no hay tenantId, buscar por subdominio o header slug validado en BD
     const slugHeader = req.headers['x-tenant-slug'] || (req.subdomains && req.subdomains.length > 0 ? req.subdomains[0] : null);
     if (!tenantId && slugHeader && slugHeader !== 'www' && slugHeader !== 'api') {
       const foundTenant = await basePrisma.tenant.findUnique({
@@ -32,7 +27,7 @@ const tenantMiddleware = async (req, res, next) => {
       }
     }
 
-    // 4. Si el tenant está suspendido o inactivo (excepto para login/refresh)
+    // 3. Si el tenant está suspendido o inactivo (excepto para login/refresh)
     if (tenant && (tenant.status === 'SUSPENDED' || tenant.status === 'INACTIVE')) {
       return res.status(403).json({
         success: false,
@@ -40,11 +35,11 @@ const tenantMiddleware = async (req, res, next) => {
       });
     }
 
-    // 5. Inyectar en req para acceso directo
+    // 4. Inyectar en req para acceso directo
     req.tenantId = tenantId;
     req.tenant = tenant;
 
-    // 6. Ejecutar el siguiente middleware dentro del contexto de AsyncLocalStorage
+    // 5. Ejecutar el siguiente middleware dentro del contexto de AsyncLocalStorage
     runWithTenant({ tenantId, tenant, user: req.user }, () => {
       next();
     });
