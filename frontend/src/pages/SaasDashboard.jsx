@@ -309,7 +309,7 @@ const SaasDashboard = () => {
           <div className={styles.saasHeaderTitleContainer}>
             <h1 className={styles.saasTitle}>Control Global de Plataforma SaaS</h1>
             <span className={styles.saasBadge}>SuperAdmin Multi-Tenant</span>
-            <span className={styles.saasBadge} style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>v1.8.1</span>
+            <span className={styles.saasBadge} style={{ background: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' }}>v1.9.0</span>
           </div>
           <p className={styles.saasSubtitle}>
             Supervisa en tiempo real las sedes activas, métricas de facturación, usuarios y planes en la nube

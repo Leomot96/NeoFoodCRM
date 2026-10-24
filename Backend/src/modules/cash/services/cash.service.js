@@ -1,5 +1,22 @@
 const prisma = require('../../../config/prisma');
 
+// Helper para procesar medios de pago (soporta cobro único y cuenta dividida / pagos mixtos)
+function iterateSalePayments(sales, callback) {
+  sales?.forEach(sale => {
+    if (sale.payments && sale.payments.length > 0) {
+      sale.payments.forEach(p => {
+        const methodName = p.paymentMethod?.name || 'Desconocido';
+        const amount = parseFloat(p.amount || 0);
+        callback(methodName, amount, sale);
+      });
+    } else {
+      const methodName = sale.paymentMethod?.name || 'Desconocido';
+      const amount = parseFloat(sale.finalAmount || 0);
+      callback(methodName, amount, sale);
+    }
+  });
+}
+
 class CashService {
   
   async openSession(userId, openingAmount, tenantId = null) {
@@ -77,7 +94,7 @@ class CashService {
       const session = await tx.cashSession.findUnique({
         where: { id: sessionId },
         include: {
-          sales: { include: { paymentMethod: true } },
+          sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
           cashMovements: true
         }
       });
@@ -90,9 +107,12 @@ class CashService {
 
       let expectedCash = parseFloat(session.openingAmount);
 
-      const cashSales = session.sales
-        .filter(sale => sale.paymentMethod.name.toLowerCase().includes('efectivo'))
-        .reduce((sum, sale) => sum + parseFloat(sale.finalAmount), 0);
+      let cashSales = 0;
+      iterateSalePayments(session.sales, (methodName, amount) => {
+        if (methodName.toLowerCase().includes('efectivo')) {
+          cashSales += amount;
+        }
+      });
       expectedCash += cashSales;
 
       const movementsIn = session.cashMovements
@@ -142,7 +162,7 @@ class CashService {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
         cashMovements: { orderBy: { createdAt: 'desc' } },
-        sales: { include: { paymentMethod: true } }, // Necesario para sumar y desglosar las ventas
+        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } }, // Necesario para sumar y desglosar las ventas
         customerCredits: { include: { paymentMethod: true } } // Añadido para incluir Abonos al total
       },
       orderBy: { openedAt: 'desc' },
@@ -162,15 +182,16 @@ class CashService {
       // Calcular desglose de ventas y total general (excluyendo créditos)
       let totalSales = 0;
       let salesByMethod = {};
+      let cashSales = 0;
 
-      session.sales.forEach(sale => {
-        const methodName = sale.paymentMethod?.name || 'Desconocido';
+      iterateSalePayments(session.sales, (methodName, amount) => {
         const isCredit = methodName.toLowerCase().includes('crédito') || methodName.toLowerCase().includes('credito') || methodName.toLowerCase().includes('fiao');
-        
         if (!isCredit) {
-          const amount = parseFloat(sale.finalAmount);
           totalSales += amount;
           salesByMethod[methodName] = (salesByMethod[methodName] || 0) + amount;
+        }
+        if (methodName.toLowerCase().includes('efectivo')) {
+          cashSales += amount;
         }
       });
 
@@ -185,11 +206,6 @@ class CashService {
           }
         });
       }
-
-      // Extraer solo el efectivo para sumar a la gaveta
-      const cashSales = session.sales
-        .filter(s => s.paymentMethod?.name?.toLowerCase().includes('efectivo'))
-        .reduce((acc, s) => acc + parseFloat(s.finalAmount), 0);
         
       let cashAbonos = 0;
       if (session.customerCredits) {
@@ -228,7 +244,7 @@ class CashService {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
         cashMovements: { orderBy: { createdAt: 'desc' } },
-        sales: { include: { paymentMethod: true } },
+        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
         customerCredits: { include: { paymentMethod: true } }
       },
       orderBy: { openedAt: 'asc' }
@@ -245,15 +261,17 @@ class CashService {
     const formattedSessions = sessions.map(session => {
       let sessionTotalSales = 0;
       let sessionSalesByMethod = {};
+      let cashSales = 0;
 
-      session.sales?.forEach(sale => {
-        const methodName = sale.paymentMethod?.name || 'Desconocido';
+      iterateSalePayments(session.sales, (methodName, amt) => {
         const isCredit = methodName.toLowerCase().includes('crédito') || methodName.toLowerCase().includes('credito') || methodName.toLowerCase().includes('fiao');
         if (!isCredit) {
-          const amt = parseFloat(sale.finalAmount || 0);
           sessionTotalSales += amt;
           sessionSalesByMethod[methodName] = (sessionSalesByMethod[methodName] || 0) + amt;
           salesByMethod[methodName] = (salesByMethod[methodName] || 0) + amt;
+        }
+        if (methodName.toLowerCase().includes('efectivo')) {
+          cashSales += amt;
         }
       });
 
@@ -280,9 +298,6 @@ class CashService {
       totalExpenses += exp;
 
       let expectedCash = parseFloat(session.openingAmount || 0);
-      const cashSales = session.sales
-        ?.filter(s => s.paymentMethod?.name?.toLowerCase().includes('efectivo'))
-        .reduce((acc, s) => acc + parseFloat(s.finalAmount || 0), 0) || 0;
       const cashAbonos = session.customerCredits
         ?.filter(c => c.type === 'PAYMENT' && c.paymentMethod?.name?.toLowerCase().includes('efectivo'))
         .reduce((acc, c) => acc + parseFloat(c.amount || 0), 0) || 0;
@@ -339,7 +354,7 @@ class CashService {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
         cashMovements: { orderBy: { createdAt: 'desc' } },
-        sales: { include: { paymentMethod: true } },
+        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
         customerCredits: { include: { paymentMethod: true } }
       },
       orderBy: { openedAt: 'asc' }
@@ -357,15 +372,17 @@ class CashService {
     const formattedSessions = sessions.map(session => {
       let sessionTotalSales = 0;
       let sessionSalesByMethod = {};
+      let cashSales = 0;
 
-      session.sales?.forEach(sale => {
-        const methodName = sale.paymentMethod?.name || 'Desconocido';
+      iterateSalePayments(session.sales, (methodName, amt) => {
         const isCredit = methodName.toLowerCase().includes('crédito') || methodName.toLowerCase().includes('credito') || methodName.toLowerCase().includes('fiao');
         if (!isCredit) {
-          const amt = parseFloat(sale.finalAmount || 0);
           sessionTotalSales += amt;
           sessionSalesByMethod[methodName] = (sessionSalesByMethod[methodName] || 0) + amt;
           salesByMethod[methodName] = (salesByMethod[methodName] || 0) + amt;
+        }
+        if (methodName.toLowerCase().includes('efectivo')) {
+          cashSales += amt;
         }
       });
 
@@ -392,9 +409,6 @@ class CashService {
       totalExpenses += exp;
 
       let expectedCash = parseFloat(session.openingAmount || 0);
-      const cashSales = session.sales
-        ?.filter(s => s.paymentMethod?.name?.toLowerCase().includes('efectivo'))
-        .reduce((acc, s) => acc + parseFloat(s.finalAmount || 0), 0) || 0;
       const cashAbonos = session.customerCredits
         ?.filter(c => c.type === 'PAYMENT' && c.paymentMethod?.name?.toLowerCase().includes('efectivo'))
         .reduce((acc, c) => acc + parseFloat(c.amount || 0), 0) || 0;

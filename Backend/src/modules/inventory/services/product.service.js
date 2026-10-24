@@ -1,6 +1,7 @@
 const prisma = require("../../../config/prisma");
 const { deleteUploadedFile } = require("../../../utils/fileCleaner");
 const { getTenantId } = require("../../../context/tenantContext");
+const { compareProducts } = require("../../../utils/categoryOrder");
 
 class ProductService {
   // =====================================
@@ -11,7 +12,7 @@ class ProductService {
     const where = {};
     if (tenantId) where.tenantId = tenantId;
 
-    return await prisma.product.findMany({
+    const products = await prisma.product.findMany({
       where,
       include: {
         category: true,
@@ -35,6 +36,8 @@ class ProductService {
       },
       orderBy: { name: "asc" },
     });
+
+    return products.sort(compareProducts);
   }
 
   // =====================================

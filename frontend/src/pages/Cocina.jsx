@@ -15,7 +15,8 @@ import {
   Sparkles,
   ShoppingBag,
   ExternalLink,
-  Flame
+  Flame,
+  MessageSquare
 } from 'lucide-react';
 import kitchenService from '../services/kitchen.service';
 import styles from './Cocina.module.css';
@@ -212,21 +213,24 @@ const Cocina = () => {
             onClick={() => setStatusFilter('PENDING')}
             className={`${styles.tabBtn} ${statusFilter === 'PENDING' ? styles.tabBtnActive : ''}`}
           >
-            <span>🔴 Pendientes</span>
+            <Clock size={14} className="text-red-500 inline mr-1" />
+            <span>Pendientes</span>
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('PREPARING')}
             className={`${styles.tabBtn} ${statusFilter === 'PREPARING' ? styles.tabBtnActive : ''}`}
           >
-            <span>🟡 En Preparación</span>
+            <ChefHat size={14} className="text-amber-500 inline mr-1" />
+            <span>En Preparación</span>
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('READY')}
             className={`${styles.tabBtn} ${statusFilter === 'READY' ? styles.tabBtnActive : ''}`}
           >
-            <span>🟢 Listos para Entrega</span>
+            <CheckCircle2 size={14} className="text-emerald-500 inline mr-1" />
+            <span>Listos para Entrega</span>
           </button>
           <button
             type="button"
@@ -244,7 +248,7 @@ const Cocina = () => {
             onChange={(e) => setOriginFilter(e.target.value)}
             className={styles.originSelect}
           >
-            <option value="all">🍽️ Todos los orígenes</option>
+            <option value="all">Todos los orígenes</option>
             <option value="tables">Salón (Mesas)</option>
             <option value="store">Tienda Virtual / Domicilios</option>
           </select>
@@ -385,7 +389,8 @@ const Cocina = () => {
                       {/* Nota individual del plato */}
                       {item.notes && (
                         <span className={styles.itemNote}>
-                          ⚠️ "{item.notes}"
+                          <MessageSquare size={12} className="inline mr-1 text-amber-500" />
+                          <span>"{item.notes}"</span>
                         </span>
                       )}
                     </div>

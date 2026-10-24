@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(protectRoute);
 
 router.get('/orders', kitchenController.getOrders);
+router.post('/orders', kitchenController.createOrder);
 router.patch('/orders/:id/status', kitchenController.updateStatus);
 
 module.exports = router;

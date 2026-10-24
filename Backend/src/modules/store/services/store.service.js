@@ -1,6 +1,7 @@
 const prisma = require('../../../config/prisma');
 const MovementService = require('../../inventory/services/movement.service');
 const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+const { compareCategories } = require('../../../utils/categoryOrder');
 
 class StoreService {
 
@@ -55,6 +56,9 @@ class StoreService {
       },
       orderBy: { name: 'asc' }
     });
+
+    // Ordenar categorías según la prioridad comercial del negocio
+    categories.sort(compareCategories);
 
     // Métodos de pago activos del restaurante (excluyendo 'Crédito' ya que es cartera interna)
     const rawPaymentMethods = await prisma.paymentMethod.findMany({

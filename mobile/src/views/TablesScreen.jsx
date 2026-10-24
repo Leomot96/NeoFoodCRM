@@ -256,20 +256,53 @@ export const TablesScreen = ({ onSelectTableForOrder, onStartSpecialOrder }) => 
               </div>
 
               {(activeTableSelected.activeOrder?.details || []).map((det, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    <strong>{det.quantity}x</strong> {det.product?.name || det.name}
-                    {det.notes && <span style={{ color: '#FBBF24', fontStyle: 'italic', marginLeft: 4 }}>({det.notes})</span>}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                    ${(Number(det.unitPrice) * det.quantity).toLocaleString('es-CO')}
-                  </span>
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      <strong>{det.quantity}x</strong> {det.product?.name || det.name}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 700 }}>
+                      ${(Number(det.unitPrice || det.price || 0) * det.quantity).toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  {det.modifiers && det.modifiers.length > 0 && (
+                    <div style={{ fontSize: 10, color: 'var(--primary-light)', paddingLeft: 12 }}>
+                      {det.modifiers.map((m, mi) => (
+                        <span key={mi} style={{ marginRight: 6 }}>• {m.optionName || m.name}</span>
+                      ))}
+                    </div>
+                  )}
+                  {det.additions && det.additions.length > 0 && (
+                    <div style={{ fontSize: 10, color: '#38BDF8', paddingLeft: 12 }}>
+                      {det.additions.map((a, ai) => (
+                        <span key={ai} style={{ marginRight: 6 }}>+ {a.name}</span>
+                      ))}
+                    </div>
+                  )}
+                  {det.notes && (
+                    <div style={{ fontSize: 10, color: '#FBBF24', fontStyle: 'italic', paddingLeft: 12 }}>
+                      Nota: "{det.notes}"
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
             {/* Botones de Acción */}
             <div className={styles.modalSheetActions}>
+              <button
+                onClick={() => {
+                  const target = activeTableSelected;
+                  setActiveTableSelected(null);
+                  if (onSelectTableForOrder) onSelectTableForOrder(target);
+                }}
+                className={styles.btnAddPlatos}
+                style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #4338CA 100%)', color: '#fff', border: 'none' }}
+              >
+                <UtensilsCrossed size={16} />
+                <span>Ver Comanda / Agregar Platos</span>
+              </button>
+
               <button
                 onClick={() => {
                   setTableToCheckout(activeTableSelected);
@@ -279,18 +312,6 @@ export const TablesScreen = ({ onSelectTableForOrder, onStartSpecialOrder }) => 
               >
                 <DollarSign size={18} />
                 <span>Cobrar Mesa (${Number(activeTableSelected.activeOrder?.totalAmount || 0).toLocaleString('es-CO')})</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  const target = activeTableSelected;
-                  setActiveTableSelected(null);
-                  if (onSelectTableForOrder) onSelectTableForOrder(target);
-                }}
-                className={styles.btnAddPlatos}
-              >
-                <UtensilsCrossed size={16} />
-                <span>Agregar más platos a la mesa</span>
               </button>
 
               <button

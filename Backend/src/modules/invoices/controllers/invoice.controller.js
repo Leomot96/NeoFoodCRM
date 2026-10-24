@@ -30,3 +30,14 @@ exports.addAbono = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.cancelInvoice = async (req, res, next) => {
+  try {
+    const { reason } = req.body || {};
+    const userId = req.user.id;
+    const result = await invoiceService.cancelInvoice(req.params.id, userId, reason);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};

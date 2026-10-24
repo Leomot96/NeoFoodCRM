@@ -36,7 +36,7 @@ class KitchenService {
         details: {
           include: {
             product: {
-              select: { id: true, name: true, isCombo: true, imageUrl: true }
+              select: { id: true, name: true, isCombo: true, imageUrl: true, price: true }
             }
           }
         }
@@ -62,6 +62,9 @@ class KitchenService {
       } else if (order.orderType === 'TAKEAWAY') {
         originType = 'TAKEAWAY';
         originLabel = 'Para Llevar';
+      } else if (order.orderType === 'DELIVERY') {
+        originType = 'DELIVERY';
+        originLabel = 'Domicilio';
       }
 
       return {
@@ -82,16 +85,23 @@ class KitchenService {
         totalAmount: parseFloat(order.totalAmount || 0),
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
-        details: (order.details || []).map(d => ({
-          id: d.id,
-          productId: d.productId,
-          productName: d.product?.name || 'Producto',
-          isCombo: d.product?.isCombo || false,
-          quantity: d.quantity,
-          notes: d.notes,
-          modifiers: Array.isArray(d.modifiers) ? d.modifiers : [],
-          additions: Array.isArray(d.additions) ? d.additions : []
-        }))
+        details: (order.details || []).map(d => {
+          const unitPrice = parseFloat(d.unitPrice || d.product?.price || 0);
+          const subtotal = parseFloat(d.subtotal || (unitPrice * (d.quantity || 1)));
+          return {
+            id: d.id,
+            productId: d.productId,
+            productName: d.product?.name || 'Producto',
+            isCombo: d.product?.isCombo || false,
+            quantity: d.quantity,
+            unitPrice,
+            price: unitPrice,
+            subtotal,
+            notes: d.notes,
+            modifiers: Array.isArray(d.modifiers) ? d.modifiers : [],
+            additions: Array.isArray(d.additions) ? d.additions : []
+          };
+        })
       };
     });
   }
@@ -127,6 +137,77 @@ class KitchenService {
     }
 
     return updated;
+  }
+
+  async createKitchenOrder(tenantId, userId, data) {
+    const { 
+      orderType = 'TAKEAWAY',
+      tableId = null,
+      customerId = null,
+      customerName = null,
+      customerPhone = null,
+      deliveryAddress = null,
+      deliveryNeighborhood = null,
+      notes = null,
+      items = []
+    } = data;
+
+    if (!items || items.length === 0) {
+      throw Object.assign(new Error('El pedido debe incluir al menos un producto'), { statusCode: 400 });
+    }
+
+    let totalAmount = 0;
+    const processedDetails = [];
+
+    for (const item of items) {
+      const prodId = item.productId || item.product?.id || item.id;
+      const product = await prisma.product.findUnique({ where: { id: prodId } });
+      if (!product) continue;
+
+      const quantity = parseInt(item.quantity, 10) || 1;
+      const unitPrice = parseFloat(item.finalPrice || item.unitPrice || item.price || product.price);
+      const subtotal = quantity * unitPrice;
+      totalAmount += subtotal;
+
+      processedDetails.push({
+        productId: product.id,
+        quantity,
+        unitPrice,
+        subtotal,
+        notes: item.notes || null,
+        modifiers: item.modifiers || item.variations || [],
+        additions: item.additions || []
+      });
+    }
+
+    const order = await prisma.order.create({
+      data: {
+        tenantId,
+        userId: userId || null,
+        tableId: tableId || null,
+        customerId: customerId || null,
+        customerName: customerName || null,
+        customerPhone: customerPhone || null,
+        deliveryAddress: deliveryAddress || null,
+        deliveryNeighborhood: deliveryNeighborhood || null,
+        status: 'PENDING',
+        orderType,
+        notes: notes || null,
+        totalAmount,
+        details: {
+          create: processedDetails
+        }
+      },
+      include: {
+        table: true,
+        customer: true,
+        details: {
+          include: { product: true }
+        }
+      }
+    });
+
+    return order;
   }
 }
 

@@ -156,10 +156,31 @@ class TableService {
       });
     }
 
+    const effectiveTenantId = table.tenantId || getTenantId();
+
     return await prisma.$transaction(async (tx) => {
       let order;
-      if (existingOrder) {
-        // Borramos detalles viejos y colocamos los nuevos
+      if (existingOrder && (data.append === true || data.mode === 'append')) {
+        // Modo anexar: agrega platos nuevos a la comanda existente sin eliminar los anteriores
+        const updatedTotal = parseFloat(existingOrder.totalAmount || 0) + totalAmount;
+        order = await tx.order.update({
+          where: { id: existingOrder.id },
+          data: {
+            customerId: customerId || existingOrder.customerId,
+            notes: notes ? (existingOrder.notes ? `${existingOrder.notes} | ${notes}` : notes) : existingOrder.notes,
+            totalAmount: updatedTotal,
+            status: 'PENDING', // Vuelve a poner en PENDING para que cocina vea los nuevos platos añadidos
+            details: {
+              create: processedDetails
+            }
+          },
+          include: {
+            details: { include: { product: true } },
+            customer: true
+          }
+        });
+      } else if (existingOrder) {
+        // Reemplazo con la lista completa de ítems
         await tx.orderDetail.deleteMany({ where: { orderId: existingOrder.id } });
         order = await tx.order.update({
           where: { id: existingOrder.id },
@@ -180,6 +201,7 @@ class TableService {
       } else {
         order = await tx.order.create({
           data: {
+            tenantId: effectiveTenantId || null,
             userId,
             tableId,
             customerId: customerId || null,

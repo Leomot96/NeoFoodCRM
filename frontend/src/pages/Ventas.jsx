@@ -5,6 +5,7 @@ import ProductOptionsModal from '../components/sales/ProductOptionsModal';
 import PosTicketModal from '../components/pos/PosTicketModal';
 import CustomSelect from '../components/ui/CustomSelect';
 import { getFullImageUrl } from '../utils/imageUrl';
+import { compareCategories, compareProducts } from '../utils/categoryOrder';
 import printerService from '../services/printerService';
 import styles from './Ventas.module.css';
 import {
@@ -59,15 +60,23 @@ const Ventas = () => {
     loadConfig();
   }, []);
 
-  // Categorías únicas
+  // Categorías únicas ordenadas por prioridad comercial
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category?.name || 'Sin Categoría'));
-    return ['Todas', ...Array.from(cats)];
+    const cats = Array.from(new Set(products.map(p => p.category?.name || 'Sin Categoría')));
+    cats.sort(compareCategories);
+    return ['Todas', ...cats];
   }, [products]);
 
-  const filteredProducts = selectedCategory === 'Todas'
-    ? products
-    : products.filter(p => (p.category?.name || 'Sin Categoría') === selectedCategory);
+  // Productos ordenados por prioridad de categoría y nombre
+  const sortedProducts = useMemo(() => {
+    return [...products].sort(compareProducts);
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return selectedCategory === 'Todas'
+      ? sortedProducts
+      : sortedProducts.filter(p => (p.category?.name || 'Sin Categoría') === selectedCategory);
+  }, [selectedCategory, sortedProducts]);
 
   // Seleccionar Mesa desde la cuadrícula
   const handleSelectTable = (table) => {
@@ -133,14 +142,15 @@ const Ventas = () => {
     }
   };
 
-  // Confirmar cobro de la venta (final y libera mesa)
-  const handlePaymentConfirm = async (methodId, receivedAmount, customerId) => {
+  // Confirmar cobro de la venta (final y libera mesa, con soporte para pagos divididos)
+  const handlePaymentConfirm = async (methodId, receivedAmount, customerId, extraData = {}) => {
     const result = await processSale({
       paymentMethodId: methodId,
       receivedAmount,
       customerId: customerId || selectedCustomerId || null,
       tableId: selectedTable?.id || null,
-      orderId: activeOrderId || null
+      orderId: activeOrderId || null,
+      payments: extraData?.payments
     });
 
     if (result.success) {

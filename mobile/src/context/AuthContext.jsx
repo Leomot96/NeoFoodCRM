@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Preferences } from '@capacitor/preferences';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
-import api, { getServerUrl, setServerUrl, pingServer } from '../services/api';
+import api, { getServerUrl, setServerUrl, pingServer, setOnUnauthorizedCallback } from '../services/api';
 
 const AuthContext = createContext();
+
+// Tiempo de inactividad antes de cerrar sesión automáticamente (15 minutos)
+const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -11,10 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [serverUrl, setCurrentServerUrl] = useState('');
-
-  useEffect(() => {
-    loadStoredSession();
-  }, []);
+  const inactivityTimerRef = useRef(null);
 
   const triggerHaptic = async (style = ImpactStyle.Medium) => {
     try {
@@ -24,29 +24,106 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const logout = useCallback(async (isSilent = false) => {
+    try {
+      if (user?.id) {
+        await api.post('/auth/logout', { userId: user.id }).catch(() => {});
+      }
+    } catch (e) {}
+
+    setUser(null);
+    setTenant(null);
+    setToken(null);
+
+    // Limpiar sessionStorage (sesión actual)
+    sessionStorage.removeItem('neofood_token');
+    sessionStorage.removeItem('neofood_user');
+    sessionStorage.removeItem('neofood_tenant_id');
+
+    // Limpiar cualquier persistencia permanente para que al cerrar la app o caducar no quede guardada
+    localStorage.removeItem('neofood_token');
+    localStorage.removeItem('neofood_user');
+    localStorage.removeItem('neofood_tenant_id');
+    try {
+      await Preferences.remove({ key: 'neofood_token' });
+      await Preferences.remove({ key: 'neofood_user' });
+      await Preferences.remove({ key: 'neofood_tenant_id' });
+    } catch (e) {}
+
+    if (!isSilent) {
+      triggerHaptic(ImpactStyle.Medium);
+    }
+  }, [user?.id]);
+
+  // Manejador del temporizador de inactividad
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    if (user) {
+      inactivityTimerRef.current = setTimeout(() => {
+        console.warn('[AUTH] Cierre de sesión por inactividad');
+        logout(true);
+      }, INACTIVITY_LIMIT_MS);
+    }
+  }, [user, logout]);
+
+  // Escuchar eventos de interacción del usuario para resetear el reloj de inactividad
+  useEffect(() => {
+    if (!user) return;
+
+    resetInactivityTimer();
+
+    const activityEvents = ['touchstart', 'touchend', 'mousedown', 'keydown', 'scroll'];
+    const handleActivity = () => resetInactivityTimer();
+
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, handleActivity);
+      });
+    };
+  }, [user, resetInactivityTimer]);
+
+  // Configurar callback cuando una petición responda 401 (token expirado)
+  useEffect(() => {
+    setOnUnauthorizedCallback(() => {
+      console.warn('[AUTH] Token no autorizado o expirado (401). Cerrando sesión.');
+      logout(true);
+    });
+  }, [logout]);
+
+  useEffect(() => {
+    loadStoredSession();
+  }, []);
+
   const loadStoredSession = async () => {
     try {
       setLoading(true);
       const currentUrl = await getServerUrl();
       setCurrentServerUrl(currentUrl);
 
-      let storedToken = null;
+      // Al cerrar la aplicación, la sesión se cierra automáticamente
+      // Por ende, solo se recupera si existe en la sesión activa actual (sessionStorage)
+      let storedToken = sessionStorage.getItem('neofood_token');
       let storedUser = null;
 
       try {
-        const tokenRes = await Preferences.get({ key: 'neofood_token' });
-        storedToken = tokenRes.value;
-        const userRes = await Preferences.get({ key: 'neofood_user' });
-        storedUser = userRes.value ? JSON.parse(userRes.value) : null;
-      } catch (err) {
-        // Fallback
-      }
+        const rawUser = sessionStorage.getItem('neofood_user');
+        storedUser = rawUser ? JSON.parse(rawUser) : null;
+      } catch (err) {}
 
-      if (!storedToken) storedToken = localStorage.getItem('neofood_token');
-      if (!storedUser) {
-        const localUser = localStorage.getItem('neofood_user');
-        storedUser = localUser ? JSON.parse(localUser) : null;
-      }
+      // Limpiar residuos en Preferences permanentes para garantizar que al abrir la app de nuevo siempre pida login
+      try {
+        await Preferences.remove({ key: 'neofood_token' });
+        await Preferences.remove({ key: 'neofood_user' });
+      } catch (e) {}
+      localStorage.removeItem('neofood_token');
+      localStorage.removeItem('neofood_user');
 
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -69,19 +146,20 @@ export const AuthProvider = ({ children }) => {
       setTenant(userData.tenant || null);
       setToken(accessToken);
 
-      try {
-        await Preferences.set({ key: 'neofood_token', value: accessToken });
-        await Preferences.set({ key: 'neofood_user', value: JSON.stringify(userData) });
-        if (userData.tenantId) {
-          await Preferences.set({ key: 'neofood_tenant_id', value: userData.tenantId });
-        }
-      } catch (e) {}
-
-      localStorage.setItem('neofood_token', accessToken);
-      localStorage.setItem('neofood_user', JSON.stringify(userData));
+      // Guardar exclusivamente en sessionStorage para que al cerrar la app se cierre la sesión
+      sessionStorage.setItem('neofood_token', accessToken);
+      sessionStorage.setItem('neofood_user', JSON.stringify(userData));
       if (userData.tenantId) {
-        localStorage.setItem('neofood_tenant_id', userData.tenantId);
+        sessionStorage.setItem('neofood_tenant_id', userData.tenantId);
       }
+
+      // Limpiar persistencias permanentes antiguas
+      try {
+        await Preferences.remove({ key: 'neofood_token' });
+        await Preferences.remove({ key: 'neofood_user' });
+      } catch (e) {}
+      localStorage.removeItem('neofood_token');
+      localStorage.removeItem('neofood_user');
 
       triggerHaptic(ImpactStyle.Light);
       return { ok: true, user: userData };
@@ -90,30 +168,6 @@ export const AuthProvider = ({ children }) => {
       const msg = error.response?.data?.message || 'Error de autenticación o servidor inalcanzable';
       return { ok: false, message: msg };
     }
-  };
-
-  const logout = async () => {
-    try {
-      if (user?.id) {
-        await api.post('/auth/logout', { userId: user.id }).catch(() => {});
-      }
-    } catch (e) {}
-
-    setUser(null);
-    setTenant(null);
-    setToken(null);
-
-    try {
-      await Preferences.remove({ key: 'neofood_token' });
-      await Preferences.remove({ key: 'neofood_user' });
-      await Preferences.remove({ key: 'neofood_tenant_id' });
-    } catch (e) {}
-
-    localStorage.removeItem('neofood_token');
-    localStorage.removeItem('neofood_user');
-    localStorage.removeItem('neofood_tenant_id');
-
-    triggerHaptic(ImpactStyle.Medium);
   };
 
   const changeServerUrl = async (newUrl) => {

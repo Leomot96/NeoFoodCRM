@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus, Check, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './ProductCustomizerModal.module.css';
 
 export const ProductCustomizerModal = ({ isOpen, onClose, product, onConfirm }) => {
@@ -96,20 +97,38 @@ export const ProductCustomizerModal = ({ isOpen, onClose, product, onConfirm }) 
     const configuredItem = {
       product,
       quantity,
-      modifiers: Object.entries(selectedModifiers).map(([modId, opt]) => ({
-        modifierId: modId,
-        optionId: opt.id,
-        name: opt.name,
-        optionName: opt.name,
-        priceExtra: Number(opt.price || opt.priceExtra || 0)
-      })),
+      modifiers: Object.entries(selectedModifiers).map(([modId, opt]) => {
+        const mod = modifiersList.find(m => m.id === modId);
+        return {
+          modifierId: modId,
+          modifierName: mod?.name || 'Variante',
+          name: opt.name,
+          optionId: opt.id,
+          optionName: opt.name,
+          priceExtra: Number(opt.price || opt.priceExtra || 0)
+        };
+      }),
+      variations: Object.entries(selectedModifiers).map(([modId, opt]) => {
+        const mod = modifiersList.find(m => m.id === modId);
+        return {
+          variationId: opt.id,
+          optionId: opt.id,
+          name: opt.name,
+          optionName: opt.name,
+          modifierName: mod?.name || 'Variante',
+          price: Number(opt.price || opt.priceExtra || 0),
+          priceExtra: Number(opt.price || opt.priceExtra || 0)
+        };
+      }),
       additions: selectedAdditions.map((a) => ({
         additionId: a.id,
         name: a.name,
-        price: Number(a.price || 0)
+        price: Number(a.price || 0),
+        quantity: a.quantity || 1
       })),
       notes: customNotes.trim(),
       unitPrice,
+      finalPrice: unitPrice,
       subtotal: totalPrice
     };
 
@@ -122,14 +141,32 @@ export const ProductCustomizerModal = ({ isOpen, onClose, product, onConfirm }) 
       <div className={`${styles.card} animate-slide-up`}>
         {/* Header */}
         <div className={styles.header}>
-          <div>
-            <h3 className={styles.productName}>{product.name}</h3>
-            {product.description && (
-              <p className={styles.productDesc}>{product.description}</p>
-            )}
-            <p className={styles.productBasePrice}>
-              Precio base: ${basePrice.toLocaleString('es-CO')}
-            </p>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1, minWidth: 0 }}>
+            {product.imageUrl ? (
+              <img
+                src={getFullImageUrl(product.imageUrl)}
+                alt={product.name}
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 12,
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                  backgroundColor: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border)'
+                }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            ) : null}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h3 className={styles.productName}>{product.name}</h3>
+              {product.description && (
+                <p className={styles.productDesc}>{product.description}</p>
+              )}
+              <p className={styles.productBasePrice}>
+                Precio base: ${basePrice.toLocaleString('es-CO')}
+              </p>
+            </div>
           </div>
 
           <button onClick={onClose} className={styles.closeBtn}>

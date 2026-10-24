@@ -1075,7 +1075,7 @@ Adjunto el comprobante de pago para que verifiquen y activen mi cuenta. ¡Muchas
 
       {/* Footer General */}
       <footer className={styles.pageFooter}>
-        <p>&copy; {new Date().getFullYear()} NeoFood &bull; Sistema Integral de Gestión Gastronómica &bull; v1.8.1</p>
+        <p>&copy; {new Date().getFullYear()} NeoFood &bull; Sistema Integral de Gestión Gastronómica &bull; v1.9.0</p>
         <p className={styles.pageFooterAuthor}>Diseñado por <strong>Leonardo Ramirez</strong></p>
       </footer>
     </div>

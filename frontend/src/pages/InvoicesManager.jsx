@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Filter, DollarSign, FileText, Calendar, User, CreditCard, RefreshCw, Eye, Download, Edit3, Printer } from 'lucide-react';
+import { Search, Filter, DollarSign, FileText, Calendar, User, CreditCard, RefreshCw, Eye, Download, Edit3, Printer, Trash2, AlertTriangle } from 'lucide-react';
 import Datepicker from "react-tailwindcss-datepicker";
 import CustomSelect from '../components/ui/CustomSelect';
 import { Pagination } from '../components/ui';
@@ -49,6 +49,38 @@ const InvoicesManager = () => {
 
   const [editData, setEditData] = useState({ paymentMethodId: '', date: { startDate: null, endDate: null }, amount: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Anulación / Cancelación de Factura
+  const [cancelModalInvoice, setCancelModalInvoice] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Venta de prueba / Error de digitación');
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const handleOpenCancelModal = (invoice) => {
+    setCancelModalInvoice(invoice);
+    setCancelReason('Venta de prueba / Error de digitación');
+  };
+
+  const handleConfirmCancel = async (e) => {
+    if (e) e.preventDefault();
+    if (!cancelModalInvoice) return;
+
+    setIsCanceling(true);
+    try {
+      const res = await api.delete(`/invoices/${cancelModalInvoice.id}`, {
+        data: { reason: cancelReason }
+      });
+      alert(res.data?.message || `Factura ${cancelModalInvoice.invoiceNumber} anulada correctamente.`);
+      setCancelModalInvoice(null);
+      setIsDetailsModalOpen(false);
+      loadInvoices();
+      api.get('/customers').then(res => setCustomers(res.data.data)).catch(() => {});
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error al anular la factura.');
+    } finally {
+      setIsCanceling(false);
+    }
+  };
 
   const handleOpenPosTicket = (invoice) => {
     setSelectedTicketInvoice(invoice);
@@ -257,9 +289,20 @@ const InvoicesManager = () => {
                       {invoice.customer?.name || 'Consumidor Final'}
                     </td>
                     <td>
-                      <span className={`${styles.badgePayment} ${isCredit ? styles.badgePaymentCredit : styles.badgePaymentCash}`}>
-                        {invoice.paymentMethod?.name}
-                      </span>
+                      {invoice.payments && invoice.payments.length > 1 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span className={`${styles.badgePayment}`} style={{ background: '#e0e7ff', color: '#4338ca', fontWeight: 700 }}>
+                            Dividido ({invoice.payments.length})
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            {invoice.payments.map(p => `${p.paymentMethod?.name || p.method || 'Pago'}: $${Number(p.amount).toLocaleString('es-CO')}`).join(' | ')}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className={`${styles.badgePayment} ${isCredit ? styles.badgePaymentCredit : styles.badgePaymentCash}`}>
+                          {invoice.paymentMethod?.name}
+                        </span>
+                      )}
                     </td>
                     <td className="text-right">
                       {isCredit ? (
@@ -289,6 +332,9 @@ const InvoicesManager = () => {
                             <Edit3 size={16} />
                           </button>
                         )}
+                        <button onClick={() => handleOpenCancelModal(invoice)} className="neo-action-icon-btn" style={{ color: '#dc2626' }} title="Anular / Cancelar Factura">
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -339,7 +385,22 @@ const InvoicesManager = () => {
                 </div>
                 <div>
                   <p style={{ color: 'var(--text-muted)' }}>Método de Pago:</p>
-                  <p style={{ fontWeight: 700, color: 'var(--text-main)' }}>{selectedInvoice.paymentMethod?.name}</p>
+                  {selectedInvoice.payments && selectedInvoice.payments.length > 1 ? (
+                    <div>
+                      <p style={{ fontWeight: 700, color: 'var(--primary-color, #4f46e5)' }}>
+                        Pago Dividido ({selectedInvoice.payments.length})
+                      </p>
+                      <div style={{ marginTop: '0.25rem', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {selectedInvoice.payments.map((p, idx) => (
+                          <span key={idx} style={{ color: 'var(--text-secondary)' }}>
+                            • <strong>{p.paymentMethod?.name || p.method || 'Pago'}:</strong> ${Number(p.amount).toLocaleString('es-CO')}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ fontWeight: 700, color: 'var(--text-main)' }}>{selectedInvoice.paymentMethod?.name}</p>
+                  )}
                 </div>
                 <div>
                   <p style={{ color: 'var(--text-muted)' }}>Fecha y Hora:</p>
@@ -452,15 +513,27 @@ const InvoicesManager = () => {
             </div>
 
             <div className="neo-modal-footer" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={() => handleOpenPosTicket(selectedInvoice)}
-                className="neo-btn neo-btn-secondary"
-                style={{ gap: '0.4rem', padding: '0.5rem 0.85rem' }}
-              >
-                <Printer size={16} />
-                <span>Imprimir Tirilla POS</span>
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenPosTicket(selectedInvoice)}
+                  className="neo-btn neo-btn-secondary"
+                  style={{ gap: '0.4rem', padding: '0.5rem 0.85rem' }}
+                >
+                  <Printer size={16} />
+                  <span>Imprimir Tirilla POS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenCancelModal(selectedInvoice)}
+                  className="neo-btn"
+                  style={{ gap: '0.4rem', padding: '0.5rem 0.85rem', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }}
+                  title="Anular venta y devolver insumos a bodega"
+                >
+                  <Trash2 size={15} />
+                  <span>Anular Factura</span>
+                </button>
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>Total:</span>
                 <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{formatCurrency(selectedInvoice.totalAmount)}</span>
@@ -618,6 +691,77 @@ const InvoicesManager = () => {
         sale={selectedTicketInvoice}
         initialConfig={printerConfig}
       />
+
+      {/* ------------------------------------------------ */}
+      {/* MODAL 3: CONFIRMACIÓN DE ANULACIÓN DE FACTURA   */}
+      {/* ------------------------------------------------ */}
+      {cancelModalInvoice && (
+        <div className="neo-modal-backdrop" style={{ zIndex: 9999 }}>
+          <div className="neo-modal neo-modal-md" style={{ maxWidth: '480px' }}>
+            <div className="neo-modal-header" style={{ borderBottomColor: '#fee2e2', background: '#fff5f5' }}>
+              <h2 className="neo-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626' }}>
+                <AlertTriangle size={20} /> Anular Factura {cancelModalInvoice.invoiceNumber}
+              </h2>
+              <button onClick={() => setCancelModalInvoice(null)} className="neo-modal-close-btn" title="Cerrar">✕</button>
+            </div>
+
+            <form onSubmit={handleConfirmCancel}>
+              <div className="neo-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.75rem', padding: '0.85rem 1rem' }}>
+                  <p style={{ fontWeight: 700, color: '#991b1b', fontSize: '0.875rem', marginBottom: '0.35rem' }}>
+                    ¿Estás seguro de anular esta venta?
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#7f1d1d', lineHeight: 1.4 }}>
+                    Total: <b style={{ fontSize: '0.9rem' }}>{formatCurrency(cancelModalInvoice.finalAmount || cancelModalInvoice.totalAmount)}</b> ({cancelModalInvoice.customer?.name || 'Consumidor Final'})
+                  </p>
+                </div>
+
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.4rem', background: 'var(--bg-subtle, #f8fafc)', padding: '0.85rem 1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                  <p style={{ fontWeight: 700, color: 'var(--text-main)' }}>Esta acción ejecutará automáticamente:</p>
+                  <p>✓ <b>Devolución a bodega:</b> Se sumará de nuevo al stock cada insumo y producto descontado.</p>
+                  <p>✓ <b>Corrección de Caja:</b> Se descontará el valor de la sesión de caja del día para que el Arqueo y Cierre sean exactos.</p>
+                  <p>✓ <b>Cancelación de Pedido:</b> El pedido quedará marcado como ANULADO.</p>
+                  {cancelModalInvoice.customerId && (
+                    <p>✓ <b>Crédito de cliente:</b> Se anulará la deuda si la venta fue a crédito o fiao.</p>
+                  )}
+                </div>
+
+                <div className="neo-form-group" style={{ marginBottom: 0 }}>
+                  <label className="neo-label" style={{ fontWeight: 700 }}>Motivo de la Anulación</label>
+                  <input
+                    type="text"
+                    required
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Ej. Venta de prueba / Error de digitación"
+                    className="neo-input"
+                  />
+                </div>
+              </div>
+
+              <div className="neo-modal-footer" style={{ justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setCancelModalInvoice(null)}
+                  disabled={isCanceling}
+                  className="neo-btn neo-btn-secondary"
+                >
+                  Cancelar / Volver
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCanceling}
+                  className="neo-btn"
+                  style={{ background: '#dc2626', color: '#ffffff', fontWeight: 700, border: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <Trash2 size={15} />
+                  <span>{isCanceling ? 'Anulando...' : 'Confirmar y Anular Venta'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

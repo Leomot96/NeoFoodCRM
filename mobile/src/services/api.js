@@ -42,19 +42,27 @@ const api = axios.create({
   },
 });
 
+let unauthorizedCallback = null;
+
+export const setOnUnauthorizedCallback = (cb) => {
+  unauthorizedCallback = cb;
+};
+
 // Interceptor para inyectar token y tenant en cada solicitud
 api.interceptors.request.use(async (config) => {
   try {
-    let token = null;
-    let tenantId = null;
+    let token = sessionStorage.getItem('neofood_token');
+    let tenantId = sessionStorage.getItem('neofood_tenant_id');
     
-    try {
-      const tokenPref = await Preferences.get({ key: 'neofood_token' });
-      token = tokenPref.value;
-      const tenantPref = await Preferences.get({ key: 'neofood_tenant_id' });
-      tenantId = tenantPref.value;
-    } catch (err) {
-      // Fallback
+    if (!token || !tenantId) {
+      try {
+        const tokenPref = await Preferences.get({ key: 'neofood_token' });
+        if (!token) token = tokenPref.value;
+        const tenantPref = await Preferences.get({ key: 'neofood_tenant_id' });
+        if (!tenantId) tenantId = tenantPref.value;
+      } catch (err) {
+        // Fallback
+      }
     }
 
     if (!token) token = localStorage.getItem('neofood_token');
@@ -78,10 +86,16 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Sesión expirada o no autorizada
+      sessionStorage.removeItem('neofood_token');
+      sessionStorage.removeItem('neofood_user');
+      sessionStorage.removeItem('neofood_tenant_id');
       localStorage.removeItem('neofood_token');
       localStorage.removeItem('neofood_user');
       Preferences.remove({ key: 'neofood_token' }).catch(() => {});
       Preferences.remove({ key: 'neofood_user' }).catch(() => {});
+      if (typeof unauthorizedCallback === 'function') {
+        unauthorizedCallback();
+      }
     }
     return Promise.reject(error);
   }

@@ -1,20 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Store } from 'lucide-react';
+import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './Header.module.css';
 
 export const Header = ({ title, subtitle, isOnline = true }) => {
   const { user, tenant } = useAuth();
+  const [imageError, setImageError] = useState(false);
+
+  const logoSrc = tenant?.logoUrl ? getFullImageUrl(tenant.logoUrl) : null;
 
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
         <div className={styles.brandGroup}>
-          {tenant?.logoUrl ? (
+          {logoSrc && !imageError ? (
             <img 
-              src={tenant.logoUrl} 
-              alt={tenant.name} 
-              className={styles.logoImage} 
+              src={logoSrc} 
+              alt={tenant?.name || 'Logo'} 
+              className={styles.logoImage}
+              onError={() => setImageError(true)} 
             />
           ) : (
             <div className={styles.logoPlaceholder}>

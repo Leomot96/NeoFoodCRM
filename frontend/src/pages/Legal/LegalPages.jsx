@@ -106,7 +106,7 @@ const LegalPages = () => {
             Transparencia total sobre el uso de nuestro software SaaS, la custodia de tus datos gastronómicos, la prueba gratuita de 7 días y la protección de tu información.
           </p>
           <span className={styles.heroUpdatedDate}>
-            Última actualización: {new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })} &bull; Versión 1.8.1
+            Última actualización: {new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })} &bull; Versión 1.9.0
           </span>
         </div>
       </section>
@@ -605,7 +605,7 @@ const LegalPages = () => {
           </div>
 
           <div className={styles.footerBottom}>
-            <p>&copy; {new Date().getFullYear()} NeoFood SaaS. Todos los derechos reservados. &bull; v1.8.1</p>
+            <p>&copy; {new Date().getFullYear()} NeoFood SaaS. Todos los derechos reservados. &bull; v1.9.0</p>
             <p className={styles.footerAuthor}>Diseñado por <strong>Leonardo Ramirez</strong></p>
           </div>
         </div>

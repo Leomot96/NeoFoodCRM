@@ -1,5 +1,6 @@
 const prisma = require('../../../config/prisma');
 const { getTenantId } = require('../../../context/tenantContext');
+const { compareCategories } = require('../../../utils/categoryOrder');
 
 class CategoryService {
 
@@ -48,12 +49,14 @@ class CategoryService {
     };
     if (tenantId) where.tenantId = tenantId;
 
-    return await prisma.category.findMany({
+    const categories = await prisma.category.findMany({
       where,
       orderBy: {
         name: 'asc',
       },
     });
+
+    return categories.sort(compareCategories);
   }
 
   async getCategoryById(id) {

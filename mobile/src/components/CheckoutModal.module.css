@@ -339,3 +339,192 @@
 .customerItem:active {
   background-color: var(--surface);
 }
+
+/* ========================================================
+   ESTILOS DE CUENTA DIVIDIDA / PAGO MIXTO (MOBILE)
+   ======================================================== */
+.modeSelector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background-color: var(--surface);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  gap: 4px;
+  border: 1px solid var(--border);
+}
+
+.modeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.modeBtnActive {
+  background-color: var(--bg-tertiary, #2A2D3E);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.splitPresetsContainer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.presetChip {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.presetChip:active {
+  background-color: var(--primary);
+  color: #ffffff;
+}
+
+.splitList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.splitCard {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.splitCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.splitBadge {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary-light);
+  background-color: rgba(79, 70, 229, 0.15);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.splitDeleteBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splitDeleteBtn:active {
+  color: #EF4444;
+}
+
+.splitCardInputs {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 8px;
+}
+
+.splitSelect {
+  width: 100%;
+  padding: 10px 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.splitAmountInput {
+  width: 100%;
+  padding: 10px 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.addSplitBtn {
+  width: 100%;
+  padding: 10px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--primary-light);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.addSplitBtn:active {
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+.splitBalanceBox {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.splitBalanceExact {
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34D399;
+}
+
+.splitBalancePending {
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #FBBF24;
+}
+
+.splitBalanceExcess {
+  background-color: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #F87171;
+}
+
+.splitBalanceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+

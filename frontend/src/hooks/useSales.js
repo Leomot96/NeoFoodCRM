@@ -146,11 +146,12 @@ export const useSales = () => {
     }
   };
 
-  // Procesar pago (Cobro final y liberación de mesa)
-  const processSale = async ({ paymentMethodId, receivedAmount, customerId, tableId, orderId }) => {
+  // Procesar pago (Cobro final y liberación de mesa, soporte para pago simple o cuenta dividida)
+  const processSale = async ({ paymentMethodId, receivedAmount, customerId, tableId, orderId, payments }) => {
     try {
       const saleData = {
-        paymentMethodId: String(paymentMethodId),
+        paymentMethodId: paymentMethodId ? String(paymentMethodId) : undefined,
+        payments: Array.isArray(payments) && payments.length > 0 ? payments : undefined,
         customerId: customerId || null,
         tableId: tableId || null,
         orderId: orderId || null,

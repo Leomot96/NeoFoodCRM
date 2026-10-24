@@ -193,12 +193,12 @@ const drawNeoFooter = (doc, showSignatures = true, logos = cachedLogos) => {
   if (logos?.isotipoDataUrl) {
     try {
       doc.addImage(logos.isotipoDataUrl, 'PNG', 14, pageHeight - 10.5, 4.5, 4);
-      doc.text(`Impreso: ${printDate} • NeoFood v1.8.1 • Documento de control interno`, 20, pageHeight - 7);
+      doc.text(`Impreso: ${printDate} • NeoFood v1.9.0 • Documento de control interno`, 20, pageHeight - 7);
     } catch {
-      doc.text(`Impreso: ${printDate} • NeoFood v1.8.1 • Documento de control interno`, 14, pageHeight - 7);
+      doc.text(`Impreso: ${printDate} • NeoFood v1.9.0 • Documento de control interno`, 14, pageHeight - 7);
     }
   } else {
-    doc.text(`Impreso: ${printDate} • NeoFood v1.8.1 • Documento de control interno`, 14, pageHeight - 7);
+    doc.text(`Impreso: ${printDate} • NeoFood v1.9.0 • Documento de control interno`, 14, pageHeight - 7);
   }
 
   doc.text('Página ' + doc.internal.getNumberOfPages(), pageWidth - 14, pageHeight - 7, { align: 'right' });
@@ -775,7 +775,10 @@ export const generateInvoicePdf = async (invoice) => {
   doc.text('Método de Pago:', colRightX, currentY + 17);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(79, 70, 229);
-  doc.text(invoice.paymentMethod?.name || 'Efectivo', colRightX + 26, currentY + 17);
+  const paymentMethodLabel = invoice.payments && invoice.payments.length > 1
+    ? 'Dividido (' + invoice.payments.map(p => `${p.paymentMethod?.name || p.method || 'Pago'}: ${formatCurrency(p.amount)}`).join(', ') + ')'
+    : (invoice.paymentMethod?.name || 'Efectivo');
+  doc.text(paymentMethodLabel, colRightX + 26, currentY + 17);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105);

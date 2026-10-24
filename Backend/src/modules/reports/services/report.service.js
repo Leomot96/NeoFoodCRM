@@ -20,6 +20,7 @@ class ReportService {
       include: { 
         customer: true, 
         paymentMethod: true,
+        payments: { include: { paymentMethod: true } },
         details: { 
           include: { 
             product: { include: { ingredients: { include: { ingredient: true } } } } 
@@ -44,11 +45,16 @@ class ReportService {
       });
 
       const amount = parseFloat(s.finalAmount);
+      let methodDisplay = s.paymentMethod?.name || 'Efectivo';
+      if (s.payments && s.payments.length > 1) {
+        methodDisplay = `Dividido (${s.payments.map(p => `${p.paymentMethod?.name || 'Medio'}: $${Math.round(parseFloat(p.amount)).toLocaleString('es-CO')}`).join(', ')})`;
+      }
+
       return {
         invoice: s.invoiceNumber,
         date: s.createdAt,
         customer: s.customer ? s.customer.name : 'Consumidor Final',
-        method: s.paymentMethod.name,
+        method: methodDisplay,
         cost: cost,
         amount: amount,
         profit: amount - cost

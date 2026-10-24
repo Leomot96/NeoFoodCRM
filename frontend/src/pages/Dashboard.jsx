@@ -67,7 +67,7 @@ const Dashboard = () => {
             <h1 className={styles.dashboardTitle}>
               Panel Principal
             </h1>
-            <span className={styles.versionBadge}>v1.8.1</span>
+            <span className={styles.versionBadge}>v1.9.0</span>
           </div>
           <p className={styles.dashboardSubtitle}>
             Resumen operativo, balance y métricas de NeoFood en tiempo real

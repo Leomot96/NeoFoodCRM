@@ -121,7 +121,7 @@ class SaleService {
             userId,
             customerId: effectiveCustomerId || null,
             tableId: tableId || null,
-            status: 'DELIVERED',
+            status: (orderType === 'TAKEAWAY' || orderType === 'DELIVERY') ? 'PENDING' : 'DELIVERED',
             orderType,
             notes,
             totalAmount: finalAmount,
@@ -140,14 +140,51 @@ class SaleService {
         });
       }
 
-      // 2. Determinar si es crédito
-      const paymentMethod = await tx.paymentMethod.findUnique({ where: { id: String(paymentMethodId) } });
-      if (!paymentMethod) {
-        throw Object.assign(new Error('Método de pago no válido o no encontrado'), { statusCode: 400 });
+      // 2. Determinar medios de pago (Soporte para cobro único o cuenta dividida / pagos múltiples)
+      let paymentsToRecord = [];
+      if (Array.isArray(data.payments) && data.payments.length > 0) {
+        paymentsToRecord = data.payments
+          .filter(p => p.paymentMethodId && parseFloat(p.amount) > 0)
+          .map(p => ({
+            paymentMethodId: String(p.paymentMethodId),
+            amount: parseFloat(p.amount),
+            notes: p.notes || null
+          }));
       }
-      const isCredit = paymentMethod.name.toLowerCase().includes('crédito') || 
-                      paymentMethod.name.toLowerCase().includes('credito') || 
-                      paymentMethod.name.toLowerCase().includes('fiao');
+
+      if (paymentsToRecord.length === 0) {
+        if (!paymentMethodId) {
+          throw Object.assign(new Error('Método de pago no válido o no encontrado'), { statusCode: 400 });
+        }
+        paymentsToRecord = [{
+          paymentMethodId: String(paymentMethodId),
+          amount: finalAmount,
+          notes: null
+        }];
+      }
+
+      // Validar que la suma coincida con el total final
+      const totalPaid = paymentsToRecord.reduce((acc, p) => acc + p.amount, 0);
+      if (Math.abs(totalPaid - finalAmount) > 1) {
+        throw Object.assign(new Error(`La suma de los pagos ($${Math.round(totalPaid).toLocaleString('es-CO')}) no coincide con el total de la venta ($${Math.round(finalAmount).toLocaleString('es-CO')})`), { statusCode: 400 });
+      }
+
+      // Validar existencia de cada método de pago
+      const requestedMethodIds = [...new Set(paymentsToRecord.map(p => p.paymentMethodId))];
+      const dbPaymentMethods = await tx.paymentMethod.findMany({
+        where: { id: { in: requestedMethodIds } }
+      });
+      const paymentMethodsMap = new Map(dbPaymentMethods.map(m => [m.id, m]));
+
+      for (const p of paymentsToRecord) {
+        if (!paymentMethodsMap.has(p.paymentMethodId)) {
+          throw Object.assign(new Error('Uno o más métodos de pago no son válidos o no existen'), { statusCode: 400 });
+        }
+      }
+
+      // Elegir el método principal para la cabecera de la venta (el de mayor monto)
+      const primaryPayment = [...paymentsToRecord].sort((a, b) => b.amount - a.amount)[0];
+      const primaryPaymentMethod = paymentMethodsMap.get(primaryPayment.paymentMethodId);
 
       // 3. Crear Venta
       const invoiceNumber = `FE-${Date.now().toString().slice(-6)}-${order.orderNumber}`;
@@ -186,7 +223,7 @@ class SaleService {
           discount: parseFloat(discount) || 0,
           tenantId: effectiveTenantId,
           orderId: order.id,
-          paymentMethodId: paymentMethod.id,
+          paymentMethodId: primaryPaymentMethod.id,
           cashSessionId: activeSession.id,
           customerId: effectiveCustomerId || null,
           details: {
@@ -236,27 +273,41 @@ class SaleService {
 
               return detailData;
             })
+          },
+          payments: {
+            create: paymentsToRecord.map(p => ({
+              paymentMethodId: p.paymentMethodId,
+              amount: p.amount,
+              notes: p.notes
+            }))
           }
         }
       });
 
-      // 4. Lógica de Crédito
-      if (isCredit) {
-        if (!customerId) throw Object.assign(new Error('Cliente obligatorio para crédito'), { statusCode: 400 });
+      // 4. Lógica de Crédito (soporta crédito parcial o total)
+      const creditPayments = paymentsToRecord.filter(p => {
+        const m = paymentMethodsMap.get(p.paymentMethodId);
+        const mName = m?.name?.toLowerCase() || '';
+        return mName.includes('crédito') || mName.includes('credito') || mName.includes('fiao');
+      });
+
+      const totalCredit = creditPayments.reduce((acc, p) => acc + p.amount, 0);
+      if (totalCredit > 0) {
+        if (!effectiveCustomerId) throw Object.assign(new Error('Cliente obligatorio para ventas a crédito o cuenta dividida con crédito'), { statusCode: 400 });
 
         // Sumar a deuda
         await tx.customer.update({
-          where: { id: customerId },
-          data: { balance: { increment: finalAmount } }
+          where: { id: effectiveCustomerId },
+          data: { balance: { increment: totalCredit } }
         });
 
         // Registrar en historial de crédito
         await tx.customerCredit.create({
           data: {
-            customerId,
+            customerId: effectiveCustomerId,
             type: 'DEBT',
-            amount: finalAmount,
-            description: `Venta a crédito - Factura ${invoiceNumber}`,
+            amount: totalCredit,
+            description: `Venta a crédito (${creditPayments.length > 1 || paymentsToRecord.length > 1 ? 'Parcial/Dividido' : 'Total'}) - Factura ${invoiceNumber}`,
             saleId: newSale.id,
             cashSessionId: activeSession.id
           }
@@ -268,7 +319,12 @@ class SaleService {
         include: {
           tenant: true,
           customer: { select: { name: true, document: true, phone: true } },
-          paymentMethod: { select: { name: true } },
+          paymentMethod: { select: { id: true, name: true } },
+          payments: {
+            include: {
+              paymentMethod: { select: { id: true, name: true } }
+            }
+          },
           order: {
             select: {
               orderNumber: true,
@@ -321,7 +377,12 @@ class SaleService {
           invoiceNumber: true,
           finalAmount: true,
           createdAt: true,
-          paymentMethod: { select: { name: true } },
+          paymentMethod: { select: { id: true, name: true } },
+          payments: {
+            include: {
+              paymentMethod: { select: { id: true, name: true } }
+            }
+          },
           customer: { select: { name: true } }
         },
         orderBy: { createdAt: 'desc' }
@@ -333,17 +394,6 @@ class SaleService {
       sales
     };
   }
-
-//    return await prisma.sale.findMany({
-//     where: whereClause,
-//      include: {
-//        paymentMethod: true,
-//        order: { select: { orderNumber: true, orderType: true } },
-//        customer: { select: { name: true } }
-//      },
-//      orderBy: { createdAt: 'desc' }
-//    });
-//  }
 
   async getInvoiceData(saleId) {
     const sale = await prisma.sale.findUnique({
@@ -358,6 +408,11 @@ class SaleService {
           } 
         },
         paymentMethod: true,
+        payments: {
+          include: {
+            paymentMethod: true
+          }
+        },
         order: { include: { user: { select: { name: true } }, table: true } },
         customer: true
       }
@@ -396,7 +451,12 @@ class SaleService {
         baseAmount: baseAmount.toFixed(2),
         taxAmount: taxAmount.toFixed(2), // Impuesto al consumo
         total: sale.finalAmount,
-        paymentMethod: sale.paymentMethod.name
+        paymentMethod: sale.paymentMethod.name,
+        payments: sale.payments?.map(p => ({
+          id: p.id,
+          method: p.paymentMethod?.name,
+          amount: parseFloat(p.amount)
+        })) || []
       }
     };
   }

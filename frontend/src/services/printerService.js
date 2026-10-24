@@ -297,10 +297,23 @@ export const printerService = {
             <td class="text-left">TOTAL A PAGAR:</td>
             <td class="text-right">${formatCurr(finalAmount)}</td>
           </tr>
+          ${sale.payments && sale.payments.length > 1 ? `
+          <tr>
+            <td class="text-left" style="padding-top: 4px;">Medio de Pago:</td>
+            <td class="text-right bold" style="padding-top: 4px;">Cuenta Dividida</td>
+          </tr>
+          ${sale.payments.map(p => `
+          <tr>
+            <td class="text-left" style="padding-left: 8px; font-size: ${is58 ? '9px' : '11px'}; color: #444;">• ${p.paymentMethod?.name || p.method || 'Pago'}:</td>
+            <td class="text-right" style="font-size: ${is58 ? '9px' : '11px'};">${formatCurr(p.amount)}</td>
+          </tr>
+          `).join('')}
+          ` : `
           <tr>
             <td class="text-left" style="padding-top: 4px;">Medio de Pago:</td>
             <td class="text-right bold" style="padding-top: 4px;">${paymentMethodName}</td>
           </tr>
+          `}
         </table>
 
         <div class="divider-double"></div>
@@ -309,7 +322,7 @@ export const printerService = {
         <div class="text-center footer-section">
           ${printerConfig.footerText ? `<div>${printerConfig.footerText}</div>` : ''}
           <div style="margin-top: 6px; font-weight: bold; letter-spacing: 1px;">*** DOCUMENTO DE CONTROL INTERNO ***</div>
-          <div style="font-size: 8px; color: #444; margin-top: 2px;">Software NeoFood POS v1.8.1</div>
+          <div style="font-size: 8px; color: #444; margin-top: 2px;">Software NeoFood POS v1.9.0</div>
         </div>
 
         <div class="cut-space"></div>

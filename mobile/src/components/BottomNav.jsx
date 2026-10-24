@@ -1,9 +1,9 @@
 import React from 'react';
-import { LayoutGrid, PlusCircle, Clock, Settings, DollarSign, Users } from 'lucide-react';
+import { LayoutGrid, ChefHat, Settings, DollarSign, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import styles from './BottomNav.module.css';
 
-export const BottomNav = ({ activeTab, onSelectTab, cartCount = 0 }) => {
+export const BottomNav = ({ activeTab, onSelectTab }) => {
   const { user, triggerHaptic } = useAuth();
 
   const roleName = (typeof user?.role === 'string' ? user.role : user?.role?.name || '').toLowerCase();
@@ -11,8 +11,7 @@ export const BottomNav = ({ activeTab, onSelectTab, cartCount = 0 }) => {
 
   const tabs = [
     { id: 'tables', label: 'Mesas', icon: LayoutGrid },
-    { id: 'order', label: 'Pedido', icon: PlusCircle, badge: cartCount },
-    { id: 'orders', label: 'En Curso', icon: Clock },
+    { id: 'orders', label: 'Cocina', icon: ChefHat },
     { id: 'cash', label: 'Caja', icon: DollarSign },
     ...(isAdmin ? [{ id: 'customers', label: 'Clientes', icon: Users }] : []),
     { id: 'settings', label: 'Ajustes', icon: Settings },
@@ -38,11 +37,6 @@ export const BottomNav = ({ activeTab, onSelectTab, cartCount = 0 }) => {
             >
               <div className={styles.iconWrapper}>
                 <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
-                {tab.badge > 0 && (
-                  <span className={styles.badge}>
-                    {tab.badge}
-                  </span>
-                )}
               </div>
               <span className={styles.label}>{tab.label}</span>
 

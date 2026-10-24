@@ -42,6 +42,24 @@ class KitchenController {
       next(error);
     }
   }
+
+  async createOrder(req, res, next) {
+    try {
+      const tenantId = req.tenantId || req.user?.tenantId;
+      if (!tenantId) {
+        return res.status(400).json({ success: false, message: 'Contexto de restaurante no encontrado' });
+      }
+
+      const order = await kitchenService.createKitchenOrder(tenantId, req.user?.id, req.body);
+      res.status(201).json({
+        success: true,
+        message: 'Pedido enviado a cocina correctamente',
+        data: order
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new KitchenController();

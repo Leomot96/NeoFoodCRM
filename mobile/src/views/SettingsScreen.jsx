@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Store, User, Server, LogOut, Smartphone } from 'lucide-react';
+import { getFullImageUrl } from '../utils/imageUrl';
 import styles from './SettingsScreen.module.css';
 
 export const SettingsScreen = () => {
@@ -8,6 +9,7 @@ export const SettingsScreen = () => {
   const [editingServer, setEditingServer] = useState(false);
   const [tempUrl, setTempUrl] = useState(serverUrl);
   const [testingPing, setTestingPing] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const [pingStatus, setPingStatus] = useState(null);
 
   const handleTestPing = async () => {
@@ -40,11 +42,12 @@ export const SettingsScreen = () => {
       {/* Tarjeta del Restaurante (Tenant) */}
       <div className={styles.card}>
         <div className={styles.tenantHeader}>
-          {tenant?.logoUrl ? (
+          {tenant?.logoUrl && !logoError ? (
             <img
-              src={tenant.logoUrl}
+              src={getFullImageUrl(tenant.logoUrl)}
               alt={tenant.name}
               className={styles.tenantLogo}
+              onError={() => setLogoError(true)}
             />
           ) : (
             <div className={styles.tenantLogoPlaceholder}>

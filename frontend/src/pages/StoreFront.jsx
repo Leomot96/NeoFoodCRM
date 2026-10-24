@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import storeService from '../services/store.service';
 import { getFullImageUrl } from '../utils/imageUrl';
+import { compareCategories } from '../utils/categoryOrder';
 import styles from './StoreFront.module.css';
 
 const DEFAULT_WEEKLY_SCHEDULE = [
@@ -239,7 +240,8 @@ const StoreFront = () => {
         setError(null);
         const data = await storeService.getPublicStore(slug);
         setRestaurant(data.restaurant);
-        setCategories(data.categories || []);
+        const sortedCats = [...(data.categories || [])].sort(compareCategories);
+        setCategories(sortedCats);
         
         // Filtrar métodos de pago activos del restaurante excluyendo 'Crédito'
         const validMethods = (data.paymentMethods || []).filter(pm => {
@@ -274,7 +276,7 @@ const StoreFront = () => {
 
   // Filtrado de productos
   const filteredCategories = useMemo(() => {
-    let result = categories;
+    let result = [...categories].sort(compareCategories);
     if (selectedCategory !== 'all') {
       result = result.filter(c => c.id === selectedCategory);
     }

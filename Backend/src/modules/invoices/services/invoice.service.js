@@ -191,6 +191,103 @@ class InvoiceService {
             });
         });
     }
+
+    async cancelInvoice(saleId, userId, reason = 'Venta de prueba / Anulación por error') {
+        return await prisma.$transaction(async (tx) => {
+            const sale = await tx.sale.findUnique({
+                where: { id: saleId },
+                include: {
+                    details: {
+                        include: {
+                            product: true
+                        }
+                    },
+                    payments: true,
+                    customerCredits: true,
+                    order: true
+                }
+            });
+
+            if (!sale) {
+                throw Object.assign(new Error('La factura no existe o ya fue anulada'), { statusCode: 404 });
+            }
+
+            // 1. Revertir inventario de insumos (Ingredients)
+            if (sale.invoiceNumber) {
+                const movements = await tx.inventoryMovement.findMany({
+                    where: {
+                        reason: { contains: sale.invoiceNumber },
+                        type: 'OUT'
+                    }
+                });
+
+                for (const mov of movements) {
+                    await tx.ingredient.update({
+                        where: { id: mov.ingredientId },
+                        data: { currentStock: { increment: mov.quantity } }
+                    });
+
+                    await tx.inventoryMovement.create({
+                        data: {
+                            tenantId: mov.tenantId || sale.tenantId,
+                            ingredientId: mov.ingredientId,
+                            userId,
+                            type: 'IN',
+                            quantity: mov.quantity,
+                            reason: `Reingreso por anulación de Factura ${sale.invoiceNumber}: ${reason}`
+                        }
+                    });
+                }
+            }
+
+            // 2. Revertir stock de productos directos (trackStock)
+            for (const d of sale.details) {
+                if (d.product?.trackStock) {
+                    await tx.product.update({
+                        where: { id: d.productId },
+                        data: { stock: { increment: d.quantity } }
+                    });
+                }
+            }
+
+            // 3. Revertir saldos de crédito de cliente si los hubo
+            if (sale.customerId) {
+                const debtCredits = (sale.customerCredits || []).filter(c => c.type === 'DEBT');
+                const totalDebt = debtCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
+                if (totalDebt > 0) {
+                    await tx.customer.update({
+                        where: { id: sale.customerId },
+                        data: { balance: { decrement: totalDebt } }
+                    });
+                }
+                await tx.customerCredit.deleteMany({
+                    where: { saleId: sale.id }
+                });
+            }
+
+            // 4. Actualizar estado del pedido a CANCELLED
+            if (sale.orderId) {
+                await tx.order.update({
+                    where: { id: sale.orderId },
+                    data: {
+                        status: 'CANCELLED',
+                        notes: `${sale.order?.notes || ''} [Factura ${sale.invoiceNumber} Anulada: ${reason}]`.trim()
+                    }
+                });
+            }
+
+            // 5. Eliminar la venta para retirarla de la sesión de caja y reportes
+            await tx.sale.delete({
+                where: { id: sale.id }
+            });
+
+            return {
+                success: true,
+                invoiceNumber: sale.invoiceNumber,
+                message: `Factura ${sale.invoiceNumber} anulada correctamente. Se restauraron los insumos al stock y se removió de la caja.`
+            };
+        });
+    }
 }
 
 module.exports = new InvoiceService();
