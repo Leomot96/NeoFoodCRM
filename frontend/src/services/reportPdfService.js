@@ -1,5 +1,10 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+const loadPdfLibs = async () => {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable')
+  ]);
+  return { jsPDF, autoTable };
+};
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-CO', {
@@ -69,7 +74,7 @@ const convertSvgToPngDataUrl = (url, width, height) => {
 };
 
 /**
- * Carga y cachea los logotipos oficiales de NeoFood
+ * Carga y cachea los logotipos oficiales de NeoFood bajo demanda (lazy)
  */
 const getBrandingLogos = async () => {
   if (cachedLogos) return cachedLogos;
@@ -84,11 +89,6 @@ const getBrandingLogos = async () => {
     return { isotipoDataUrl: null, logoBlancoDataUrl: null };
   }
 };
-
-// Iniciar pre-carga inmediata al cargar la app
-if (typeof window !== 'undefined') {
-  getBrandingLogos();
-}
 
 /**
  * Dibuja el encabezado institucional NeoFood en el PDF
@@ -208,7 +208,10 @@ const drawNeoFooter = (doc, showSignatures = true, logos = cachedLogos) => {
  * REPORTE 1: ARQUEO Y CUADRE DE UN TURNO / SESIÓN
  */
 export const generateTurnPdf = async (session) => {
-  const logos = await getBrandingLogos();
+  const [{ jsPDF, autoTable }, logos] = await Promise.all([
+    loadPdfLibs(),
+    getBrandingLogos()
+  ]);
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -449,7 +452,10 @@ export const generateTurnPdf = async (session) => {
  * REPORTE 2: REPORTE DIARIO CONSOLIDADO
  */
 export const generateDailyReportPdf = async (reportData) => {
-  const logos = await getBrandingLogos();
+  const [{ jsPDF, autoTable }, logos] = await Promise.all([
+    loadPdfLibs(),
+    getBrandingLogos()
+  ]);
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -575,7 +581,10 @@ export const generateDailyReportPdf = async (reportData) => {
  * REPORTE 3: REPORTE MENSUAL CONSOLIDADO
  */
 export const generateMonthlyReportPdf = async (reportData) => {
-  const logos = await getBrandingLogos();
+  const [{ jsPDF, autoTable }, logos] = await Promise.all([
+    loadPdfLibs(),
+    getBrandingLogos()
+  ]);
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -698,7 +707,10 @@ export const generateMonthlyReportPdf = async (reportData) => {
  * REPORTE 4: FACTURA DE VENTA ELECTRÓNICA CON ESTILO VISUAL NEOFOOD
  */
 export const generateInvoicePdf = async (invoice) => {
-  const logos = await getBrandingLogos();
+  const [{ jsPDF, autoTable }, logos] = await Promise.all([
+    loadPdfLibs(),
+    getBrandingLogos()
+  ]);
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -906,4 +918,3 @@ export const generateInvoicePdf = async (invoice) => {
 
   doc.save(`Factura_${invoice.invoiceNumber}.pdf`);
 };
-
