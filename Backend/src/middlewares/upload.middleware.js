@@ -2,34 +2,41 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Asegurar que la carpeta de subidas para productos exista
+// Directorio base para imágenes de productos
 const uploadDir = path.join(__dirname, '../../uploads/products');
+
+// Asegurar que la carpeta exista al arrancar
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configuración de almacenamiento en disco
+// Mapa estricto de MIME a extensión segura (sin SVG para prevenir Stored XSS)
+const SAFE_IMAGE_MIMES = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif'
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const cleanBase = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '_');
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, `prod_${cleanBase}_${uniqueSuffix}${ext}`);
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = SAFE_IMAGE_MIMES[file.mimetype] || '.jpg';
+    cb(null, `prod_${uniqueSuffix}${ext}`);
   }
 });
 
-// Filtro de tipos de archivo permitidos (solo imágenes)
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
-  if (allowedTypes.includes(file.mimetype.toLowerCase())) {
+  if (Object.prototype.hasOwnProperty.call(SAFE_IMAGE_MIMES, file.mimetype)) {
     cb(null, true);
   } else {
-    const err = new Error('Formato de archivo no válido. Solo se admiten imágenes JPG, PNG, WEBP o GIF.');
-    err.statusCode = 400;
-    cb(err, false);
+    const error = new Error('Formato de imagen no válido. Solo se permiten JPG, PNG, WEBP o GIF.');
+    error.statusCode = 400;
+    cb(error, false);
   }
 };
 
@@ -37,25 +44,25 @@ const uploadProductImage = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5 MB máximo
+    fileSize: 5 * 1024 * 1024 // Máximo 5MB por imagen
   }
 });
 
-const uploadStoreDir = path.join(__dirname, '../../uploads/store');
-if (!fs.existsSync(uploadStoreDir)) {
-  fs.mkdirSync(uploadStoreDir, { recursive: true });
+// Directorio para logos y banners de tiendas (tenants)
+const storeUploadDir = path.join(__dirname, '../../uploads/store');
+if (!fs.existsSync(storeUploadDir)) {
+  fs.mkdirSync(storeUploadDir, { recursive: true });
 }
 
 const storeStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadStoreDir);
+    cb(null, storeUploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const cleanBase = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9]/g, '_');
-    const prefix = file.fieldname === 'banner' ? 'banner' : 'logo';
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, `${prefix}_${cleanBase}_${uniqueSuffix}${ext}`);
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = SAFE_IMAGE_MIMES[file.mimetype] || '.png';
+    const prefix = req.path.includes('banner') ? 'banner' : 'logo';
+    cb(null, `${prefix}_${uniqueSuffix}${ext}`);
   }
 });
 
@@ -63,11 +70,12 @@ const uploadStoreImage = multer({
   storage: storeStorage,
   fileFilter,
   limits: {
-    fileSize: 8 * 1024 * 1024 // 8 MB máximo
+    fileSize: 8 * 1024 * 1024 // Máximo 8MB para banners de alta calidad
   }
 });
 
 module.exports = {
   uploadProductImage,
-  uploadStoreImage
+  uploadStoreImage,
+  uploadStoreAsset: uploadStoreImage
 };

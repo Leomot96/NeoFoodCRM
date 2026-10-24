@@ -37,8 +37,8 @@ class ProductionController {
   async getProductionOrders(req, res, next) {
     try {
       const filters = {
-        tenantId: req.user.tenantId,
-        ...req.query
+        ...req.query,
+        tenantId: req.user.tenantId
       };
 
       const orders = await productionService.getProductionOrders(filters);

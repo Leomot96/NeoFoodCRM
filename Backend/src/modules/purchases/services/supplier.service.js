@@ -16,10 +16,16 @@ class SupplierService {
       }
     }
 
-    const supplierData = {
-      ...data,
-      ...(tenantId && !data.tenantId ? { tenantId } : {})
-    };
+    const allowedFields = ['name', 'nit', 'contactName', 'phone', 'email', 'address'];
+    const supplierData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        supplierData[key] = data[key];
+      }
+    }
+    if (tenantId) {
+      supplierData.tenantId = tenantId;
+    }
     return await prisma.supplier.create({ data: supplierData });
   }
 
@@ -48,9 +54,16 @@ class SupplierService {
 
   async updateSupplier(id, data) {
     await this.getSupplierById(id);
+    const allowedFields = ['name', 'nit', 'contactName', 'phone', 'email', 'address'];
+    const safeData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        safeData[key] = data[key];
+      }
+    }
     return await prisma.supplier.update({
       where: { id },
-      data,
+      data: safeData,
     });
   }
 

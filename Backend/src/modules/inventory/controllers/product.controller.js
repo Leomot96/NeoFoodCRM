@@ -1,3 +1,4 @@
+const prisma = require('../../../config/prisma');
 const productService = require('../services/product.service');
 
 class ProductController {
@@ -64,10 +65,39 @@ class ProductController {
   async deleteImage(req, res, next) {
     try {
       const { imageUrl } = req.body;
-      if (imageUrl) {
-        const { deleteUploadedFile } = require('../../../utils/fileCleaner');
-        deleteUploadedFile(imageUrl);
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'No se proporcionó una URL de imagen válida'
+        });
       }
+
+      // Solo permitir borrar imágenes dentro de /uploads/products/ que pertenezcan al tenant actual
+      if (!imageUrl.startsWith('/uploads/products/')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Ruta de imagen no permitida'
+        });
+      }
+
+      const ownedProduct = await prisma.product.findFirst({
+        where: {
+          imageUrl,
+          ...(req.user?.tenantId ? { tenantId: req.user.tenantId } : {})
+        },
+        select: { id: true }
+      });
+
+      if (!ownedProduct) {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permiso para eliminar esta imagen o no está vinculada a un producto de tu establecimiento'
+        });
+      }
+
+      const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+      deleteUploadedFile(imageUrl);
+
       res.status(200).json({
         success: true,
         message: 'Foto de producto eliminada correctamente'

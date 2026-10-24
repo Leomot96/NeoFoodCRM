@@ -75,9 +75,16 @@ class CategoryService {
 
   async updateCategory(id, data) {
     await this.getCategoryById(id); // Verifica si existe en el tenant actual
+    const allowedFields = ['name', 'description', 'isActive'];
+    const safeData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        safeData[key] = data[key];
+      }
+    }
     return await prisma.category.update({
       where: { id },
-      data,
+      data: safeData,
     });
   }
 

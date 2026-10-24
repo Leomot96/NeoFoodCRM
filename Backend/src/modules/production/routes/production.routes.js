@@ -11,16 +11,19 @@ router.use(requirePlanFeature('recipes', 'Sub-Recetas y Producción'));
 
 router
   .route('/')
-  .get(productionController.getProductionOrders)
+  .get(
+    restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO),
+    productionController.getProductionOrders
+  )
   .post(
-    restrictTo(ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.CAJERO), // Permisos para registrar producción
+    restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), // Permisos para registrar producción
     productionController.createProductionOrder
   );
 
 router
   .route('/:id/cancel')
   .post(
-    restrictTo(ROLES.ADMINISTRADOR, ROLES.GERENTE), // Solo admin o gerente pueden anular
+    restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), // Solo admin o supervisor pueden anular
     productionController.cancelProductionOrder
   );
 

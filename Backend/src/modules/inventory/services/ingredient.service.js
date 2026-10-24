@@ -2,6 +2,23 @@ const prisma = require('../../../config/prisma');
 const { getTenantId } = require('../../../context/tenantContext');
 
 class IngredientService {
+  async _validateRecipeInputs(recipeIngredients, tenantId) {
+    if (!Array.isArray(recipeIngredients) || recipeIngredients.length === 0) return;
+    const inputIds = [...new Set(recipeIngredients.map(r => r.inputIngredientId).filter(Boolean))];
+    if (inputIds.length === 0) return;
+    const count = await prisma.ingredient.count({
+      where: {
+        id: { in: inputIds },
+        ...(tenantId ? { tenantId } : {})
+      }
+    });
+    if (count !== inputIds.length) {
+      const error = new Error('Uno o más insumos de la sub-receta no existen o no pertenecen a este establecimiento.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
   async createIngredient(data) {
     const tenantId = getTenantId();
     const whereExisting = { name: { equals: data.name } };
@@ -12,7 +29,6 @@ class IngredientService {
     });
     if (existing) {
       if (!existing.isActive) {
-        // Si ya existía pero estaba desactivado, lo reactivamos con los datos nuevos
         return await this.updateIngredient(existing.id, {
           ...data,
           isActive: true
@@ -23,15 +39,17 @@ class IngredientService {
       throw error;
     }
 
-  return await prisma.ingredient.create({
+    await this._validateRecipeInputs(data.recipeIngredients, tenantId);
+
+    return await prisma.ingredient.create({
       data: {
-        tenantId: data.tenantId || tenantId || 'default-tenant-001',
+        tenantId: tenantId || data.tenantId || 'default-tenant-001',
         name: data.name,
         unit: data.unit || 'Unidad',
         minStock: data.minStock ? parseFloat(data.minStock) : 0,
-        currentStock: 0, // Siempre arranca en 0. Las compras aumentan este valor.
-        costPerUnit: 0, // Lo inicializamos en 0 (opcional, pero buena práctica)
-        isManufactured: data.isManufactured || false,
+        currentStock: 0,
+        costPerUnit: 0,
+        isManufactured: Boolean(data.isManufactured),
         recipeIngredients: data.recipeIngredients && data.recipeIngredients.length > 0 ? {
           create: data.recipeIngredients.map(r => ({
             inputIngredientId: r.inputIngredientId,
@@ -39,7 +57,8 @@ class IngredientService {
             unit: r.unit
           }))
         } : undefined
-      }});
+      }
+    });
   }
 
   async getAllIngredients(query = {}) {
@@ -86,14 +105,20 @@ class IngredientService {
 
   async updateIngredient(id, data) {
     await this.getIngredientById(id);
-    
-    const updateData = { ...data };
-    
-    // Si viene la receta, actualizamos (borramos anteriores y creamos nuevas)
-    if (updateData.recipeIngredients !== undefined) {
-      const recipes = updateData.recipeIngredients;
-      delete updateData.recipeIngredients;
-      
+    const tenantId = getTenantId();
+
+    const updateData = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.unit !== undefined) updateData.unit = data.unit;
+    if (data.minStock !== undefined) updateData.minStock = parseFloat(data.minStock) || 0;
+    if (data.isManufactured !== undefined) updateData.isManufactured = Boolean(data.isManufactured);
+    if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+
+    // Si viene la receta, validamos pertenencia de insumos y actualizamos
+    if (data.recipeIngredients !== undefined) {
+      const recipes = Array.isArray(data.recipeIngredients) ? data.recipeIngredients : [];
+      await this._validateRecipeInputs(recipes, tenantId);
+
       updateData.recipeIngredients = {
         deleteMany: {},
         create: recipes.map(r => ({
@@ -129,7 +154,6 @@ class IngredientService {
     const hasHistory = (purchasesCount + movesCount + productionOrdersCount + productionConsumptionsCount) > 0;
 
     if (hasHistory) {
-      // DESACTIVACIÓN (Soft delete): se oculta del inventario activo pero se mantiene su historial contable
       await prisma.ingredient.update({
         where: { id },
         data: { isActive: false },
@@ -141,7 +165,6 @@ class IngredientService {
       };
     }
 
-    // Si NO tiene historial de compras, kárdex ni producción, se elimina permanentemente
     await prisma.ingredient.delete({ where: { id } });
     return {
       action: 'deleted',

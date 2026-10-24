@@ -14,16 +14,14 @@ router.use(protectRoute);
 // =======================
 
 // GET: Obtener todos los clientes
-// (Admins, Supervisores y Cajeros necesitan ver la lista para cobrar)
-router.get('/', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), customerController.getAll);
+// (Admins, Supervisores y Cajeros necesitan ver la lista para cobrar; Meseros para asociar a comandas)
+router.get('/', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO, ROLES.MESERO), customerController.getAll);
 router.put('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), customerController.edit);
 router.delete('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), customerController.delete);
-router.get('/:id/credits', customerController.getCustomerCredits);
-router.post('/:id/pay', customerController.payCustomerCredit);
+router.get('/:id/credits', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), customerController.getCustomerCredits);
+router.post('/:id/pay', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), customerController.payCustomerCredit);
 
 // POST: Crear un nuevo cliente
-// (Permitimos a los Cajeros crear clientes para que puedan registrarlos en el momento del cobro)
 router.post('/', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), customerController.create);
-
 
 module.exports = router;

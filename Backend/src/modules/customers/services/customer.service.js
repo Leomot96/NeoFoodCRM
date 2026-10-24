@@ -18,8 +18,12 @@ class CustomerService {
     try {
       const tenantId = getTenantId();
       const customerData = {
-        ...data,
-        ...(tenantId && !data.tenantId ? { tenantId } : {})
+        name: data.name,
+        document: data.document,
+        phone: data.phone || null,
+        email: data.email || null,
+        address: data.address || null,
+        ...(tenantId ? { tenantId } : {})
       };
       return await prisma.customer.create({ data: customerData });
     } catch (err) {
@@ -46,9 +50,16 @@ class CustomerService {
         }
       }
 
+      const allowedData = {};
+      if (data.name !== undefined) allowedData.name = data.name;
+      if (data.document !== undefined) allowedData.document = data.document;
+      if (data.phone !== undefined) allowedData.phone = data.phone;
+      if (data.email !== undefined) allowedData.email = data.email;
+      if (data.address !== undefined) allowedData.address = data.address;
+
       return await prisma.customer.update({
         where: { id },
-        data
+        data: allowedData
       });
     } catch (err) {
       if (err.code === 'P2002') {
@@ -83,13 +94,13 @@ class CustomerService {
   // =====================================
   async getCustomerCredits(customerId) {
     const tenantId = getTenantId();
-    if (tenantId) {
-      const customer = await prisma.customer.findFirst({
-        where: { id: customerId, tenantId }
-      });
-      if (!customer) {
-        return [];
-      }
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!customer) {
+      const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
+      error.statusCode = 404;
+      throw error;
     }
 
     return await prisma.customerCredit.findMany({
@@ -104,67 +115,83 @@ class CustomerService {
   }
 
   async payCustomerCredit(customerId, data, userId) {
-      const { amount, paymentMethodId, description, saleId } = data; // <-- Agregamos saleId para vincular a factura si viene del Frontend
-      const parsedAmount = parseFloat(amount);
+    const { amount, paymentMethodId, description, saleId } = data;
+    const parsedAmount = parseFloat(amount);
 
-      if (parsedAmount <= 0) {
-        const error = new Error('El abono debe ser mayor a 0');
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      const error = new Error('El abono debe ser mayor a 0');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const tenantId = getTenantId();
+
+    return await prisma.$transaction(async (tx) => {
+      const customer = await tx.customer.findFirst({
+        where: { id: customerId, ...(tenantId ? { tenantId } : {}) }
+      });
+      if (!customer) {
+        const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      // 1. Verificamos caja abierta del restaurante actual
+      const activeSession = await tx.cashSession.findFirst({
+        where: { userId: userId, status: 'OPEN', ...(tenantId ? { tenantId } : {}) }
+      });
+
+      if (!activeSession) {
+        const error = new Error('No tienes un turno de caja abierto. Abre caja antes de recibir pagos.');
         error.statusCode = 400;
         throw error;
       }
 
-      return await prisma.$transaction(async (tx) => {
-        // 1. Verificamos caja abierta
-        const activeSession = await tx.cashSession.findFirst({
-          where: { userId: userId, status: 'OPEN' }
-        });
+      // 2. Buscamos el nombre del método de pago verificando pertenencia al tenant
+      const paymentMethod = await tx.paymentMethod.findFirst({
+        where: { id: paymentMethodId, ...(tenantId ? { tenantId } : {}) }
+      });
+      if (!paymentMethod) {
+        const error = new Error('Método de pago inválido o no pertenece a este establecimiento');
+        error.statusCode = 400;
+        throw error;
+      }
 
-        if (!activeSession) {
-          const error = new Error('No tienes un turno de caja abierto. Abre caja antes de recibir pagos.');
-          error.statusCode = 400;
-          throw error;
+      const isCash = paymentMethod.name.toLowerCase().includes('efectivo') || paymentMethod.name.toLowerCase().includes('cash');
+
+      // 3. Registramos el abono en el historial del cliente
+      const credit = await tx.customerCredit.create({
+        data: {
+          customerId,
+          type: 'PAYMENT',
+          amount: parsedAmount,
+          description: description || 'Abono a cuenta',
+          paymentMethodId,
+          cashSessionId: activeSession.id,
+          saleId: saleId || null
         }
+      });
 
-        // 2. Buscamos el nombre del método de pago para saber si es Efectivo
-        const paymentMethod = await tx.paymentMethod.findUnique({
-          where: { id: paymentMethodId }
-        });
-        
-        const isCash = paymentMethod.name.toLowerCase().includes('efectivo') || paymentMethod.name.toLowerCase().includes('cash');
+      // 4. Descontamos la plata de su deuda total
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { balance: { decrement: parsedAmount } }
+      });
 
-        // 3. Registramos el abono en el historial del cliente
-        const credit = await tx.customerCredit.create({
+      // 5. SOLO suma dinero físico si pagaron en Efectivo
+      if (isCash) {
+        await tx.cashMovement.create({
           data: {
-            customerId,
-            type: 'PAYMENT',
-            amount: parsedAmount,
-            description: description || 'Abono a cuenta',
-            paymentMethodId,
             cashSessionId: activeSession.id,
-            saleId: saleId || null // Vinculamos a la factura si se abonó desde el módulo de Facturas
+            type: 'IN', 
+            amount: parsedAmount,
+            description: `Abono de cliente (${paymentMethod.name}): ${description || ''}`
           }
         });
+      }
 
-        // 4. Descontamos la plata de su deuda total
-        await tx.customer.update({
-          where: { id: customerId },
-          data: { balance: { decrement: parsedAmount } }
-        });
-
-        // 5. CORRECCIÓN: SOLO suma dinero físico si pagaron en Efectivo
-        if (isCash) {
-          await tx.cashMovement.create({
-            data: {
-              cashSessionId: activeSession.id,
-              type: 'IN', 
-              amount: parsedAmount,
-              description: `Abono de cliente (${paymentMethod.name}): ${description}`
-            }
-          });
-        }
-
-        return credit;
-      });
-    }
+      return credit;
+    });
+  }
 }
 module.exports = new CustomerService();

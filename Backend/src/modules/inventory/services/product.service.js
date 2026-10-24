@@ -4,6 +4,58 @@ const { getTenantId } = require("../../../context/tenantContext");
 const { compareProducts } = require("../../../utils/categoryOrder");
 
 class ProductService {
+  // Valida que categoryId y cualquier ingredientId/linkedProductId pertenezcan al tenant actual
+  async _validateTenantReferences(tenantId, data) {
+    if (!tenantId) return;
+    const { categoryId, ingredients, modifiers, additions } = data;
+
+    if (categoryId) {
+      const cat = await prisma.category.findFirst({ where: { id: categoryId, tenantId } });
+      if (!cat) {
+        throw Object.assign(new Error('La categoría seleccionada no pertenece a este establecimiento'), { statusCode: 400 });
+      }
+    }
+
+    const ingredientIds = new Set();
+    const linkedProductIds = new Set();
+
+    for (const ing of ingredients || []) {
+      if (ing.ingredientId && ing.ingredientId.trim() !== '') {
+        ingredientIds.add(ing.ingredientId);
+      }
+    }
+    for (const mod of modifiers || []) {
+      for (const opt of mod.options || []) {
+        if (opt.ingredientId) ingredientIds.add(opt.ingredientId);
+        if (opt.linkedProductId) linkedProductIds.add(opt.linkedProductId);
+        for (const oi of opt.ingredients || []) {
+          if (oi.ingredientId) ingredientIds.add(oi.ingredientId);
+        }
+      }
+    }
+    for (const add of additions || []) {
+      if (add.ingredientId) ingredientIds.add(add.ingredientId);
+    }
+
+    if (ingredientIds.size > 0) {
+      const count = await prisma.ingredient.count({
+        where: { id: { in: [...ingredientIds] }, tenantId }
+      });
+      if (count !== ingredientIds.size) {
+        throw Object.assign(new Error('Uno o más insumos de la receta no pertenecen a este establecimiento'), { statusCode: 400 });
+      }
+    }
+
+    if (linkedProductIds.size > 0) {
+      const count = await prisma.product.count({
+        where: { id: { in: [...linkedProductIds] }, tenantId }
+      });
+      if (count !== linkedProductIds.size) {
+        throw Object.assign(new Error('Uno o más productos vinculados no pertenecen a este establecimiento'), { statusCode: 400 });
+      }
+    }
+  }
+
   // =====================================
   // OBTENER TODOS LOS PRODUCTOS
   // =====================================
@@ -81,6 +133,8 @@ class ProductService {
   // =====================================
   async createProduct(data) {
     const tenantId = getTenantId();
+    await this._validateTenantReferences(tenantId, data);
+
     const {
       name,
       description,
@@ -117,7 +171,7 @@ class ProductService {
 
     return await prisma.product.create({
       data: {
-        ...(tenantId && !data.tenantId ? { tenantId } : {}),
+        ...(tenantId ? { tenantId } : {}),
         name,
         description,
         price,
@@ -208,6 +262,11 @@ class ProductService {
   // ACTUALIZAR PRODUCTO (REEMPLAZO TOTAL)
   // =====================================
   async updateProduct(id, data) {
+    const tenantId = getTenantId();
+    // Verificar pertenencia al tenant antes de eliminar sub-relaciones
+    await this.getProductById(id);
+    await this._validateTenantReferences(tenantId, data);
+
     const {
       name,
       description,
@@ -218,6 +277,7 @@ class ProductService {
       trackStock,
       isCombo,
       stock,
+      isAvailable,
       ingredients,
       modifiers,
       additions,
@@ -250,6 +310,7 @@ class ProductService {
           imageUrl: imageUrl !== undefined ? (imageUrl || null) : undefined,
           categoryId,
           showInStore: showInStore !== undefined ? Boolean(showInStore) : undefined,
+          isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : undefined,
           trackStock,
           isCombo: Boolean(isCombo),
           stock,

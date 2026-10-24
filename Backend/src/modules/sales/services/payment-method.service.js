@@ -6,8 +6,9 @@ class PaymentMethodService {
     const tenantId = getTenantId();
     return await prisma.paymentMethod.create({
       data: {
-        ...data,
-        ...(tenantId && !data.tenantId ? { tenantId } : {})
+        name: data.name,
+        isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
+        ...(tenantId ? { tenantId } : {})
       }
     });
   }
@@ -28,12 +29,17 @@ class PaymentMethodService {
   }
 
   async updatePaymentMethod(id, data) {
-    // Verificación de seguridad por si tu ID es Int o UUID (String)
     const parsedId = isNaN(id) ? id : parseInt(id);
-    
+    const allowedFields = ['name', 'isActive'];
+    const safeData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        safeData[key] = data[key];
+      }
+    }
     return await prisma.paymentMethod.update({
       where: { id: parsedId },
-      data,
+      data: safeData,
     });
   }
 

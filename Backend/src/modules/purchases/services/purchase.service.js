@@ -15,21 +15,38 @@ class PurchaseService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      if (supplierId) {
+        const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
+        if (!supplier) {
+          throw Object.assign(new Error('El proveedor seleccionado no pertenece a este establecimiento'), { statusCode: 404 });
+        }
+      }
+
       // 1. Calcular el costo total de la compra verificando los detalles
       let totalPurchaseCost = 0;
-      const processedDetails = details.map(detail => {
+      const processedDetails = [];
+      for (const detail of details) {
         const qty = parseFloat(detail.quantity);
         const cost = parseFloat(detail.unitCost);
+        if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(cost) || cost < 0) {
+          throw Object.assign(new Error('Cantidad o costo unitario inválido en el detalle de la compra'), { statusCode: 400 });
+        }
+
+        const ingExists = await tx.ingredient.findUnique({ where: { id: detail.ingredientId } });
+        if (!ingExists) {
+          throw Object.assign(new Error('Uno de los insumos seleccionados no pertenece a este establecimiento'), { statusCode: 404 });
+        }
+
         const total = qty * cost;
         totalPurchaseCost += total;
 
-        return {
+        processedDetails.push({
           ingredientId: detail.ingredientId,
           quantity: qty,
           unitCost: cost,
           totalCost: total
-        };
-      });
+        });
+      }
 
       // 2. Crear la Compra Principal
       const purchase = await tx.purchase.create({
@@ -199,7 +216,7 @@ class PurchaseService {
     const enrichedReport = await Promise.all(report.map(async (row) => {
       const supplier = await prisma.supplier.findUnique({ where: { id: row.supplierId }, select: { name: true } });
       return {
-        supplierName: supplier.name,
+        supplierName: supplier?.name || 'Proveedor',
         totalSpent: row._sum.totalCost
       };
     }));

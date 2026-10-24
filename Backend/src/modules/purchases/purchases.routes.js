@@ -5,6 +5,7 @@ const ROLES = require('../../constants/roles');
 
 const supplierController = require('./controllers/supplier.controller');
 const purchaseController = require('./controllers/purchase.controller');
+const purchaseService = require('./services/purchase.service');
 
 const router = express.Router();
 
