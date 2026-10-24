@@ -1,5 +1,15 @@
 import api from './api';
 
+const escapeHtml = (unsafe) => {
+  if (unsafe === null || unsafe === undefined) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 const DEFAULT_PRINTER_CONFIG = {
   paperWidth: '80mm',
   autoPrint: false,
@@ -63,32 +73,35 @@ export const printerService = {
     const width = printerConfig.paperWidth === '58mm' ? '58mm' : '80mm';
     const is58 = width === '58mm';
 
-    // Información del restaurante
+    // Información del restaurante (sanitizada contra XSS)
     const store = printerConfig.tenantInfo || {};
-    const businessName = store.name || sale.tenant?.name || 'NeoFood Restaurante';
-    const businessDoc = store.document || sale.tenant?.document || '';
-    const businessPhone = store.phone || sale.tenant?.phone || '';
-    const businessAddress = store.address || sale.tenant?.address || '';
-    const logoUrl = store.logoUrl || sale.tenant?.logoUrl || null;
+    const businessName = escapeHtml(store.name || sale.tenant?.name || 'NeoFood Restaurante');
+    const businessDoc = escapeHtml(store.document || sale.tenant?.document || '');
+    const businessPhone = escapeHtml(store.phone || sale.tenant?.phone || '');
+    const businessAddress = escapeHtml(store.address || sale.tenant?.address || '');
+    const rawLogoUrl = store.logoUrl || sale.tenant?.logoUrl || null;
+    const logoUrl = rawLogoUrl && (/^https?:\/\//i.test(rawLogoUrl) || rawLogoUrl.startsWith('/'))
+      ? escapeHtml(rawLogoUrl)
+      : null;
 
     // Información de la factura
-    const invoiceNumber = sale.invoiceNumber || `FRA-${Date.now().toString().slice(-6)}`;
+    const invoiceNumber = escapeHtml(sale.invoiceNumber || `FRA-${Date.now().toString().slice(-6)}`);
     const invoiceDate = sale.createdAt ? new Date(sale.createdAt).toLocaleString('es-CO') : new Date().toLocaleString('es-CO');
-    const cashierName = sale.order?.user?.name || sale.cashier || 'Caja Principal';
-    const tableName = sale.order?.table?.name || sale.tableName || (sale.order?.orderType === 'TAKE_AWAY' ? 'Para Llevar' : 'Mostrador');
+    const cashierName = escapeHtml(sale.order?.user?.name || sale.cashier || 'Caja Principal');
+    const tableName = escapeHtml(sale.order?.table?.name || sale.tableName || (sale.order?.orderType === 'TAKE_AWAY' ? 'Para Llevar' : 'Mostrador'));
     const orderType = sale.order?.orderType === 'DELIVERY' ? 'Domicilio' : (sale.order?.orderType === 'TAKE_AWAY' ? 'Para Llevar' : 'En Mesa');
 
     // Cliente
-    const customerName = sale.customer?.name || 'Consumidor final';
-    const customerDoc = sale.customer?.document || '222222222222';
-    const customerPhone = sale.customer?.phone || '';
+    const customerName = escapeHtml(sale.customer?.name || 'Consumidor final');
+    const customerDoc = escapeHtml(sale.customer?.document || '222222222222');
+    const customerPhone = escapeHtml(sale.customer?.phone || '');
 
     // Productos y totales
     const details = sale.details || sale.items || [];
     const totalAmount = parseFloat(sale.totalAmount || sale.finalAmount || 0);
     const discount = parseFloat(sale.discount || 0);
     const finalAmount = parseFloat(sale.finalAmount || (totalAmount - discount));
-    const paymentMethodName = sale.paymentMethod?.name || (typeof sale.paymentMethod === 'string' ? sale.paymentMethod : 'Efectivo');
+    const paymentMethodName = escapeHtml(sale.paymentMethod?.name || (typeof sale.paymentMethod === 'string' ? sale.paymentMethod : 'Efectivo'));
 
     const formatCurr = (num) => '$ ' + Math.round(parseFloat(num || 0)).toLocaleString('es-CO');
 
@@ -201,7 +214,7 @@ export const printerService = {
           ${businessDoc ? `<div>NIT: ${businessDoc}</div>` : ''}
           ${businessAddress ? `<div>${businessAddress}</div>` : ''}
           ${businessPhone ? `<div>Tel: ${businessPhone}</div>` : ''}
-          ${printerConfig.headerText ? `<div style="margin-top:3px; font-style:italic;">${printerConfig.headerText}</div>` : ''}
+          ${printerConfig.headerText ? `<div style="margin-top:3px; font-style:italic;">${escapeHtml(printerConfig.headerText)}</div>` : ''}
         </div>
 
         <div class="divider"></div>
@@ -213,12 +226,12 @@ export const printerService = {
         </div>
         <div class="info-line">
           <span>Fecha:</span>
-          <span>${invoiceDate}</span>
+          <span>${escapeHtml(invoiceDate)}</span>
         </div>
         ${printerConfig.showTable ? `
         <div class="info-line">
           <span>Ubicación:</span>
-          <span class="bold">${tableName} (${orderType})</span>
+          <span class="bold">${tableName} (${escapeHtml(orderType)})</span>
         </div>` : ''}
         ${printerConfig.showCashier ? `
         <div class="info-line">
@@ -257,9 +270,10 @@ export const printerService = {
           </thead>
           <tbody>
             ${details.map(d => {
-              const qty = d.quantity || d.qty || 1;
-              const name = d.product?.name || d.name || d.product || 'Producto';
-              const sub = parseFloat(d.subtotal || (qty * (d.unitPrice || 0)));
+              const rawQty = d.quantity || d.qty || 1;
+              const qty = escapeHtml(rawQty);
+              const name = escapeHtml(d.product?.name || d.name || d.product || 'Producto');
+              const sub = parseFloat(d.subtotal || (rawQty * (d.unitPrice || 0)));
               
               const variations = d.saleDetailVariations || d.variations || d.modifiers || [];
               const additions = d.saleDetailAdditions || d.additions || [];
@@ -269,9 +283,9 @@ export const printerService = {
                   <td class="bold">${qty}x</td>
                   <td>
                     <div class="bold">${name}</div>
-                    ${variations.length > 0 ? variations.map(v => `<div class="item-addon">• ${v.name || v.variation?.name || ''}</div>`).join('') : ''}
-                    ${additions.length > 0 ? additions.map(a => `<div class="item-addon">+ ${a.name || a.addition?.name || ''} (x${a.quantity || 1})</div>`).join('') : ''}
-                    ${d.notes ? `<div class="item-addon" style="font-style:italic;">Nota: ${d.notes}</div>` : ''}
+                    ${variations.length > 0 ? variations.map(v => `<div class="item-addon">• ${escapeHtml(v.name || v.variation?.name || '')}</div>`).join('') : ''}
+                    ${additions.length > 0 ? additions.map(a => `<div class="item-addon">+ ${escapeHtml(a.name || a.addition?.name || '')} (x${escapeHtml(a.quantity || 1)})</div>`).join('') : ''}
+                    ${d.notes ? `<div class="item-addon" style="font-style:italic;">Nota: ${escapeHtml(d.notes)}</div>` : ''}
                   </td>
                   <td class="text-right bold">${formatCurr(sub)}</td>
                 </tr>
@@ -304,7 +318,7 @@ export const printerService = {
           </tr>
           ${sale.payments.map(p => `
           <tr>
-            <td class="text-left" style="padding-left: 8px; font-size: ${is58 ? '9px' : '11px'}; color: #444;">• ${p.paymentMethod?.name || p.method || 'Pago'}:</td>
+            <td class="text-left" style="padding-left: 8px; font-size: ${is58 ? '9px' : '11px'}; color: #444;">• ${escapeHtml(p.paymentMethod?.name || p.method || 'Pago')}:</td>
             <td class="text-right" style="font-size: ${is58 ? '9px' : '11px'};">${formatCurr(p.amount)}</td>
           </tr>
           `).join('')}
@@ -320,7 +334,7 @@ export const printerService = {
 
         <!-- PIE DE PÁGINA -->
         <div class="text-center footer-section">
-          ${printerConfig.footerText ? `<div>${printerConfig.footerText}</div>` : ''}
+          ${printerConfig.footerText ? `<div>${escapeHtml(printerConfig.footerText)}</div>` : ''}
           <div style="margin-top: 6px; font-weight: bold; letter-spacing: 1px;">*** DOCUMENTO DE CONTROL INTERNO ***</div>
           <div style="font-size: 8px; color: #444; margin-top: 2px;">Software NeoFood POS v1.9.0</div>
         </div>
