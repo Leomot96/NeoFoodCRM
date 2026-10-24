@@ -70,7 +70,6 @@ class SaasService {
 
     const where = {};
 
-    // Filtro por búsqueda
     if (query.search && query.search.trim() !== '') {
       const term = query.search.trim();
       where.OR = [
@@ -81,12 +80,10 @@ class SaasService {
       ];
     }
 
-    // Filtro por estado
     if (query.status && query.status.trim() !== '' && query.status !== 'ALL') {
       where.status = query.status.trim().toUpperCase();
     }
 
-    // Filtro por plan
     if (query.planCode && query.planCode.trim() !== '' && query.planCode !== 'ALL') {
       where.plan = { code: query.planCode.trim() };
     }
@@ -138,7 +135,6 @@ class SaasService {
       })
     ]);
 
-    // Mapear ingresos por tenant
     const salesMap = {};
     salesByTenant.forEach(s => {
       if (s.tenantId) {
@@ -147,10 +143,8 @@ class SaasService {
     });
 
     const formattedTenants = tenants.map(t => {
-      // Identificar al creador (primer admin o primer usuario registrado)
       const creator = t.users.find(u => u.role?.name?.toLowerCase().includes('admin')) || t.users[0] || null;
 
-      // Calcular días restantes
       let daysRemaining = null;
       let isExpired = false;
       if (t.subscriptionEndsAt) {
@@ -215,22 +209,18 @@ class SaasService {
 
     const where = {};
 
-    // Filtro por restaurante / tenant específico (MUY IMPORTANTE)
     if (query.tenantId && query.tenantId.trim() !== '' && query.tenantId !== 'ALL') {
       where.tenantId = query.tenantId.trim();
     }
 
-    // Filtro por nombre
     if (query.name && query.name.trim() !== '') {
       where.name = { contains: query.name.trim() };
     }
 
-    // Filtro por correo
     if (query.email && query.email.trim() !== '') {
       where.email = { contains: query.email.trim() };
     }
 
-    // Búsqueda libre (nombre o correo)
     if (query.search && query.search.trim() !== '') {
       const term = query.search.trim();
       where.OR = [
@@ -346,7 +336,6 @@ class SaasService {
       _count: { id: true }
     });
 
-    // Identificar creador
     const creator = tenant.users.find(u => u.role?.name?.toLowerCase().includes('admin')) || tenant.users[0] || null;
 
     let daysRemaining = null;
@@ -455,12 +444,11 @@ class SaasService {
 
     const targetCycle = billingCycle || tenant.billingCycle || 'monthly';
 
-    // Determinar la nueva fecha de vencimiento
     let newEndsAt = null;
     if (customEndsAt) {
       newEndsAt = new Date(customEndsAt);
     } else {
-      let days = 30; // default mensual
+      let days = 30;
       if (typeof durationDays === 'number' && durationDays > 0) {
         days = durationDays;
       } else if (targetCycle === 'annual') {
@@ -471,7 +459,6 @@ class SaasService {
         days = 7;
       }
 
-      // Si aún no ha vencido, extendemos desde la fecha actual de fin o desde ahora
       const baseTime = (tenant.subscriptionEndsAt && new Date(tenant.subscriptionEndsAt) > new Date())
         ? new Date(tenant.subscriptionEndsAt).getTime()
         : Date.now();
@@ -538,11 +525,13 @@ class SaasService {
 
     // Ejecución transaccional en orden inverso de dependencias de Clave Foránea
     await prisma.$transaction(async (tx) => {
-      // 1. Eliminar relaciones de Ventas
+      // 1. Eliminar relaciones de Ventas y Pagos Divididos (SalePayment)
       const sales = await tx.sale.findMany({ where: { tenantId }, select: { id: true } });
       const saleIds = sales.map(s => s.id);
 
       if (saleIds.length > 0) {
+        await tx.salePayment.deleteMany({ where: { saleId: { in: saleIds } } });
+
         const saleDetails = await tx.saleDetail.findMany({
           where: { saleId: { in: saleIds } },
           select: { id: true }
@@ -588,8 +577,18 @@ class SaasService {
       }
       await tx.supplier.deleteMany({ where: { tenantId } });
 
-      // 6. Eliminar Movimientos de Inventario
+      // 6. Eliminar Movimientos de Inventario, Órdenes de Producción y Sub-Recetas
       await tx.inventoryMovement.deleteMany({ where: { tenantId } });
+      await tx.productionConsumption.deleteMany({ where: { productionOrder: { tenantId } } });
+      await tx.productionOrder.deleteMany({ where: { tenantId } });
+      await tx.ingredientRecipe.deleteMany({
+        where: {
+          OR: [
+            { outputIngredient: { tenantId } },
+            { inputIngredient: { tenantId } }
+          ]
+        }
+      });
 
       // 7. Eliminar Modificadores, Adiciones, Ingredientes de Productos y Productos
       const products = await tx.product.findMany({ where: { tenantId }, select: { id: true } });
@@ -701,7 +700,7 @@ class SaasService {
   }
 
   /**
-   * Restablece y limpia los datos de prueba transaccionales de los restaurantes demo (órdenes, ventas, turnos de caja)
+   * Restablece y limpia los datos de prueba transaccionales de los restaurantes demo (órdenes, ventas, turnos de caja, cartera y producción)
    */
   async resetDemoTenants() {
     const demoSlugs = ['demo-pizzeria', 'demo-cafe', 'demo-parrilla', 'demo-gastrobar', 'demo-rapidas'];
@@ -714,6 +713,11 @@ class SaasService {
     if (tenantIds.length === 0) return { count: 0, message: 'No hay tenants demo configurados' };
 
     await prisma.$transaction(async (tx) => {
+      // 0. Limpiar créditos y órdenes de producción de prueba
+      await tx.customerCredit.deleteMany({ where: { customer: { tenantId: { in: tenantIds } } } });
+      await tx.productionConsumption.deleteMany({ where: { productionOrder: { tenantId: { in: tenantIds } } } });
+      await tx.productionOrder.deleteMany({ where: { tenantId: { in: tenantIds } } });
+
       // 1. Eliminar ventas y pagos de prueba
       const sales = await tx.sale.findMany({
         where: { tenantId: { in: tenantIds } },
@@ -724,7 +728,6 @@ class SaasService {
         await tx.salePayment.deleteMany({ where: { saleId: { in: saleIds } } });
         await tx.saleDetailAddition.deleteMany({ where: { saleDetail: { saleId: { in: saleIds } } } });
         await tx.saleDetailVariation.deleteMany({ where: { saleDetail: { saleId: { in: saleIds } } } });
-        await tx.saleDetail.deleteMany({ where: { saleDetail: { saleId: { in: saleIds } } } }).catch(() => {});
         await tx.saleDetail.deleteMany({ where: { saleId: { in: saleIds } } });
         await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
       }
@@ -752,10 +755,14 @@ class SaasService {
         await tx.cashSession.deleteMany({ where: { id: { in: sessionIds } } });
       }
 
-      // 4. Liberar todas las mesas
+      // 4. Liberar todas las mesas y restablecer saldo de clientes a 0
       await tx.table.updateMany({
         where: { tenantId: { in: tenantIds } },
         data: { isActive: true }
+      });
+      await tx.customer.updateMany({
+        where: { tenantId: { in: tenantIds } },
+        data: { balance: 0 }
       });
     });
 

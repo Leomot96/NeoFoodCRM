@@ -17,7 +17,7 @@ const reportsRoutes = require('./modules/reports/reports.routes');
 const customersRoutes = require('./modules/customers/customers.routes');
 const usersRoutes = require('./modules/users/users.routes'); 
 const tablesRoutes = require('./modules/tables/tables.routes'); 
-const invoicesRoutes = require('./modules/invoices/invoices.route'); // <-- Nuevo
+const invoicesRoutes = require('./modules/invoices/invoices.route');
 const saasRoutes = require('./modules/saas/saas.routes');
 const storeRoutes = require('./modules/store/store.routes');
 const kitchenRoutes = require('./modules/kitchen/kitchen.routes');
@@ -26,14 +26,45 @@ const configRoutes = require('./modules/config/config.routes');
 
 const app = express();
 
-app.use((req, res, next) => {
-  console.log(">>", req.method, req.originalUrl);
-  next();
-});
+// Confiar en el primer proxy inverso (Render, Railway, Cloudflare, Nginx) para que express-rate-limit identifique la IP real del cliente
+app.set('trust proxy', 1);
 
-// Habilitar CORS en primer lugar para que todas las respuestas (incluso errores o 429) tengan los headers permitidos
+if (process.env.NODE_ENV === 'development') {
+  app.use((req, res, next) => {
+    console.log(">>", req.method, req.originalUrl);
+    next();
+  });
+}
+
+// Lista blanca de orígenes permitidos por CORS (configurable mediante CORS_ORIGINS)
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'https://neofood.vercel.app',
+  'capacitor://localhost',
+  'http://localhost',
+  'https://localhost'
+];
+const envOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : [];
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...envOrigins]);
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    // Permitir peticiones sin Origin (apps móviles nativas, curl, healthchecks) o en desarrollo local / orígenes autorizados
+    if (
+      !origin ||
+      process.env.NODE_ENV === 'development' ||
+      allowedOrigins.has(origin) ||
+      /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origen no permitido por la política CORS'));
+  },
   credentials: true
 }));
 
@@ -42,21 +73,25 @@ app.use(helmet({
   crossOriginResourcePolicy: false
 }));
 
-// Servir archivos estáticos subidos (fotos de productos, logos, etc.)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Servir archivos estáticos subidos con cabeceras de aislamiento para evitar ejecución de scripts
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // Rate Limiting (Prevenir ataques de fuerza bruta)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: process.env.NODE_ENV === 'development' ? 10000 : 1000, // Límite amplio en desarrollo para no bloquear el uso normal
-  skip: () => process.env.NODE_ENV === 'development', // Omitir límite en desarrollo
+  max: process.env.NODE_ENV === 'development' ? 10000 : 1000,
+  skip: () => process.env.NODE_ENV === 'development',
   message: { success: false, message: 'Demasiadas peticiones desde esta IP, intente más tarde.' }
 });
 app.use('/api/', limiter);
 
 const tenantMiddleware = require('./middlewares/tenant.middleware');
 
-app.use(express.json({ limit: '10mb' })); // Limitar el tamaño del body permitiendo imágenes
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 if (process.env.NODE_ENV === 'development') {
@@ -78,7 +113,7 @@ app.use(`${API_PREFIX}/reports`, reportsRoutes);
 app.use(`${API_PREFIX}/customers`, customersRoutes); 
 app.use(`${API_PREFIX}/users`, usersRoutes); 
 app.use(`${API_PREFIX}/tables`, tablesRoutes);
-app.use(`${API_PREFIX}/invoices`, invoicesRoutes); // <-- Nuevo
+app.use(`${API_PREFIX}/invoices`, invoicesRoutes);
 app.use(`${API_PREFIX}/saas`, saasRoutes);
 app.use(`${API_PREFIX}/store`, storeRoutes);
 app.use(`${API_PREFIX}/kitchen`, kitchenRoutes);
@@ -90,11 +125,6 @@ app.all('*', (req, res, next) => {
   const err = new Error(`Ruta no encontrada: ${req.originalUrl}`);
   err.statusCode = 404;
   next(err);
-});
-
-app.use((req, res, next) => {
-  console.log("Terminó la ruta:", req.method, req.originalUrl);
-  next();
 });
 
 // Manejador global de errores
