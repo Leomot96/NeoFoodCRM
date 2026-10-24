@@ -6,7 +6,7 @@
 <div align="center">
 
 ![NeoFood](https://img.shields.io/badge/NeoFood-Manual%20de%20Usuario-4f46e5?style=for-the-badge)
-![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.8.1-10b981?style=for-the-badge)
+![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.9.0-10b981?style=for-the-badge)
 ![Autor](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
 
 </div>
@@ -47,6 +47,19 @@
 1. Abre tu navegador web e ingresa a la dirección web asignada (por defecto `http://localhost:5173/login`).
 2. Digita tu **Correo Electrónico** y **Contraseña**.
 3. Presiona el botón **"Iniciar Sesión"**.
+
+### Cuentas de Demostración en Vivo (Demos):
+En la pantalla de inicio de sesión dispones de **5 botones de acceso rápido** para explorar NeoFood con catálogos, mesas e inventarios precargados:
+- **Pizzería:** `pizzeria@demo.com` (14 platos con variantes de masa y tamaño).
+- **Cafetería:** `cafe@demo.com` (15 bebidas de especialidad y opciones de leche).
+- **Parrilla:** `parrilla@demo.com` (10 cortes premium con términos de cocción).
+- **Gastrobar:** `gastrobar@demo.com` (13 cervezas y platos para compartir).
+- **Rápidas:** `rapidas@demo.com` (11 combos y papas especiales).
+- **Contraseña Universal Demo:** `demo1234`.
+
+> [!NOTE]
+> - **Deselección con 1 Clic:** Si haces clic en el botón del demo activo, los campos se vaciarán automáticamente para que ingreses tus credenciales personalizadas sin borrar manualmente.
+> - **Seguridad & Auto-Reset:** Las cuentas demo están protegidas contra cambio de clave y eliminación de establecimiento. Cada **24 horas** se ejecuta una tarea de auto-reseteo que limpia ventas y pedidos de prueba para mantener la experiencia siempre óptima.
 
 ### Barra Lateral de Navegación (Sidebar):
 La barra lateral está organizada en **4 dominios operativos** a un solo clic de distancia:

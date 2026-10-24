@@ -3,7 +3,7 @@
 <div align="center">
 
 ![NeoFood Banner](https://img.shields.io/badge/NeoFood-SaaS%20%26%20POS-4f46e5?style=for-the-badge&logoColor=white)
-![Version](https://img.shields.io/badge/Versi%C3%B3n-1.8.1-10b981?style=for-the-badge)
+![Version](https://img.shields.io/badge/Versi%C3%B3n-1.9.0-10b981?style=for-the-badge)
 ![MultiTenant](https://img.shields.io/badge/Arquitectura-Multi--Tenant-blueviolet?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Estado-Producci%C3%B3n-blue?style=for-the-badge)
 ![Author](https://img.shields.io/badge/Creador-Leonardo%20Ramirez-8b5cf6?style=for-the-badge)
@@ -16,6 +16,7 @@
 
 [Manual de Usuario](MANUAL_DE_USUARIO.md) •
 [Certificado de Autoría](CERTIFICATE.md) •
+[Novedades v1.9.0](#-novedades-de-la-versión-190) •
 [Novedades v1.8.1](#-novedades-de-la-versión-181) •
 [Novedades v1.8.0](#-novedades-de-la-versión-180) •
 [Novedades v1.7.6](#-novedades-de-la-versión-176) •
@@ -56,7 +57,53 @@ Diseñado bajo principios de **arquitectura modular limpia**, **100% CSS Nativo*
 
 ---
 
-## 🆕 Novedades de la Versión 1.8.1
+## 🆕 Novedades de la Versión 1.9.0
+
+### Demos en Vivo Multicategoría, Auto-Reset Programado, Landing Interactiva & Optimización de Login
+1. **5 Restaurantes Demos en Vivo con Cartas y Datos Reales:**
+   - **Bella Napoli Pizzería (`pizzeria@demo.com`):** 14 platos con variantes de tamaño (personal/mediana/familiar), bordes de queso mozzarella, pastas artesanales y 8 mesas activas.
+   - **Café Origen & Brunch (`cafe@demo.com`):** 15 bebidas de especialidad y brunch con opciones de leche (entera/deslactosada/almendras) y tienda virtual con WhatsApp.
+   - **Fuego Criollo Parrilla (`parrilla@demo.com`):** 10 cortes premium, términos de cocción (término medio, tres cuartos, bien asado), guarniciones y distribución salón/terraza.
+   - **La Taberna Gastrobar (`gastrobar@demo.com`):** 13 cervezas de barril en pintas/jarras, alitas con salsas de autor, nachos supremos y KDS de cocina en tiempo real.
+   - **Burger & Shake Rápidas (`rapidas@demo.com`):** 11 combos de hamburguesas dobles, perros calientes y papas cargadas.
+   - Contraseña universal de demostración: `demo1234`.
+2. **Script de Siembra Automática & Exportación Excel:**
+   - Script `seed_demo_tenants.js` para aprovisionar los 5 establecimientos de prueba con mesas, productos, modificadores y usuarios.
+   - Script `generate_demo_excel.js` que genera el archivo [`NeoFood_Cuentas_Demo.xlsx`](NeoFood_Cuentas_Demo.xlsx) con hojas de *Cuentas_Demo* y *Catalogo_Muestra*.
+3. **Seguridad y Reseteo Automático de Demos (24 Horas):**
+   - **Protección de Identidad:** Las cuentas `@demo.com` están blindadas contra cambio de contraseñas, cambio de email o eliminación por parte de usuarios externos.
+   - **Protección de Establecimientos:** Bloqueo en `deleteTenantPermanently` para impedir el borrado accidental de las sedes demo.
+   - **Auto-Reset Programado:** Tarea periódica en `server.js` que se ejecuta cada 24 horas (`resetDemoTenants()`) para limpiar órdenes temporales, ventas y turnos de caja acumulados, manteniendo el catálogo y las mesas impecables.
+   - **Endpoint para SuperAdmin:** Ruta protegida `POST /api/saas/demos/reset` para forzar la limpieza en cualquier momento con autenticación JWT.
+4. **Hero Mockup Interactivo Multimódulo en la Landing:**
+   - Ventana interactiva que renderiza una simulación visual fidedigna de la interfaz según la pestaña seleccionada:
+     - `POS & Salón`: Mapa interactivo de mesas con código de color (ocupada, libre, cuenta, en cocina) y panel de comanda activa con botón de cobro directo.
+     - `Cocina (KDS)`: Comandas digitales en tiempo real con temporizadores de atención (*hace 6 min / Urgente*), modificadores de platos y botones de despacho.
+     - `Tienda Virtual`: Menú digital adaptado para smartphones con selección de productos y barra flotante de confirmación a WhatsApp sin comisiones.
+     - `Caja & Turnos`: Resumen del turno #142 con desglose de base, efectivo, pagos electrónicos, historial de cobros/gastos y cierre ciego.
+     - `Inventario CMP`: Stock de materias primas con alertas de mínimo y deducción automática por lotes de sub-recetas elaboradas.
+     - `Reportes PDF`: Balance financiero consolidado (Ventas, COGS, Margen del 68.8%), gráfica semanal y botón de descarga de PDF.
+5. **Sección de Demos en Vivo en la Landing (`#demos`):**
+   - Tarjetas temáticas con paleta de color para cada categoría gastronómica, botón para probar el POS con 1 solo clic y enlace directo a su tienda virtual (`/tienda/demo-...`).
+6. **Rediseño Responsivo del Header & Navegación:**
+   - **Escritorio:** Header extendido al 95% (`max-width: 1560px`) con cápsula translúcida *glassmorphism*, enlaces individuales sin quiebres de línea (`white-space: nowrap`) y botones pulidos (*Iniciar Sesión* y *Prueba 7 Días Gratis*).
+   - **Móvil:** Barra principal optimizada con logotipo e iconos de acción, acompañada de una segunda fila con desplazamiento táctil horizontal (*pills slider*) para navegar entre secciones sin amontonamiento.
+   - **Scroll al Inicio:** Al pulsar el logotipo en el navbar se produce un desplazamiento suave al inicio superior de la Landing.
+7. **Módulo de Login Ergonómico (Sin Scroll Vertical):**
+   - Selector rápido con los 5 demos en una sola línea horizontal (`repeat(5, 1fr)`).
+   - **Deselección Interactiva:** Al pulsar nuevamente sobre el demo activo se vacían los campos para escribir credenciales propias sin fricción.
+   - Ancho restringido de los campos de entrada (`max-width: 23rem`) para evitar que se vean desproporcionadamente anchos, con espaciado vertical compacto para verse 100% visible en cualquier pantalla sin necesidad de scroll.
+8. **SEO Técnico & Cabeceras de Seguridad:**
+   - Metadatos Open Graph y Twitter Cards completos en `index.html`.
+   - Datos estructurados Schema.org JSON-LD (`SoftwareApplication`).
+   - Contenido rastreable noscript con encabezado `<h1>`.
+   - Cabeceras de protección en `vercel.json`: `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`.
+9. **Cero Emojis:**
+   - Adopción estricta de iconos vectoriales SVG de `lucide-react` en toda la interfaz de la Landing y Login.
+
+---
+
+## 🌟 Novedades Anteriores (Versión 1.8.1)
 
 ### Aplicación Móvil Android (Capacitor), Gestión de Cartera Móvil y Control de Abonos
 1. **Lanzamiento de NeoFood Móvil (`/mobile`):** Aplicación Android nativa construida con Capacitor y React 18, diseñada para meseros, cajeros y administradores en salón.

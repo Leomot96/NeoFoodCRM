@@ -3,6 +3,56 @@
 Todos los cambios relevantes de este proyecto quedan documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) y usa versionado [Semántico](https://semver.org/lang/es/).
 
+## [1.9.0] — 2026-10-24
+
+### Añadido
+
+#### Demos en Vivo Multicategoría & Siembra de Datos
+- **5 Restaurantes Demos en Vivo con Menús y Datos Reales:**
+  - **Bella Napoli Pizzería (`pizzeria@demo.com`):** 14 platos con variantes de masa, tamaño y bordes de queso, pastas artesanales y 8 mesas en salón.
+  - **Café Origen & Brunch (`cafe@demo.com`):** 15 bebidas de especialidad, opciones de leche vegetal y tienda virtual con catálogo para WhatsApp.
+  - **Fuego Criollo Parrilla (`parrilla@demo.com`):** 10 cortes premium con términos de cocción (término medio, tres cuartos, bien asado), guarniciones y áreas diferenciadas salón/terraza.
+  - **La Taberna Gastrobar (`gastrobar@demo.com`):** 13 cervezas artesanales en pinta y jarra, alitas con salsas de autor, nachos supremos y pantalla KDS para bar/cocina.
+  - **Burger & Shake Rápidas (`rapidas@demo.com`):** 11 combos de hamburguesas dobles, perros calientes y papas cargadas.
+  - Contraseña universal de demostración: `demo1234`.
+- **Script de Siembra Automática (`scripts/seed_demo_tenants.js`):** Poblador idempotente que aprovisiona los 5 establecimientos de prueba con mesas, categorías, productos, modificadores, opciones y usuarios.
+- **Exportador a Excel (`scripts/generate_demo_excel.js`):** Generador de hoja de cálculo oficial [`NeoFood_Cuentas_Demo.xlsx`](NeoFood_Cuentas_Demo.xlsx) con hojas formateadas para *Cuentas_Demo* y *Catalogo_Muestra*.
+
+#### Seguridad, Blindaje y Tarea Programada de Auto-Reset
+- **Protección de Cuentas Demo:** Blindaje en controladores de autenticación y usuarios para impedir cambio de contraseña, modificación de correo electrónico o eliminación de perfiles pertenecientes al dominio `@demo.com`.
+- **Protección de Establecimientos:** Bloqueo en `deleteTenantPermanently` para garantizar que las sedes de demostración no puedan ser eliminadas accidentalmente.
+- **Auto-Reset Periódico cada 24 Horas:** Tarea programada en `server.js` (`resetDemoTenants()`) que purga automáticamente ventas acumuladas, órdenes temporales y turnos de caja de prueba, restableciendo el catálogo e inventario al estado base.
+- **Endpoint Administrativo de Limpieza:** Ruta autenticada `POST /api/saas/demos/reset` restringida a *SuperAdmin* para forzar el reinicio de las demos bajo demanda.
+
+#### Landing Page Interactiva & Mockup de 6 Módulos
+- **Hero Mockup Interactivo Multimódulo:** Interfaz dinámica en la cabecera que simula fielmente la operación real de NeoFood según la pestaña elegida:
+  - `POS & Salón`: Cuadrícula de mesas con estados (ocupada, libre, cuenta, cocina) y comanda activa con botón de cobro.
+  - `Cocina (KDS)`: Comandas digitales con temporizadores de urgencia (*hace 6 min / Urgente*), modificadores de platos y botones de despacho.
+  - `Tienda Virtual`: Menú digital mobile-friendly con botón flotante de confirmación de pedido a WhatsApp sin comisiones.
+  - `Caja & Turnos`: Cuadre del turno #142 con desglose de base, efectivo, pagos digitales y arqueo ciego.
+  - `Inventario CMP`: Stock de materias primas con alertas de mínimo y deducción automática por lotes elaborados.
+  - `Reportes PDF`: Balance financiero consolidado (Ventas, COGS, Margen del 68.8%), gráfica semanal y botón de descarga de PDF.
+- **Sección de Demos en Vivo (`#demos`):** Tarjetas temáticas con paleta de color para cada tipo de negocio gastronómico, acceso directo al POS con 1 clic y enlace a su tienda virtual (`/tienda/demo-...`).
+- **Navegación y Header Responsivo:**
+  - *Escritorio:* Barra translúcida al 95% del ancho de pantalla (`max-width: 1560px`) con efecto glassmorphism, enlaces de navegación en una sola línea y botones de acción rápida.
+  - *Móvil:* Logotipo principal con fila inferior de botones deslizables (*pills slider*) para desplazamiento táctil sin saturar la pantalla.
+  - *Scroll al Inicio:* Clic en el logotipo desplaza suavemente la página hacia el encabezado principal.
+
+#### Optimización Ergonómica de Login
+- **Selector Rápido de Demos:** 5 botones horizontales en una sola fila (`repeat(5, 1fr)`) que precargan credenciales al instante.
+- **Deselección con 1 Clic:** Al pulsar sobre el demo actualmente seleccionado, los campos se vacían automáticamente para escribir credenciales propias sin fricción.
+- **Diseño sin Scroll Vertical:** Ancho de inputs acotado a `23rem` y márgenes verticales optimizados para que el formulario se aprecie íntegramente en cualquier resolución de pantalla sin requerir desplazamiento.
+
+#### SEO Técnico y Cabeceras de Seguridad
+- **Metadatos Open Graph y Twitter Cards:** Integración completa de etiquetas sociales con títulos, descripciones, previsualización de imágenes y URL canónica.
+- **Datos Estructurados Schema.org JSON-LD:** Definición formal de tipo `SoftwareApplication` para indexación enriquecida en motores de búsqueda.
+- **Accesibilidad y Crawlers:** Encabezado semántico `<h1>` en bloque `<noscript>` para indexación SEO sin javascript.
+- **Cabeceras HTTP en `vercel.json`:** `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`.
+- **Iconografía 100% SVG:** Migración total de emojis en código de interfaz a iconos vectoriales limpios de `lucide-react`.
+
+### Modificado
+- **Sincronización Global de Versiones a v1.9.0:** Actualización de versiones en `package.json` de frontend, backend y móvil, manual de usuario, certificado de autoría y README.
+
 ## [1.8.1] — 2026-10-20
 
 ### Añadido
