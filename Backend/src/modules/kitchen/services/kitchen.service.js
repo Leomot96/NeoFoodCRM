@@ -161,11 +161,61 @@ class KitchenService {
 
     for (const item of items) {
       const prodId = item.productId || item.product?.id || item.id;
-      const product = await prisma.product.findUnique({ where: { id: prodId } });
-      if (!product) continue;
+      const product = await prisma.product.findFirst({
+        where: { id: prodId, tenantId },
+        include: {
+          modifiers: { include: { options: true } },
+          additions: true
+        }
+      });
+      if (!product) {
+        throw Object.assign(new Error('Uno de los productos seleccionados no existe en este restaurante'), { statusCode: 404 });
+      }
 
-      const quantity = parseInt(item.quantity, 10) || 1;
-      const unitPrice = parseFloat(item.finalPrice || item.unitPrice || item.price || product.price);
+      const quantity = parseInt(item.quantity, 10);
+      if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 500) {
+        throw Object.assign(new Error(`Cantidad inválida para el producto ${product.name}`), { statusCode: 400 });
+      }
+
+      const validOptionMap = new Map();
+      for (const mod of product.modifiers || []) {
+        for (const opt of mod.options || []) {
+          validOptionMap.set(opt.id, opt);
+        }
+      }
+      const validAdditionMap = new Map((product.additions || []).map(a => [a.id, a]));
+
+      let unitPrice = parseFloat(product.price);
+      const rawMods = Array.isArray(item.modifiers) ? item.modifiers : (Array.isArray(item.variations) ? item.variations : []);
+      const verifiedMods = [];
+      for (const m of rawMods) {
+        const optId = m.id || m.optionId;
+        const dbOpt = optId ? validOptionMap.get(optId) : null;
+        const extra = dbOpt ? parseFloat(dbOpt.priceExtra || 0) : 0;
+        unitPrice += extra;
+        verifiedMods.push({
+          ...m,
+          name: dbOpt ? dbOpt.name : m.name,
+          priceExtra: extra
+        });
+      }
+
+      const rawAdds = Array.isArray(item.additions) ? item.additions : [];
+      const verifiedAdds = [];
+      for (const a of rawAdds) {
+        const addId = a.id || a.additionId;
+        const dbAdd = addId ? validAdditionMap.get(addId) : null;
+        const addQty = Math.max(1, parseInt(a.quantity, 10) || 1);
+        const addPrice = dbAdd ? parseFloat(dbAdd.price || 0) : 0;
+        unitPrice += addPrice * addQty;
+        verifiedAdds.push({
+          ...a,
+          name: dbAdd ? dbAdd.name : a.name,
+          price: addPrice,
+          quantity: addQty
+        });
+      }
+
       const subtotal = quantity * unitPrice;
       totalAmount += subtotal;
 
@@ -175,8 +225,8 @@ class KitchenService {
         unitPrice,
         subtotal,
         notes: item.notes || null,
-        modifiers: item.modifiers || item.variations || [],
-        additions: item.additions || []
+        modifiers: verifiedMods,
+        additions: verifiedAdds
       });
     }
 
