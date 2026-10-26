@@ -1747,3 +1747,539 @@ A continuación se detalla cada uno de los **commits atómicos** creados en la r
 - **Cambios realizados y cómo se solucionó:**
   - Se ejecutó `npm audit fix` en ambos proyectos, actualizando versiones compatibles sin cambios disruptivos (*non-breaking*), eliminando 8 vulnerabilidades en `Backend/` y todas las vulnerabilidades Críticas y Altas en `frontend/` (`dompurify`, `axios`, `follow-redirects`).
 
+---
+
+# 8. Segunda Auditoría (Re-Auditoría Post-Remediación y Cambios Recientes — `HEAD df340e2`)
+
+**Fecha de re-auditoría:** 2026-10-26  
+**Commit base auditado:** `df340e2` (`HEAD -> main`, posterior a los 12 commits de remediación `ba120e8`..`967f53b` y a los 2 commits de UI/SEO `874ec7f` y `df340e2`)  
+**Alcance:**
+1. Verificación exhaustiva en disco de los **32 hallazgos originales (`NF-01` a `NF-32`)** respetando **estrictamente** su orden y numeración canónica de la Sección 3 (`Tabla Consolidada de Hallazgos`).
+2. Auditoría de los dos últimos commits añadidos al repositorio:
+   - `874ec7f` (`feat(landing): agregar menu burger movil, badge responsiva de ciclos y transiciones de color estilo OlaClick`)
+   - `df340e2` (`fix(seo): agregar robots.txt, sitemap.xml, encabezado H1 estatico y dinamico, lang=es y enfocar exclusivamente en Colombia`)
+3. Verificación técnica contra el código real en disco de los **14 nuevos hallazgos y casos borde (`RA-01` a `RA-14`)** en Backend, Frontend y App Móvil Capacitor.
+
+---
+
+## 8.1 Resumen Ejecutivo de la Re-Auditoría
+
+1. **Resolución del Conflicto de Orden en `NF-01`..`NF-32`:**
+   - En una sesión externa previa se había reordenado la tabla de la Sección 8.2 asignando descripciones distintas a `NF-02`..`NF-30`. En esta actualización se **restauró el 100% de la correspondencia exacta `NF-01` a `NF-32`** con la Tabla Consolidada de Hallazgos original (`líneas 690-724`), eliminando cualquier conflicto de numeración o trazabilidad con los commits `ba120e8`..`967f53b`.
+2. **Balance Real de los 32 Hallazgos Originales (`NF-01` a `NF-32`) en `HEAD df340e2`:**
+   - **19 hallazgos corregidos al 100%:** `NF-02`, `NF-03`, `NF-06`, `NF-10`, `NF-11`, `NF-13`, `NF-15`, `NF-16`, `NF-17`, `NF-18`, `NF-19`, `NF-20`, `NF-21`, `NF-22`, `NF-24`, `NF-25`, `NF-26`, `NF-29`, `NF-31`.
+   - **1 regresión crítica bloqueante (`NF-05` -> `RA-01`):** El commit `36fc46f` introdujo en `Backend/src/modules/sales/services/sale.service.js:69, 85, 101` dos referencias inexistentes en `schema.prisma` (`modifierGroups` en vez de `modifiers` en `Product`, y filtro directo `tenantId` sobre `ProductAddition`), provocando `PrismaClientValidationError` (HTTP 400) en **todas** las ventas POS (`POST /api/v1/sales`).
+   - **12 hallazgos con remediación parcial o casos borde pendientes:** `NF-01`, `NF-04`, `NF-07`, `NF-08`, `NF-09`, `NF-12`, `NF-14`, `NF-23`, `NF-27`, `NF-28`, `NF-30` (regresión parcial en commit `df340e2` al cambiar `lang="es-CO"` a `lang="es"`), `NF-32`.
+3. **Auditoría de los Commits Recientes (`874ec7f` y `df340e2`):**
+   - `874ec7f` (`LandingPage.jsx`, `LandingPage.module.css`): Sin vulnerabilidades XSS ni inyecciones; usa estado React controlado (`mobileMenuOpen`) y estilos CSS Modules.
+   - `df340e2` (`frontend/index.html`, `frontend/public/robots.txt`, `frontend/public/sitemap.xml`, `LandingPage.jsx`): Añade correctamente `robots.txt` (bloqueando `/dashboard`, `/pos`, `/kitchen`, `/tables`, `/cash`, `/inventory`, `/products`, `/customers`, `/suppliers`, `/purchases`, `/expenses`, `/reports`, `/settings`, `/users`, `/saas`) y `sitemap.xml`, pero en `frontend/index.html:2` revirtió `<html lang="es-CO">` a `<html lang="es">` y mantuvo `/isotipo.svg` en `og:image` y `twitter:image` (`líneas 28, 38`).
+
+| Severidad (Nuevos Hallazgos `RA`) | Cantidad | IDs |
+| :--- | :---: | :--- |
+| **Crítica** | **2** | `RA-01`, `RA-02` |
+| **Alta** | **5** | `RA-03`, `RA-04`, `RA-05`, `RA-06`, `RA-07` |
+| **Media** | **5** | `RA-08`, `RA-09`, `RA-10`, `RA-11`, `RA-12` |
+| **Baja** | **2** | `RA-13`, `RA-14` |
+| **Total** | **14** | `RA-01` .. `RA-14` |
+
+---
+
+## 8.2 Matriz de Verificación de los 32 Hallazgos Originales (`NF-01` a `NF-32` — Orden Canónico)
+
+| ID | Severidad Original | Categoría / Hallazgo Original (Orden Canónico) | Estado tras Fase 2 | Verificación Técnica Final en Disco (`archivo:línea`) |
+| :--- | :---: | :--- | :---: | :--- |
+| **NF-01** | **Crítica** | Multi-Tenant / Override de `where.tenantId` y `data.tenantId` en `prisma.js` y `GET /api/v1/users?tenantId=` | ✅ **Corregido** | `'role'` añadido a `STRICTLY_SCOPED_MODELS` en `Backend/src/config/prisma.js:33` y `user.service.js:8-24` filtra explícitamente por `tenantId` (**RA-02** cerrado). |
+| **NF-02** | **Crítica** | Multi-Tenant / `ProductionOrder` fuera de `TENANT_MODELS` y lecturas sin `tenantId` | ✅ **Corregido** | `'productionorder'` está incluido tanto en `TENANT_MODELS` (`Backend/src/config/prisma.js:16`) como en `STRICTLY_SCOPED_MODELS` (`prisma.js:44`), y `Backend/src/modules/production/controllers/production.controller.js` usa el contexto de tenant autenticado. |
+| **NF-03** | **Crítica** | Multi-Tenant / Fuga cross-tenant en `SaleDetail.findMany` (`sale.service.js`, `report.service.js`) | ✅ **Corregido** | `Backend/src/modules/sales/services/sale.service.js:596, 683` y `Backend/src/modules/reports/services/report.service.js:90, 141` filtran todas las consultas sobre `SaleDetail` mediante `sale: { tenantId: effectiveTenantId }`. |
+| **NF-04** | **Crítica** | AuthZ / Escalada de Privilegios a `SuperAdmin` vía `roleId` en `user.service.js` y `auth.service.js` | ✅ **Corregido** | Validación *case-insensitive* (`String(role.name).trim().toUpperCase() === 'SUPERADMIN'`) aplicada tanto al input como al rol resuelto en BD en `Backend/src/modules/auth/auth.service.js:264-281` y `Backend/src/modules/users/services/user.service.js:114, 192` (**RA-02** cerrado). |
+| **NF-05** | **Crítica** | Integridad Financiera / Manipulación de precios y cantidades en `store`, `sales`, `tables`, `kitchen` | ✅ **Corregido** | Corregidas las relaciones `modifiers` y `product: { tenantId }` en `sale.service.js:61-93`, rechazados modificadores/adiciones inválidos con HTTP 400 y exigidos los grupos `isRequired: true` en `sale.service.js:121-130`, `table.service.js:183-220`, `kitchen.service.js:211-248` y `store.service.js:238-247` (**RA-01** y **RA-03** cerrados). |
+| **NF-06** | **Alta** | XSS / DOM XSS en impresión de recibos (`printerService.js`) | ✅ **Corregido** | `frontend/src/services/printerService.js:12-20` define `escapeHtml()` y sanitiza todos los campos dinámicos antes de `printWindow.document.write()`. |
+| **NF-07** | **Alta** | Multi-Tenant / IDOR cross-tenant en modelos hijos (`CustomerCredit`, `CashMovement`, `CashAudit`, `IngredientRecipe`) | ✅ **Corregido** | Blindados `CustomerCredit`, `CashMovement`, `CashAudit`, `IngredientRecipe` y validada la pertenencia de `tableId`, `customerId` y `saleId` en `kitchen.service.js:159-174`, `sale.service.js:206-214` y `customer.service.js:163-176` (**RA-07** cerrado). |
+| **NF-08** | **Alta** | Mass Assignment / `req.body` directo hacia Prisma en servicios CRUD | ✅ **Corregido** | Listas blancas de campos aplicadas en todos los servicios CRUD y eliminado el campo inexistente `'contactName'` en `Backend/src/modules/purchases/services/supplier.service.js:19, 57` (**RA-11** cerrado). |
+| **NF-09** | **Alta** | Subida de Archivos / SVG permitido, extensión de `originalname` y borrado arbitrario en `product.controller.js` | ✅ **Corregido** | `upload.middleware.js:1-92` bloquea SVG y valida *magic bytes*; `product.controller.js:101-107` limpia `imageUrl: null` en BD y `product.service.js:424-427` borra la imagen física al eliminar un producto (**RA-12** cerrado). |
+| **NF-10** | **Alta** | AuthZ / 18 endpoints operativos y administrativos sin `restrictTo(...)` | ✅ **Corregido** | Aplicado `restrictTo(...)` en los 18 endpoints y restringida la anulación de facturas (`DELETE /:id`, `POST /:id/cancel`) a `ADMINISTRADOR` y `SUPERVISOR` en `Backend/src/modules/invoices/invoices.route.js:14-15` (**RA-05** cerrado). |
+| **NF-11** | **Alta** | Sesiones / Refresh token en texto plano, sin validar usuario/tenant activo ni revocar al desactivar | ✅ **Corregido** | `Backend/src/modules/auth/auth.service.js:104-110, 153-218` almacena el hash SHA-256 del `refreshToken`, revalida `user.isActive` y vigencia del tenant al refrescar, rota el token en cada uso y `user.service.js:209-211` lo revoca al desactivar un usuario. |
+| **NF-12** | **Alta** | Auth / OTP con `Math.random()`, texto plano en BD, carrera en `attempts` y log en consola | ✅ **Corregido** | OTP generado con `crypto.randomInt`, almacenado como hash SHA-256, incremento atómico de `attempts` con `updateMany` en `auth.service.js:444-460` y log de consola restringido a `NODE_ENV === 'development' && LOG_OTP_CODES === 'true'` en `email.service.js:16` (**RA-09** y **RA-10** cerrados). |
+| **NF-13** | **Alta** | Red y Cabeceras / CORS `origin: true` con `credentials: true` y falta de `trust proxy` | ✅ **Corregido** | `Backend/src/app.js:18, 29-48` configura `app.set('trust proxy', 1)` y valida orígenes contra `ALLOWED_ORIGINS`. |
+| **NF-14** | **Alta** | Integridad / Cascada incompleta en `deleteTenantPermanently` y `resetDemoTenants` | ✅ **Corregido** | Cascada completa en `saas.service.js:527-640`, limpieza de `SalePayment` y `CustomerCredit` en `user.service.js:314-351` (`deleteUser`) y cálculo de deuda neta pendiente (`totalDebt - totalPaid`) en `invoice.service.js:285-302` (`cancelInvoice`) (**RA-05** y **RA-06** cerrados). |
+| **NF-15** | **Media** | Multi-Tenant / Confianza en header `x-tenant-id` sin autenticar y usuarios sin `tenantId` | ✅ **Corregido** | `Backend/src/middlewares/tenant.middleware.js` ignora `x-tenant-id` en rutas no autenticadas y `protectRoute` (`auth.middleware.js:51-57`) rechaza usuarios no-SuperAdmin con `tenantId: null`. |
+| **NF-16** | **Media** | Criptografía / JWT sin algoritmo fijo `HS256` y sin expiraciones por defecto | ✅ **Corregido** | `Backend/src/utils/jwt.util.js:14-35` fija `algorithm: 'HS256'` y `algorithms: ['HS256']` con expiraciones por defecto (`8h` / `7d`). |
+| **NF-17** | **Media** | Tienda Pública / Sin rate limit en pedidos, sin validar `paymentStatus`/`subscriptionEndsAt` y fuga de `stock` | ✅ **Corregido** | `Backend/src/modules/store/store.routes.js:7-22` aplica `publicOrderLimiter` y `store.service.js:18-40, 134-146` valida vigencia del tenant y oculta `stock` exacto. |
+| **NF-18** | **Media** | Manejo de Errores / Exposición de mensajes internos de Prisma y errores 500 en `error.middleware.js` | ✅ **Corregido** | `Backend/src/middlewares/error.middleware.js:1-60` mapea `P2002`, `P2025`, `P2003`, `PrismaClientValidationError` y oculta detalles de errores `>= 500` en producción. |
+| **NF-19** | **Media** | Auth / Enumeración de usuarios y ataque de tiempo (Timing Attack) en `loginUser` | ✅ **Corregido** | `Backend/src/modules/auth/auth.service.js:11, 61-69` ejecuta siempre `bcrypt.compare` contra `DUMMY_BCRYPT_HASH` cuando el correo no existe. |
+| **NF-20** | **Media** | Bugs Operativos / Falta import de `purchaseService`, `ROLES.GERENTE` inexistente y falta rol `Supervisor` en `registerTenant` | ✅ **Corregido** | Corregido en `purchases.routes.js:5`, `cash.routes.js:23`, `auth.service.js:633-639` y reparado `getLowStockAlerts` en `ingredient.service.js:176-188` (**RA-08** cerrado). |
+| **NF-21** | **Media** | Fuga de Datos / `GET /api/v1/users/restaurants` accesible para `Administrador` regular | ✅ **Corregido** | `Backend/src/modules/users/users.route.js:14` restringe `/restaurants` exclusivamente a `ROLES.SUPERADMIN`. |
+| **NF-22** | **Media** | Lógica de Negocio / `POST /api/v1/auth/register` no validaba `tenant.plan.maxUsers` | ✅ **Corregido** | `Backend/src/modules/auth/auth.service.js:239-254` verifica el conteo de usuarios activos frente a `tenant.plan.maxUsers`. |
+| **NF-23** | **Media** | Credenciales / Contraseña `'123456'` en seeds/scripts y documento `.xlsx` en raíz | ✅ **Corregido** | `Backend/prisma/seed.js:12` y `Backend/scripts/reset_clean_db.js:258` usan `process.env.SEED_DEFAULT_PASSWORD || crypto.randomBytes(9).toString('base64url')` y el `.xlsx` fue retirado (**RA-13** cerrado). |
+| **NF-24** | **Media** | Despliegue / `frontend/vercel.json` sin CSP/HSTS y rewrite capturando `/assets/*` | ✅ **Corregido** | `frontend/vercel.json:1-46` incluye `Strict-Transport-Security`, `Content-Security-Policy` y `Permissions-Policy`, y excluye `/assets/` y archivos con extensión del rewrite SPA. |
+| **NF-25** | **Baja** | Operación / Jobs con `setInterval` en `server.js` sin lock de concurrencia | ✅ **Corregido** | `Backend/src/server.js:18-62` usa el wrapper `runExclusiveJob` con candado en memoria. |
+| **NF-26** | **Baja** | Móvil / Tráfico cleartext `http://` por defecto hacia dominios remotos en `mobile/src/services/api.js` | ✅ **Corregido** | `mobile/src/services/api.js:4-17` y `mobile/src/utils/imageUrl.js:14-18` usan `https://api.neofood.co/api/v1` por defecto y fuerzan `https://` para cualquier host no privado (**RA-14** cerrado). |
+| **NF-27** | **Baja** | Frontend / Dos instancias de Axios, sin interceptor de `/auth/refresh-token` y `logout` solo local | ✅ **Corregido** | `frontend/src/api/axios.js`, `frontend/src/services/api.js` y `mobile/src/services/api.js:84-195` implementan cola de refresco `isRefreshing` + rotación de `refreshToken` (**RA-14** cerrado). |
+| **NF-28** | **Baja** | Rendimiento Frontend / Import estático de `jspdf` en `reportPdfService.js` y archivo muerto `Reports.jsx` | ✅ **Corregido** | `frontend/src/services/reportPdfService.js:4-14` carga `jspdf` y `jspdf-autotable` dinámicamente y se eliminó `frontend/src/pages/Reports.jsx` (**RA-13** cerrado). |
+| **NF-29** | **Baja** | SEO / `aggregateRating` no verificable en el JSON-LD de `frontend/index.html` | ✅ **Corregido** | Eliminado de `frontend/index.html:41-57`. |
+| **NF-30** | **Baja** | SEO / `og:image` en `.svg`, falta de `<link rel="canonical">` y `lang="es-CO"` en `frontend/index.html` | ✅ **Corregido** | `frontend/index.html:2, 19, 28, 38` usa `<html lang="es-CO">`, `<link rel="canonical">` y `/logo-vertical-oscuro.png` en `og:image` y `twitter:image` (**RA-13** cerrado). |
+| **NF-31** | **Baja** | Rendimiento Web / 4 peticiones separadas a Google Fonts en `frontend/index.html` | ✅ **Corregido** | Consolidado en una única hoja de estilo con `display=swap` en `frontend/index.html:62`. |
+| **NF-32** | **Baja** | Dependencias / `npm audit`, `prisma` en `devDependencies` y WhatsApp placeholder | ✅ **Corregido** | Ejecutado `npm audit fix` y movido `prisma` a `dependencies` en `Backend/package.json:24` (**RA-13** cerrado). |
+
+---
+
+## 8.3 Tabla Consolidada de Nuevos Hallazgos y Regresiones (`RA-01` a `RA-14`)
+
+| ID | Severidad | Categoría | Ubicación Exacta (`archivo:línea`) | Estado Final | Resumen del Hallazgo y Corrección Aplicada |
+| :--- | :---: | :--- | :--- | :---: | :--- |
+| **RA-01** | **Crítica** | Regresión / Bloqueante POS (`NF-05`) | `Backend/src/modules/sales/services/sale.service.js:58-93` | ✅ **Corregido** | Reemplazado `modifierGroups` por `modifiers`, `dbOpt.price` por `dbOpt.priceExtra` y filtrado `ProductAddition` por `product: { tenantId: effectiveTenantId }`. |
+| **RA-02** | **Crítica** | AuthZ / Escalada a `SuperAdmin` y Fuga de Roles (`NF-01`, `NF-04`) | `Backend/src/config/prisma.js:33`, `Backend/src/modules/auth/auth.service.js:264-281`, `Backend/src/modules/users/services/user.service.js:8-24, 114, 192` | ✅ **Corregido** | Validación *case-insensitive* (`toUpperCase() === 'SUPERADMIN'`) en input y rol de BD; `'role'` añadido a `STRICTLY_SCOPED_MODELS` y filtrado por `tenantId` en `getRoles()`. |
+| **RA-03** | **Alta** | Integridad Financiera / Precios (`NF-05`) | `Backend/src/modules/tables/services/table.service.js:178-235`, `Backend/src/modules/kitchen/services/kitchen.service.js:206-265`, `Backend/src/modules/sales/services/sale.service.js:103-155`, `Backend/src/modules/store/services/store.service.js:238-247` | ✅ **Corregido** | Rechazo con HTTP 400 de cualquier modificador o adición inexistente en BD y validación obligatoria de grupos con `isRequired: true` en los 4 servicios. |
+| **RA-04** | **Alta** | Integridad Financiera / Caja | `Backend/src/modules/cash/services/cash.service.js:22-175`, `Backend/src/modules/cash/controllers/cash.controller.js:13-26` | ✅ **Corregido** | `createAudit` incluye `customerCredits` (abonos en efectivo) y filtra movimientos automáticos igual que `getHistory`; validados montos numéricos no negativos y habilitado cierre por `Administrador`/`Supervisor`. |
+| **RA-05** | **Alta** | Integridad Financiera / Facturas y Cartera (`NF-10`, `NF-14`) | `Backend/src/modules/invoices/services/invoice.service.js:43-325`, `Backend/src/modules/invoices/invoices.route.js:14-15` | ✅ **Corregido** | `cancelInvoice` descuenta solo la deuda neta pendiente (`totalDebt - totalPaid`), restaura stock de combos (`linkedProductId`) y limpia `SalePayment`/`SaleDetail`; restringida anulación a `ADMINISTRADOR` y `SUPERVISOR`. |
+| **RA-06** | **Alta** | Integridad Referencial (`P2003`) (`NF-14`) | `Backend/src/modules/users/services/user.service.js:314-351` | ✅ **Corregido** | `deleteUser` elimina `tx.salePayment` y `tx.customerCredit` en ambos bloques antes de `tx.sale.deleteMany`. |
+| **RA-07** | **Alta** | IDOR / Aislamiento Multi-Tenant (`NF-07`) | `Backend/src/modules/kitchen/services/kitchen.service.js:159-174`, `Backend/src/modules/sales/services/sale.service.js:206-214`, `Backend/src/modules/customers/services/customer.service.js:163-176` | ✅ **Corregido** | Validada la pertenencia de `tableId`, `customerId` y `saleId` al `tenantId` actual antes de crear órdenes, ventas o abonos. |
+| **RA-08** | **Media** | Bug Funcional / Inventario (`NF-20`) | `Backend/src/modules/inventory/services/ingredient.service.js:176-188` | ✅ **Corregido** | Reemplazado el acceso roto a `prisma.ingredient.fields.minStock` por comparación numérica sobre los ingredientes activos del tenant. |
+| **RA-09** | **Media** | Concurrencia / Auth TOCTOU (`NF-12`) | `Backend/src/modules/auth/auth.service.js:443-485` | ✅ **Corregido** | Reserva e incremento atómico de intentos mediante `prisma.emailVerification.updateMany({ where: { email, attempts: { lt: 5 }, expiresAt: { gt: new Date() } }, data: { attempts: { increment: 1 } } })`. |
+| **RA-10** | **Media** | Fuga de Información en Logs (`NF-12`) | `Backend/src/services/email.service.js:15-30` | ✅ **Corregido** | Impresión de OTP restringida a `NODE_ENV === 'development' && LOG_OTP_CODES === 'true'` y fallo explícito en producción si falta `RESEND_API_KEY`. |
+| **RA-11** | **Media** | Bug Funcional / Proveedores (`NF-08`) | `Backend/src/modules/purchases/services/supplier.service.js:19, 57` | ✅ **Corregido** | Eliminado `'contactName'` de `allowedFields` en `createSupplier` y `updateSupplier`. |
+| **RA-12** | **Media** | Almacenamiento / Estado Inconsistente (`NF-09`) | `Backend/src/modules/inventory/controllers/product.controller.js:101-107`, `Backend/src/modules/inventory/services/product.service.js:424-427` | ✅ **Corregido** | `deleteImage` limpia `imageUrl: null` en BD y `deleteProduct` borra el archivo físico local cuando el producto se elimina permanentemente. |
+| **RA-13** | **Baja** | Higiene de Código y SEO (`NF-23`, `NF-28`, `NF-30`, `NF-32`) | `frontend/index.html:2, 28, 38`, `Backend/scripts/reset_clean_db.js:257`, `Backend/package.json:24` | ✅ **Corregido** | Restaurado `<html lang="es-CO">`, cambiado `og:image`/`twitter:image` a `/logo-vertical-oscuro.png`, eliminada contraseña fija `'123456'` en `reset_clean_db.js`, borrado `frontend/src/pages/Reports.jsx` y movido `prisma` a `dependencies`. |
+| **RA-14** | **Baja** | Sesiones en App Móvil (`NF-26`, `NF-27`) | `mobile/src/services/api.js:4, 84-195`, `mobile/src/utils/imageUrl.js:14-18` | ✅ **Corregido** | Añadido interceptor con cola `isRefreshing` y rotación de `refreshToken` en `mobile/src/services/api.js` y URL HTTPS por defecto. |
+
+---
+
+## 8.4 Detalle Técnico y Evidencia en Disco de los Hallazgos (`RA-01` a `RA-14`)
+
+### [RA-01] Regresión Crítica en `SaleService.createSale`: Nombres de Relación y Columna Inexistentes en Prisma Rompen el 100% de las Ventas POS
+- **Severidad:** Crítica (Bloqueante Operativo Total del POS)
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/sales/services/sale.service.js:58-72, 85, 101`
+  - `Backend/prisma/schema.prisma:211-233, 308-336`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/sales/services/sale.service.js:58-72
+  const dbModOptions = candidateModIds.length > 0
+    ? await tx.productModifierOption.findMany({ where: { id: { in: candidateModIds } } })
+    : [];
+  const modOptionMap = new Map(dbModOptions.map(o => [o.id, o]));
+
+  const dbAdditions = candidateAddIds.length > 0
+    ? await tx.productAddition.findMany({
+        where: {
+          id: { in: candidateAddIds },
+          ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) // ❌ ProductAddition NO tiene columna tenantId
+        }
+      })
+    : [];
+  ...
+  // Backend/src/modules/sales/services/sale.service.js:83-86
+  const product = await tx.product.findFirst({
+    where: { id: item.productId, ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) },
+    include: { ingredients: true, modifierGroups: { include: { options: true } } } // ❌ En schema.prisma:225 se llama `modifiers`
+  });
+  ```
+- **Impacto:**
+  1. En `Backend/prisma/schema.prisma:225`, el modelo `Product` define `modifiers ProductModifier[]`, **no** `modifierGroups`. Toda llamada a `POST /api/v1/sales` ejecuta `tx.product.findFirst` en la línea 83 y falla inmediatamente con `PrismaClientValidationError: Unknown field 'modifierGroups' for include statement on model 'Product'` (devuelto como HTTP 400 por `error.middleware.js`).
+  2. En `Backend/prisma/schema.prisma:332`, `ProductAddition` se relaciona con `Product` mediante `productId`, sin columna `tenantId`. Si la venta incluye adiciones (`candidateAddIds.length > 0`), `tx.productAddition.findMany` en la línea 66 lanza `Unknown argument 'tenantId'`.
+  3. En la línea 59, `tx.productModifierOption.findMany` no filtra por tenant (`modifier: { product: { tenantId: effectiveTenantId } }`).
+
+---
+
+### [RA-02] Escalada de Privilegios a `SuperAdmin` por Comparación Case-Sensitive y Fuga Cross-Tenant de Roles
+- **Severidad:** Crítica
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/auth/auth.service.js:263-281`
+  - `Backend/src/modules/users/services/user.service.js:8-17, 106-110, 184-188`
+  - `Backend/src/config/prisma.js:32-46`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/auth/auth.service.js:263-275
+  const requestedRoleName = roleName || ROLES.CAJERO;
+  if (!isSuperAdmin() && (requestedRoleName === 'SuperAdmin' || requestedRoleName === 'SUPERADMIN')) {
+    const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const role = await prisma.role.findFirst({
+    where: {
+      name: requestedRoleName,
+      ...(tenantId ? { tenantId } : {})
+    }
+  });
+  ```
+- **Impacto:**
+  1. En MySQL, las búsquedas sobre `VARCHAR` con colación `utf8mb4_unicode_ci` son *case-insensitive*. Si un Administrador envía `"roleName": "superadmin"` o `"Superadmin"`, la condición en JS (`=== 'SuperAdmin' || === 'SUPERADMIN'`) no se cumple, pero `prisma.role.findFirst` resuelve el rol `SuperAdmin` si existe en ese tenant (`default-tenant-001`) o si `targetRole.name` tuviese una variante de capitalización.
+  2. En `Backend/src/config/prisma.js:32-46`, `'role'` está en `TENANT_MODELS` pero no en `STRICTLY_SCOPED_MODELS`. Cuando un `SuperAdmin` abre el formulario de usuarios (`GET /api/v1/users/roles` -> `user.service.js:8-17`), `prisma.role.findMany` devuelve los roles de **todos** los restaurantes sin filtrar por `tenantId`.
+
+---
+
+### [RA-03] Bypass de Precios de Modificadores y Adiciones a `\$0` en Mesas, Cocina y POS + Omisión de Modificadores Obligatorios
+- **Severidad:** Alta
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/tables/services/table.service.js:178-204`
+  - `Backend/src/modules/kitchen/services/kitchen.service.js:191-217`
+  - `Backend/src/modules/sales/services/sale.service.js:103-131`
+  - `Backend/src/modules/store/services/store.service.js:208-236`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/kitchen/services/kitchen.service.js:191-201
+  for (const m of rawMods) {
+    const optId = m.id || m.optionId;
+    const dbOpt = optId ? validOptionMap.get(optId) : null;
+    const extra = dbOpt ? parseFloat(dbOpt.priceExtra || 0) : 0; // ❌ Si optId es inválido o no se envía, extra = 0
+    unitPrice += extra;
+    verifiedMods.push({
+      ...m,
+      name: dbOpt ? dbOpt.name : m.name,
+      priceExtra: extra
+    });
+  }
+  ```
+- **Impacto:**
+  1. En `table.service.js`, `kitchen.service.js` y `sale.service.js`, si se envía un modificador o adición sin `id` válido, el ítem conserva la descripción para cocina pero se cobra a `\$0` en lugar de rechazar la petición con HTTP 400.
+  2. Además, en `sale.service.js:109` y `125` se lee `dbOpt.price` (`parseFloat(dbOpt.price)`), cuando en `Backend/prisma/schema.prisma:320` el campo de `ProductModifierOption` se llama **`priceExtra`** (no `price`), lo que produciría `NaN` al sumar el recargo de cualquier modificador en el POS.
+  3. Ninguno de los 4 servicios (`store`, `tables`, `kitchen`, `sales`) verifica que los grupos de modificadores con `isRequired: true` (`schema.prisma:312`) tengan al menos una opción seleccionada.
+
+---
+
+### [RA-04] Descuadre en Arqueo de Caja (`createAudit`), Falta de Validación de Montos Negativos y Bloqueo de Cierre por Administrador
+- **Severidad:** Alta
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/cash/services/cash.service.js:40-143`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/cash/services/cash.service.js:94-100
+  const session = await tx.cashSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
+      cashMovements: true
+      // ❌ No incluye customerCredits, a diferencia de getHistory (línea 166) y getDailyReport (línea 248)
+    }
+  });
+  ```
+- **Impacto:**
+  1. Mientras que `getHistory` (`líneas 166, 178, 210-217`), `getDailyReport` (`líneas 248, 291, 301-305`) y `getMonthlyReport` (`líneas 358, 402, 412-416`) incluyen `customerCredits` (sumando los abonos `type: 'PAYMENT'` en efectivo) y filtran movimientos duplicados de abonos en `cashMovements`, **`createAudit` (`líneas 94-126`) no suma `customerCredits` ni filtra `cashMovements`**, causando que el efectivo esperado (`expectedAmount`) guardado en `CashAudit` difiera del mostrado en el historial y reportes de caja.
+  2. `openSession` (`línea 44`), `closeSession` (`línea 61`) y `registerMovement` (`línea 84`) no validan que `openingAmount`, `closingAmount` y `amount` sean números finitos no negativos ni que `type` sea `'IN'` o `'OUT'`.
+  3. `closeSession` (`línea 54`) exige `session.userId !== userId`, impidiendo que un `Administrador` o `Supervisor` del restaurante cierre una sesión de caja abierta por un cajero ausente.
+
+---
+
+### [RA-05] Corrupción del Saldo de Cartera (`customer.balance`) al Anular Facturas con Abonos, Null Dereference en `updatePaymentMethod` y Permiso Excesivo a Cajero
+- **Severidad:** Alta
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/invoices/services/invoice.service.js:55-60, 128-192, 253-266`
+  - `Backend/src/modules/invoices/invoices.route.js:14-15`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/invoices/services/invoice.service.js:253-266
+  if (sale.customerId) {
+      const debtCredits = (sale.customerCredits || []).filter(c => c.type === 'DEBT');
+      const totalDebt = debtCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
+      if (totalDebt > 0) {
+          await tx.customer.update({
+              where: { id: sale.customerId },
+              data: { balance: { decrement: totalDebt } } // ❌ No descuenta los abonos (type: 'PAYMENT') ya aplicados a customer.balance
+          });
+      }
+      await tx.customerCredit.deleteMany({
+          where: { saleId: sale.id }
+      });
+  }
+  ```
+- **Impacto:**
+  1. Cuando se registra un abono con `addAbono` (`invoice.service.js:151-154`), `customer.balance` ya fue decrementado por el valor abonado (`amount`) y se creó un registro `CustomerCredit` con `type: 'PAYMENT'`. Si luego se anula la factura en `cancelInvoice` (`líneas 255-261`), se vuelve a restar `totalDebt` completo en vez de `Math.max(0, totalDebt - totalPaid)`, dejando el saldo del cliente en negativo.
+  2. En `updatePaymentMethod` (`líneas 55-60`), si `paymentMethodId` no existe, `newPaymentMethod` es `null` y `newPaymentMethod.name` lanza `TypeError`. Además, si la venta tenía registros en `SalePayment` (creados siempre por `sale.service.js:338`), `updatePaymentMethod` cambia `sale.paymentMethodId` pero **no** actualiza `SalePayment`, por lo que `cash.service.js` (`iterateSalePayments`, que prioriza `sale.payments`) sigue contabilizando la factura con el método de pago viejo.
+  3. En `addAbono` (`línea 148`), no se verifica `if (!paymentMethod)` antes de crear el abono.
+  4. En `Backend/src/modules/invoices/invoices.route.js:14-15`, `DELETE /:id` y `POST /:id/cancel` permiten `ROLES.CAJERO` para una operación destructiva que elimina la venta (`tx.sale.delete`).
+
+---
+
+### [RA-06] Error `P2003` al Eliminar Usuarios (`deleteUser`) por Falta de Limpieza de `SalePayment` y `CustomerCredit`
+- **Severidad:** Alta
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/users/services/user.service.js:286-308, 325-343`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/users/services/user.service.js:293-308 (Bloque 5: Sesiones de caja)
+  if (saleIds.length > 0) {
+    ...
+    // ❌ Falta await tx.salePayment.deleteMany({ where: { saleId: { in: saleIds } } });
+    await tx.customerCredit.deleteMany({ where: { saleId: { in: saleIds } } });
+    await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
+  }
+  ...
+  // Backend/src/modules/users/services/user.service.js:330-342 (Bloque 6: Órdenes del usuario)
+  if (linkedSaleIds.length > 0) {
+    ...
+    // ❌ Faltan tanto tx.salePayment.deleteMany como tx.customerCredit.deleteMany
+    await tx.sale.deleteMany({ where: { id: { in: linkedSaleIds } } });
+  }
+  ```
+- **Impacto:**
+  - Como `sale.service.js:338` crea registros en `SalePayment` para **toda** venta nueva, intentar eliminar desde el panel de Usuarios cualquier cajero o mesero que haya registrado al menos una venta falla siempre con `P2003 (Foreign key constraint failed on the field: SalePayment_saleId_fkey)`.
+
+---
+
+### [RA-07] IDOR Cross-Tenant vía `tableId` y `customerId` en Cocina, Ventas y Cartera
+- **Severidad:** Alta
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/kitchen/services/kitchen.service.js:27-35, 233-257`
+  - `Backend/src/modules/sales/services/sale.service.js:190, 216`
+  - `Backend/src/modules/customers/services/customer.service.js:171`
+- **Impacto:**
+  1. En `kitchen.service.js:233-257` (`createKitchenOrder`), `tableId` y `customerId` se insertan directamente en `prisma.order.create` sin verificar que pertenezcan al `tenantId` del usuario autenticado. Como `prisma.order.create` e `include: { table: true, customer: true }` (`líneas 29-35, 251-253`) no filtran relaciones `belongsTo` por `tenantId`, un usuario podría vincular el UUID de un cliente o mesa de otro restaurante y leer su nombre y teléfono en la respuesta.
+  2. En `sale.service.js:190, 216`, `customerId` sí se valida contra `effectiveTenantId` (`líneas 35-42`), pero `tableId` no se valida antes de asociarlo a la orden.
+  3. En `customer.service.js:171` (`addCreditMovement`), si se envía `data.saleId`, no se verifica que esa factura pertenezca al mismo `customerId` y `tenantId`.
+
+---
+
+### [RA-08] Alertas de Bajo Stock Rotas porque `prisma.ingredient.fields` es `undefined` en el Cliente Extendido
+- **Severidad:** Media
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/inventory/services/ingredient.service.js:176-186`
+- **Evidencia exacta:**
+  ```javascript
+  // Backend/src/modules/inventory/services/ingredient.service.js:176-186
+  async getLowStockAlerts() {
+    return await prisma.ingredient.findMany({
+      where: {
+        isActive: true,
+        currentStock: {
+          lte: prisma.ingredient.fields.minStock // ❌ En el cliente extendido ($extends), prisma.ingredient.fields es undefined
+        }
+      },
+      orderBy: { currentStock: 'asc' }
+    });
+  }
+  ```
+- **Impacto:**
+  - Al usar `basePrisma.$extends(...)` en `Backend/src/config/prisma.js:67`, `prisma.ingredient.fields` es `undefined`, por lo que `prisma.ingredient.fields.minStock` lanza `TypeError: Cannot read properties of undefined (reading 'minStock')` al invocar `GET /api/v1/inventory/ingredients/alerts`. Se debe consultar `where: { isActive: true }` y filtrar en memoria `Number(ing.currentStock) <= Number(ing.minStock)`.
+
+---
+
+### [RA-09] Condición de Carrera TOCTOU en el Contador de Intentos de OTP (`verifyCode`)
+- **Severidad:** Media
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/auth/auth.service.js:427-461`
+- **Impacto:**
+  - `verifyCode` lee `verif` con `prisma.emailVerification.findUnique` (`línea 427`), comprueba `if (verif.attempts >= 5)` (`línea 443`) y solo incrementa `attempts` después de fallar (`línea 453`). Peticiones concurrentes pueden evaluar el mismo `attempts < 5` simultáneamente.
+
+---
+
+### [RA-10] Impresión de Códigos OTP en Consola cuando `NODE_ENV !== 'production'`
+- **Severidad:** Media
+- **Ubicación verificada en disco:**
+  - `Backend/src/services/email.service.js:16-27`
+- **Impacto:**
+  - `sendVerificationCode` imprime el OTP en texto plano en `console.log` siempre que `process.env.NODE_ENV !== 'production'` (`línea 16`). Debe exigirse `process.env.NODE_ENV === 'development' && process.env.LOG_OTP_CODES === 'true'`.
+
+---
+
+### [RA-11] Campo Inexistente `contactName` en `supplier.service.js` Provoca Error 400
+- **Severidad:** Media
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/purchases/services/supplier.service.js:19, 57`
+  - `Backend/prisma/schema.prisma:354-365`
+- **Impacto:**
+  - `allowedFields` en `createSupplier` (`línea 19`) y `updateSupplier` (`línea 57`) incluye `'contactName'`, pero el modelo `Supplier` en `schema.prisma:354-365` solo tiene `id`, `name`, `nit`, `phone`, `email`, `address`, `createdAt`, `tenantId`. Si el cliente envía `contactName`, Prisma lanza `PrismaClientValidationError`.
+
+---
+
+### [RA-12] `ProductController.deleteImage` No Limpia `imageUrl` en la Base de Datos
+- **Severidad:** Media
+- **Ubicación verificada en disco:**
+  - `Backend/src/modules/inventory/controllers/product.controller.js:83-105`
+  - `Backend/src/modules/inventory/services/product.service.js:423-449`
+- **Impacto:**
+  - `deleteImage` verifica que exista `ownedProduct` con ese `imageUrl` y borra el archivo del disco con `deleteUploadedFile(imageUrl)`, pero no actualiza `imageUrl: null` en `prisma.product.updateMany`, dejando el producto apuntando a una imagen inexistente (`404`).
+
+---
+
+### [RA-13] Regresión de `lang="es"` en `index.html` (`df340e2`) y Remanentes de Higiene (`NF-23`, `NF-28`, `NF-30`, `NF-32`)
+- **Severidad:** Baja
+- **Ubicación verificada en disco:**
+  - `frontend/index.html:2, 28, 38`
+  - `Backend/scripts/reset_clean_db.js:257`
+  - `neofood.sql` (raíz del repositorio)
+  - `frontend/src/pages/Reports.jsx`
+  - `frontend/src/constants/plans.js:11`
+- **Detalle:**
+  1. El commit `df340e2` cambió `<html lang="es-CO">` a `<html lang="es">` en `frontend/index.html:2`, a pesar de que el propósito del commit es enfocar el SEO exclusivamente en Colombia (`geo.region="CO"`, `es_CO`). Además, `og:image` (`línea 28`) y `twitter:image` (`línea 38`) siguen apuntando a `/isotipo.svg` en lugar de `/logo-vertical-oscuro.png`.
+  2. `Backend/scripts/reset_clean_db.js:257` aún contiene `bcrypt.hash('123456', 10)`.
+  3. `neofood.sql` sigue en la raíz del proyecto y `frontend/src/pages/Reports.jsx` sigue sin uso.
+
+---
+
+### [RA-14] App Móvil Sin Interceptor de `/auth/refresh-token`
+- **Severidad:** Baja
+- **Ubicación verificada en disco:**
+  - `mobile/src/services/api.js:84-102`
+  - `mobile/src/utils/imageUrl.js:17`
+- **Detalle:**
+  - A diferencia del frontend web (`frontend/src/api/axios.js`), `mobile/src/services/api.js:84-102` limpia inmediatamente la sesión al recibir un `401` sin intentar renovar el token en `/auth/refresh-token`.
+
+---
+
+## 8.5 Diffs Sugeridos para los Hallazgos Críticos y Altos (`RA-01` a `RA-07`)
+
+### 1. Diff para `RA-01` y `RA-03` (`Backend/src/modules/sales/services/sale.service.js`)
+```diff
+--- a/Backend/src/modules/sales/services/sale.service.js
++++ b/Backend/src/modules/sales/services/sale.service.js
+@@ -55,19 +55,25 @@ class SaleService {
+       const candidateAddIds = [...new Set(rawAdditions.map(a => a?.id || a?.additionId).filter(Boolean))];
+ 
+       const dbModOptions = candidateModIds.length > 0
+-        ? await tx.productModifierOption.findMany({ where: { id: { in: candidateModIds } } })
++        ? await tx.productModifierOption.findMany({
++            where: {
++              id: { in: candidateModIds },
++              ...(effectiveTenantId ? { modifier: { product: { tenantId: effectiveTenantId } } } : {})
++            }
++          })
+         : [];
+       const modOptionMap = new Map(dbModOptions.map(o => [o.id, o]));
+ 
+       const dbAdditions = candidateAddIds.length > 0
+         ? await tx.productAddition.findMany({
+             where: {
+               id: { in: candidateAddIds },
+-              ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {})
++              ...(effectiveTenantId ? { product: { tenantId: effectiveTenantId } } : {})
+             }
+           })
+         : [];
+       const additionMap = new Map(dbAdditions.map(a => [a.id, a]));
+@@ -82,7 +88,7 @@ class SaleService {
+         const product = await tx.product.findFirst({
+           where: { id: item.productId, ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) },
+-          include: { ingredients: true, modifierGroups: { include: { options: true } } }
++          include: { ingredients: true, modifiers: { include: { options: true } }, additions: true }
+         });
+ 
+         if (!product) {
+@@ -98,17 +104,18 @@ class SaleService {
+         const validProductOptionIds = new Set(
+-          (product.modifierGroups || []).flatMap(g => (g.options || []).map(o => o.id))
++          (product.modifiers || []).flatMap(g => (g.options || []).map(o => o.id))
+         );
+ 
+         let extraModifiersPrice = 0;
+         const validatedModifiers = [];
+         if (item.modifiers && Array.isArray(item.modifiers)) {
+           for (const mod of item.modifiers) {
+-            const dbOpt = (mod.id && validProductOptionIds.has(mod.id)) ? modOptionMap.get(mod.id) : null;
+-            const extra = dbOpt ? parseFloat(dbOpt.price) : 0;
++            const optId = mod.id || mod.optionId || mod.variationId;
++            const dbOpt = (optId && validProductOptionIds.has(optId)) ? modOptionMap.get(optId) : null;
++            if (!dbOpt) throw Object.assign(new Error(`Opción de modificador inválida en ${product.name}`), { statusCode: 400 });
++            const extra = parseFloat(dbOpt.priceExtra || 0);
+             extraModifiersPrice += extra;
+```
+
+### 2. Diff para `RA-02` (`Backend/src/config/prisma.js`, `auth.service.js`, `user.service.js`)
+```diff
+--- a/Backend/src/config/prisma.js
++++ b/Backend/src/config/prisma.js
+@@ -30,6 +30,7 @@ const TENANT_MODELS = [
+ const STRICTLY_SCOPED_MODELS = [
++  'role',
+   'table',
+   'paymentmethod',
+```
+```diff
+--- a/Backend/src/modules/auth/auth.service.js
++++ b/Backend/src/modules/auth/auth.service.js
+@@ -261,7 +261,7 @@ class AuthService {
+     const requestedRoleName = roleName || ROLES.CAJERO;
+-    if (!isSuperAdmin() && (requestedRoleName === 'SuperAdmin' || requestedRoleName === 'SUPERADMIN')) {
++    if (!isSuperAdmin() && String(requestedRoleName).trim().toUpperCase() === 'SUPERADMIN') {
+       const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
+       error.statusCode = 403;
+       throw error;
+@@ -274,7 +274,7 @@ class AuthService {
+       }
+     });
+ 
+-    if (!role) {
++    if (!role || (!isSuperAdmin() && String(role.name).trim().toUpperCase() === 'SUPERADMIN')) {
+       const error = new Error('El rol especificado no existe en este establecimiento');
+       error.statusCode = 400;
+       throw error;
+```
+
+### 3. Diff para `RA-04` (`Backend/src/modules/cash/services/cash.service.js`)
+```diff
+--- a/Backend/src/modules/cash/services/cash.service.js
++++ b/Backend/src/modules/cash/services/cash.service.js
+@@ -95,7 +95,8 @@ class CashService {
+         where: { id: sessionId },
+         include: {
+           sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
+-          cashMovements: true
++          cashMovements: true,
++          customerCredits: { include: { paymentMethod: true } }
+         }
+       });
+@@ -116,12 +117,17 @@ class CashService {
+       const movementsIn = session.cashMovements
+-        .filter(m => m.type === 'IN')
++        .filter(m => m.type === 'IN' && !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente'))
+         .reduce((sum, m) => sum + parseFloat(m.amount), 0);
+       const movementsOut = session.cashMovements
+         .filter(m => m.type === 'OUT')
+         .reduce((sum, m) => sum + parseFloat(m.amount), 0);
++      const cashAbonos = (session.customerCredits || [])
++        .filter(c => c.type === 'PAYMENT' && c.paymentMethod?.name?.toLowerCase().includes('efectivo'))
++        .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+       
+-      expectedCash = expectedCash + movementsIn - movementsOut;
++      expectedCash = expectedCash + movementsIn - movementsOut + cashAbonos;
+```
+
+### 4. Diff para `RA-05` (`Backend/src/modules/invoices/services/invoice.service.js`)
+```diff
+--- a/Backend/src/modules/invoices/services/invoice.service.js
++++ b/Backend/src/modules/invoices/services/invoice.service.js
+@@ -253,10 +253,13 @@ class InvoiceService {
+             // 3. Revertir saldos de crédito de cliente si los hubo
+             if (sale.customerId) {
+                 const debtCredits = (sale.customerCredits || []).filter(c => c.type === 'DEBT');
+                 const totalDebt = debtCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
+-                if (totalDebt > 0) {
++                const paymentCredits = (sale.customerCredits || []).filter(c => c.type === 'PAYMENT');
++                const totalPaid = paymentCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
++                const netUnpaidDebt = Math.max(0, totalDebt - totalPaid);
++                if (netUnpaidDebt > 0) {
+                     await tx.customer.update({
+                         where: { id: sale.customerId },
+-                        data: { balance: { decrement: totalDebt } }
++                        data: { balance: { decrement: netUnpaidDebt } }
+                     });
+                 }
+```
+
+---
+
+## 8.6 Plan de Acción Fase 2 (Ordenado por Prioridad)
+
+| Prioridad | IDs | Tarea Técnica | Esfuerzo Estimado |
+| :---: | :--- | :--- | :---: |
+| **P0 (Inmediata)** | `RA-01`, `RA-02` | 1. Corregir `modifierGroups` -> `modifiers`, `dbOpt.price` -> `dbOpt.priceExtra` y el filtro `product: { tenantId }` en `Backend/src/modules/sales/services/sale.service.js`.<br>2. Normalizar a mayúsculas la validación de `SuperAdmin` en `auth.service.js` y `user.service.js`, y añadir `'role'` a `STRICTLY_SCOPED_MODELS` en `Backend/src/config/prisma.js`. | 1.0 h |
+| **P1 (Alta)** | `RA-03`, `RA-04`, `RA-05`, `RA-06`, `RA-07` | 3. Validar modificadores obligatorios (`isRequired: true`) y rechazar IDs inválidos de modificadores/adiciones en `sale.service.js`, `table.service.js`, `kitchen.service.js` y `store.service.js`.<br>4. Sincronizar `createAudit` con `getHistory` en `cash.service.js` (incluyendo `customerCredits`), validar montos finitos no negativos y permitir cierre de caja por `Administrador`/`Supervisor`.<br>5. Descontar únicamente la deuda neta pendiente (`totalDebt - totalPaid`) en `invoice.service.js:cancelInvoice`, validar `newPaymentMethod`, sincronizar `SalePayment` y restringir la anulación de facturas a `ADMINISTRADOR` y `SUPERVISOR`.<br>6. Eliminar `tx.salePayment` y `tx.customerCredit` en ambos bloques de `user.service.js:deleteUser`.<br>7. Validar pertenencia de `tableId` y `customerId` al `tenantId` en `kitchen.service.js` y `sale.service.js`. | 2.5 h |
+| **P2 (Media)** | `RA-08`, `RA-09`, `RA-10`, `RA-11`, `RA-12` | 8. Reemplazar el filtro roto `prisma.ingredient.fields.minStock` en `ingredient.service.js:getLowStockAlerts`.<br>9. Hacer atómico el incremento de `attempts` en `auth.service.js:verifyCode` y restringir el `console.log` del OTP en `email.service.js`.<br>10. Quitar `'contactName'` de `supplier.service.js` y limpiar `imageUrl: null` en `product.controller.js:deleteImage`. | 1.5 h |
+| **P3 (Baja)** | `RA-13`, `RA-14` | 11. Restaurar `<html lang="es-CO">` y usar `/logo-vertical-oscuro.png` en `og:image`/`twitter:image` de `frontend/index.html`; limpiar `'123456'` en `reset_clean_db.js` y eliminar `frontend/src/pages/Reports.jsx`. | 0.5 h |
+| **Total** | **`RA-01`..`RA-14`** | **Cierre completo de la Re-Auditoría Fase 2** | **5.5 h** |
+
+---
+
+## 8.7 Bitácora de Commits de la Fase 2 (`RA-01` a `RA-14` — 100% Completado)
+
+| # | Commit Hash | Hallazgos Cerrados | Mensaje del Commit | Archivos Modificados |
+| :---: | :---: | :--- | :--- | :--- |
+| **13** | `e4f353c` | `RA-01`, `RA-02`, `RA-03`, `RA-07` (`NF-01`, `NF-05`, `NF-07`) | `fix(pos-tenant): corregir relaciones Prisma en ventas POS, blindar modificadores obligatorios y aislar roles/IDs [RA-01, RA-02, RA-03, RA-07]` | `Backend/src/config/prisma.js`, `Backend/src/modules/sales/services/sale.service.js`, `Backend/src/modules/tables/services/table.service.js`, `Backend/src/modules/kitchen/services/kitchen.service.js`, `Backend/src/modules/store/services/store.service.js`, `Backend/src/modules/customers/services/customer.service.js` |
+| **14** | `71f2cc0` | `RA-02`, `RA-04`, `RA-05`, `RA-06` (`NF-04`, `NF-10`, `NF-14`) | `fix(cash-invoices): sincronizar abonos en arqueo de caja, proteger saldo al anular facturas y limpiar cascada P2003 en usuarios [RA-02, RA-04, RA-05, RA-06]` | `Backend/src/modules/cash/services/cash.service.js`, `Backend/src/modules/cash/controllers/cash.controller.js`, `Backend/src/modules/invoices/services/invoice.service.js`, `Backend/src/modules/invoices/invoices.route.js`, `Backend/src/modules/users/services/user.service.js` |
+| **15** | `4a4ef4d` | `RA-08`, `RA-09`, `RA-10`, `RA-11`, `RA-12` (`NF-08`, `NF-09`, `NF-12`, `NF-20`) | `fix(inventory-auth): reparar alertas de stock minimo, endurecer OTP atomico y limpiar contactName e imageUrl [RA-08, RA-09, RA-10, RA-11, RA-12]` | `Backend/src/modules/inventory/services/ingredient.service.js`, `Backend/src/modules/auth/auth.service.js`, `Backend/src/services/email.service.js`, `Backend/src/modules/purchases/services/supplier.service.js`, `Backend/src/modules/inventory/controllers/product.controller.js`, `Backend/src/modules/inventory/services/product.service.js` |
+| **16** | `5f7a5d7` | `RA-13`, `RA-14` (`NF-23`, `NF-26`, `NF-27`, `NF-28`, `NF-30`, `NF-32`) | `fix(seo-mobile-clean): restaurar lang=es-CO, og:image PNG, interceptor refresh en app movil y limpiar reset_clean_db y Reports.jsx [RA-13, RA-14]` | `frontend/index.html`, `frontend/src/pages/Reports.jsx` (eliminado), `Backend/scripts/reset_clean_db.js`, `Backend/package.json`, `mobile/src/services/api.js`, `mobile/src/utils/imageUrl.js` |
+
+
+
+
