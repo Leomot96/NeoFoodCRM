@@ -29,7 +29,7 @@ class PaymentMethodService {
   }
 
   async updatePaymentMethod(id, data) {
-    const parsedId = isNaN(id) ? id : parseInt(id);
+    const parsedId = String(id);
     const allowedFields = ['name', 'isActive'];
     const safeData = {};
     for (const key of allowedFields) {
@@ -45,7 +45,7 @@ class PaymentMethodService {
 
   // NUEVO: Método para apagar/encender (Toggle)
   async toggleStatus(id) {
-    const parsedId = isNaN(id) ? id : parseInt(id);
+    const parsedId = String(id);
     
     const method = await prisma.paymentMethod.findUnique({ 
       where: { id: parsedId } 
@@ -61,15 +61,15 @@ class PaymentMethodService {
     });
   }
 
-  // Eliminar método de pago (si no tiene historial de ventas o créditos)
+  // Eliminar método de pago (si no tiene historial de ventas, pagos divididos o créditos)
   async deletePaymentMethod(id) {
-    const parsedId = isNaN(id) ? id : parseInt(id);
+    const parsedId = String(id);
 
     const method = await prisma.paymentMethod.findUnique({
       where: { id: parsedId },
       include: {
         _count: {
-          select: { sales: true, customerCredits: true }
+          select: { sales: true, customerCredits: true, payments: true }
         }
       }
     });
@@ -78,10 +78,10 @@ class PaymentMethodService {
       throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
     }
 
-    if ((method._count?.sales || 0) > 0 || (method._count?.customerCredits || 0) > 0) {
-      const count = (method._count?.sales || 0) + (method._count?.customerCredits || 0);
+    const totalLinked = (method._count?.sales || 0) + (method._count?.customerCredits || 0) + (method._count?.payments || 0);
+    if (totalLinked > 0) {
       throw Object.assign(
-        new Error(`No se puede eliminar "${method.name}" porque ya tiene ${count} registro(s) de ventas o créditos asociados. Te sugerimos desactivarlo con el interruptor para ocultarlo de caja sin alterar el historial contable.`),
+        new Error(`No se puede eliminar "${method.name}" porque ya tiene ${totalLinked} registro(s) de ventas, pagos o créditos asociados. Te sugerimos desactivarlo con el interruptor para ocultarlo de caja sin alterar el historial contable.`),
         { statusCode: 400 }
       );
     }

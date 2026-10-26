@@ -51,7 +51,7 @@ class InvoiceService {
         // 1. Obtener la venta original
         const sale = await prisma.sale.findFirst({
             where: { id: saleId, ...(tenantId ? { tenantId } : {}) },
-            include: { paymentMethod: true, payments: true, customerCredits: true }
+            include: { paymentMethod: true, payments: true, customerCredits: true, customer: true }
         });
 
         if (!sale) {
@@ -70,8 +70,12 @@ class InvoiceService {
         const isOldCredit = sale.paymentMethod.name.toLowerCase().includes('crédito') || sale.paymentMethod.name.toLowerCase().includes('credito') || sale.paymentMethod.name.toLowerCase().includes('fiao');
         const isNewCredit = newPaymentMethod.name.toLowerCase().includes('crédito') || newPaymentMethod.name.toLowerCase().includes('credito') || newPaymentMethod.name.toLowerCase().includes('fiao');
 
-        if (!isOldCredit && isNewCredit && !sale.customerId) {
-            throw Object.assign(new Error('No se puede cambiar a Crédito una factura sin cliente asignado'), { statusCode: 400 });
+        const isGenericCustomer = !sale.customerId ||
+            sale.customer?.document === '222222222222' ||
+            (sale.customer?.name || '').trim().toLowerCase() === 'consumidor final';
+
+        if (!isOldCredit && isNewCredit && isGenericCustomer) {
+            throw Object.assign(new Error('No se puede cambiar a Crédito una factura sin un cliente real asignado (distinto a Consumidor Final)'), { statusCode: 400 });
         }
 
         const dataToUpdate = { paymentMethodId };

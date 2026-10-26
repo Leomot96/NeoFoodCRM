@@ -73,19 +73,35 @@ class CustomerService {
 
   async deleteCustomer(id) {
     const tenantId = getTenantId();
-    if (tenantId) {
-      const existing = await prisma.customer.findFirst({
-        where: { id, tenantId }
-      });
-      if (!existing) {
-        const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
-        error.statusCode = 404;
-        throw error;
-      }
+    const existing = await prisma.customer.findFirst({
+      where: { id, ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!existing) {
+      const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
+      error.statusCode = 404;
+      throw error;
     }
 
-    return await prisma.customer.delete({
-      where: { id }
+    if (
+      existing.document === '222222222222' ||
+      (existing.name || '').trim().toLowerCase() === 'consumidor final'
+    ) {
+      const error = new Error('El cliente predeterminado "Consumidor final" está protegido y no puede ser eliminado');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (parseFloat(existing.balance || 0) > 0) {
+      const error = new Error('No se puede eliminar un cliente que tiene saldo o deuda pendiente en cartera');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      await tx.customerCredit.deleteMany({ where: { customerId: id } });
+      await tx.sale.updateMany({ where: { customerId: id }, data: { customerId: null } });
+      await tx.order.updateMany({ where: { customerId: id }, data: { customerId: null } });
+      return await tx.customer.delete({ where: { id } });
     });
   }
 
@@ -136,6 +152,13 @@ class CustomerService {
         throw error;
       }
 
+      const currentBalance = parseFloat(customer.balance || 0);
+      if (parsedAmount > currentBalance + 0.01) {
+        const error = new Error('El monto del abono no puede superar la deuda total actual del cliente');
+        error.statusCode = 400;
+        throw error;
+      }
+
       // 1. Verificamos caja abierta del restaurante actual
       const activeSession = await tx.cashSession.findFirst({
         where: { userId: userId, status: 'OPEN', ...(tenantId ? { tenantId } : {}) }
@@ -159,9 +182,10 @@ class CustomerService {
 
       const isCash = paymentMethod.name.toLowerCase().includes('efectivo') || paymentMethod.name.toLowerCase().includes('cash');
 
-      // 2.5 Si se especifica saleId, verificar que la factura pertenezca al mismo cliente y tenant
+      // 2.5 Si se especifica saleId, verificar que la factura pertenezca al mismo cliente y tenant y actualizar su saldo
+      let linkedSale = null;
       if (saleId) {
-        const linkedSale = await tx.sale.findFirst({
+        linkedSale = await tx.sale.findFirst({
           where: {
             id: saleId,
             customerId,
@@ -170,6 +194,11 @@ class CustomerService {
         });
         if (!linkedSale) {
           const error = new Error('La factura indicada no existe o no pertenece a este cliente');
+          error.statusCode = 400;
+          throw error;
+        }
+        if (parsedAmount > parseFloat(linkedSale.finalAmount || 0) + 0.01) {
+          const error = new Error('El abono supera el saldo pendiente de la factura seleccionada');
           error.statusCode = 400;
           throw error;
         }
@@ -193,6 +222,17 @@ class CustomerService {
         where: { id: customerId },
         data: { balance: { decrement: parsedAmount } }
       });
+
+      // 4.1 Si el abono fue asociado a una factura específica, sincronizar el saldo pendiente de la factura
+      if (linkedSale) {
+        const isFullPayment = Math.abs(parsedAmount - parseFloat(linkedSale.finalAmount || 0)) < 0.01;
+        await tx.sale.update({
+          where: { id: linkedSale.id },
+          data: isFullPayment
+            ? { finalAmount: linkedSale.totalAmount, paymentMethodId }
+            : { finalAmount: { decrement: parsedAmount } }
+        });
+      }
 
       // 5. SOLO suma dinero físico si pagaron en Efectivo
       if (isCash) {

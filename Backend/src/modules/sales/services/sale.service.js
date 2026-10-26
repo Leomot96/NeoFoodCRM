@@ -179,6 +179,8 @@ class SaleService {
 
       // Si no se especifica cliente, asociar automáticamente al "Consumidor final" del establecimiento
       let effectiveCustomerId = customerId || null;
+      let selectedCustomerDoc = null;
+      let selectedCustomerName = '';
       if (effectiveCustomerId && effectiveTenantId) {
         const checkCust = await tx.customer.findFirst({
           where: { id: effectiveCustomerId, tenantId: effectiveTenantId }
@@ -186,6 +188,8 @@ class SaleService {
         if (!checkCust) {
           throw Object.assign(new Error('El cliente seleccionado no pertenece a este establecimiento'), { statusCode: 400 });
         }
+        selectedCustomerDoc = checkCust.document;
+        selectedCustomerName = checkCust.name || '';
       }
       if (!effectiveCustomerId && effectiveTenantId) {
         const defaultCustomer = await tx.customer.findFirst({
@@ -391,7 +395,15 @@ class SaleService {
 
       const totalCredit = creditPayments.reduce((acc, p) => acc + p.amount, 0);
       if (totalCredit > 0) {
-        if (!effectiveCustomerId) throw Object.assign(new Error('Cliente obligatorio para ventas a crédito o cuenta dividida con crédito'), { statusCode: 400 });
+        const isGenericFinalConsumer = !customerId ||
+          selectedCustomerDoc === '222222222222' ||
+          selectedCustomerName.trim().toLowerCase() === 'consumidor final';
+        if (!effectiveCustomerId || isGenericFinalConsumer) {
+          throw Object.assign(
+            new Error('Debes seleccionar un cliente real (distinto a Consumidor Final) para registrar ventas a crédito'),
+            { statusCode: 400 }
+          );
+        }
 
         await tx.customer.update({
           where: { id: effectiveCustomerId },
@@ -405,6 +417,7 @@ class SaleService {
             amount: totalCredit,
             description: `Venta a crédito (${creditPayments.length > 1 || paymentsToRecord.length > 1 ? 'Parcial/Dividido' : 'Total'}) - Factura ${invoiceNumber}`,
             saleId: newSale.id,
+            paymentMethodId: creditPayments[0]?.paymentMethodId || primaryPaymentMethod.id,
             cashSessionId: activeSession.id
           }
         });

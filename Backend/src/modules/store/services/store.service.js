@@ -748,8 +748,20 @@ class StoreService {
                          paymentMethod.name.toLowerCase().includes('credito') ||
                          paymentMethod.name.toLowerCase().includes('fiao');
 
-    if (isCreditSale && !order.customerId) {
-      throw Object.assign(new Error('No se puede facturar a crédito un pedido sin cliente registrado asociado.'), { statusCode: 400 });
+    if (isCreditSale) {
+      if (!order.customerId) {
+        throw Object.assign(new Error('No se puede facturar a crédito un pedido sin cliente registrado asociado.'), { statusCode: 400 });
+      }
+      const orderCustomer = await prisma.customer.findFirst({
+        where: { id: order.customerId, tenantId }
+      });
+      if (
+        !orderCustomer ||
+        orderCustomer.document === '222222222222' ||
+        (orderCustomer.name || '').trim().toLowerCase() === 'consumidor final'
+      ) {
+        throw Object.assign(new Error('No se puede facturar a crédito al cliente genérico "Consumidor final".'), { statusCode: 400 });
+      }
     }
 
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
@@ -799,14 +811,17 @@ class StoreService {
               const validAdditions = adds
                 .map(a => ({
                   additionId: a.additionId || a.id,
+                  name: a.name || 'Adición',
                   quantity: parseInt(a.quantity || 1, 10),
-                  priceAtSale: parseFloat(a.price || 0)
+                  price: parseFloat(a.price || 0)
                 }))
                 .filter(a => Boolean(a.additionId));
 
               const validVariations = mods
                 .map(m => ({
-                  variationId: m.variationId || m.optionId || m.id
+                  variationId: m.variationId || m.optionId || m.id,
+                  name: m.optionName || m.name || 'Variedad',
+                  price: parseFloat(m.priceExtra ?? m.price ?? 0)
                 }))
                 .filter(m => Boolean(m.variationId));
 
