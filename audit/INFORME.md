@@ -2892,3 +2892,198 @@ Tras la resolución de los 62 hallazgos previos (`NF-01`..`NF-32`, `RA-01`..`RA-
 - **Verificación de Carga y Compilación:** `BACKEND_LOAD_OK` (`node -e "require('./Backend/src/app')"`) y `frontend` (`vite build`) sin errores.
 
 
+
+
+# 12. Sexta Auditoría Profunda (Post-Remediación Fase 5 — HEAD `7399a97`)
+
+**Fecha de auditoría:** 2026-10-26  
+**Commit base auditado:** `7399a97` (`HEAD -> main`, tras completar las fases de remediación 1, 2, 3, 4 y 5 con 70 hallazgos cerrados)  
+**Metodología:** Auditoría estática exhaustiva en modo **ESTRICTO SOLO LECTURA** sobre la arquitectura de micro-flujos, aislamiento multi-tenant en producción y métodos de pago, consistencia transaccional en subida y desvinculación de assets multimedia en disco (`uploads/`), integridad de comandas y auto-conversión a ventas (`KitchenService` / `StoreService`), restricciones de unicidad de mesas (`TableService`) y gobierno de roles en usuarios (`UserService`).
+
+---
+
+## 12.1 Resumen Ejecutivo de la Sexta Auditoría
+
+Con la remediación y verificación exitosa de los 70 hallazgos previos (`NF-01`..`NF-32`, `RA-01`..`RA-14`, `TA-01`..`TA-08`, `CA-01`..`CA-08`, `QA-01`..`QA-08`), la inspección minuciosa del código base en `HEAD 7399a97` reveló **8 nuevos hallazgos arquitectónicos, multi-tenant y de resiliencia (`SA-01` a `SA-08`)**:
+
+1. **`[SA-01]` (Alta — Atribución Arbitraria de Venta por Omisión de `userId` en `KitchenService.updateOrderStatus` y `StoreService.updateOrderStatus`):** Al despachar pedidos a `DELIVERED`, el controlador no envía `req.user.id` y los servicios llaman a `convertOrderToSale(tenantId, orderId, null)`. Sin `userId`, el sistema busca cualquier sesión abierta del tenant ordenada por `openedAt desc`. Si un supervisor o cajero despacha el pedido, la venta se adjudica a la sesión de otro cajero que abrió caja recientemente, distorsionando el arqueo de caja.
+2. **`[SA-02]` (Alta — Fuga de Aislamiento Multi-Tenant en Insumos Elaborados y Órdenes de Producción en `ProductionService`):** En `createProductionOrder`, `tx.ingredient.findUnique({ where: { id: ingredientId } })` no filtra por `tenantId`. Si se envía un ID de insumo de otro restaurante, se procesa la receta, se descuentan inventarios de materias primas ajenas y se imputa la orden. Asimismo, `cancelProductionOrder` usa `if (tenantId && order.tenantId && order.tenantId !== tenantId)`, omitiendo el rechazo si la orden no tenía tenantId explícito.
+3. **`[SA-03]` (Media — Falta de Validación Multi-Tenant en Actualización, Conmutación y Borrado de Métodos de Pago en `PaymentMethodService`):** Mientras que `createPaymentMethod` y `getAllPaymentMethods` respetan `tenantId`, los métodos `updatePaymentMethod(id, data)`, `toggleStatus(id)` y `deletePaymentMethod(id)` realizan updates/deletes directos por UUID sin validar pertenencia al restaurante autenticado.
+4. **`[SA-04]` (Media — Archivos Huérfanos en Disco y Pérdida Prematura de Imagen Anterior en `StoreController` y `StoreService`):** En `uploadLogo` y `uploadBanner`, si la actualización en base de datos falla, el archivo subido en `uploads/store/` queda huérfano en disco. Adicionalmente, `StoreService.updateLogo` y `updateBanner` borran el archivo previo antes de confirmar la actualización en la BD; si Prisma arroja error, el restaurante pierde su imagen anterior sin posibilidad de recuperación.
+5. **`[SA-05]` (Media — Colisiones de Nombres de Mesas por Comparación Case-Sensitive y Caracteres en Blanco en `TableService.createTable`):** `createTable` no recorta espacios en blanco (`trim()`) ni valida duplicidad case-insensitive antes de insertar en Postgres (`@@unique([tenantId, name])` es sensible a mayúsculas), permitiendo crear simultáneamente "Mesa 1" y "mesa 1", generando confusión operativa en el mapa interactivo del POS y pantallas de comandas.
+6. **`[SA-06]` (Media — Ocultamiento de Fallo y Falta de Retroalimentación al Auto-Facturar Pedidos Sin Caja Abierta en `StoreService.updateOrderStatus`):** Al actualizar una orden a `DELIVERED`, si el restaurante no tiene una sesión de caja abierta, `convertOrderToSale` lanza un error que es silenciado con un simple `console.warn`. La orden queda marcada permanentemente como entregada, pero sin factura, sin cobro en caja y sin descuento de existencias en el inventario, sin avisar al operador.
+7. **`[SA-07]` (Baja — Acumulación de Archivos Huérfanos al Purgar Restaurantes en `SaasService.deleteTenantPermanently`):** `deleteTenantPermanently` purga todas las tablas relacionales del tenant, pero no elimina físicamente los archivos multimedia referenciados en `tenant.logoUrl` ni `tenant.bannerUrl` en la carpeta `uploads/store/`.
+8. **`[SA-08]` (Baja — Falta de Soporte para `tenantId` Explícito y Roles Globales en `UserController.getRoles` / `UserService.getRoles`):** `UserController.getRoles` no extrae `req.query.tenantId` ni `req.tenantId` explícito para consultas de SuperAdmin, y `UserService.getRoles` omite roles del sistema globales definidos con `tenantId: null`.
+
+| Severidad (Hallazgos `SA`) | Cantidad | IDs |
+| :--- | :---: | :--- |
+| **Crítica** | **0** | - |
+| **Alta** | **2** | `SA-01`, `SA-02` |
+| **Media** | **4** | `SA-03`, `SA-04`, `SA-05`, `SA-06` |
+| **Baja** | **2** | `SA-07`, `SA-08` |
+| **Total** | **8** | `SA-01` .. `SA-08` |
+
+---
+
+## 12.2 Detalle Técnico de los Hallazgos (SA-01 a SA-08)
+
+### `[SA-01]` Atribución Arbitraria de Venta por Omisión de `userId` en Cocina y Tienda Virtual
+- **Componentes:** `Backend/src/modules/kitchen/controllers/kitchen.controller.js` (L30-45), `Backend/src/modules/kitchen/services/kitchen.service.js` (L125-140), `Backend/src/modules/store/controllers/store.controller.js` (L180-195), `Backend/src/modules/store/services/store.service.js` (L630-650, L694-710).
+- **Severidad:** **Alta**
+- **Causa Raíz:** En `KitchenController.updateStatus`, se invoca `kitchenService.updateOrderStatus(tenantId, id, status)` sin transferir el ID del usuario en sesión (`req.user.id`). Luego, `kitchen.service.js:133` llama a `storeService.convertOrderToSale(tenantId, orderId, null)`. Al recibir `userId = null`, `store.service.js:698-705` busca cualquier sesión abierta del restaurante con `orderBy: { openedAt: 'desc' }`. Si hay varias terminales activas (ej. Cajero 1 y Cajero 2), el ingreso de la venta web/comanda se imputa arbitrariamente al último cajero en abrir sesión, no al operador que ejecutó el despacho en cocina.
+- **Impacto:** Descuadre en los arqueos de caja por terminal POS; imposibilidad de auditar qué usuario liquidó y entregó la comanda.
+- **Remediación:** Pasar `req.user?.id` desde el controlador a `kitchenService.updateOrderStatus` y `storeService.updateOrderStatus`, e inyectar dicho `userId` en `convertOrderToSale`.
+
+### `[SA-02]` Fuga de Aislamiento Multi-Tenant en Insumos Elaborados y Lotes de Producción
+- **Componentes:** `Backend/src/modules/production/services/production.service.js` (L18-35, L183-195).
+- **Severidad:** **Alta**
+- **Causa Raíz:** `createProductionOrder` ejecuta `tx.ingredient.findUnique({ where: { id: ingredientId } })` sin filtrar por `tenantId`. Si un usuario autenticado suministra el UUID de un insumo elaborado perteneciente a otro establecimiento, el servicio procede a calcular consumos, descontar inventario de insumos del restaurante ajeno y registrar la orden. Por su parte, `cancelProductionOrder` evalúa `if (tenantId && order.tenantId && order.tenantId !== tenantId)`, lo cual no rechaza si `order.tenantId` es nulo o indefinido.
+- **Impacto:** Vulneración de límites multi-tenant (IDOR transversal); alteración de stock de insumos entre restaurantes independientes.
+- **Remediación:** Filtrar el insumo elaborado con `where: { id: ingredientId, ...(tenantId ? { tenantId } : {}) }` arrojando `404` si no existe o no pertenece al tenant. En `cancelProductionOrder`, exigir coincidencia estricta `if (tenantId && order.tenantId !== tenantId) throw 403`.
+
+### `[SA-03]` Falta de Verificación Multi-Tenant en Métodos de Pago
+- **Componentes:** `Backend/src/modules/sales/controllers/payment-method.controller.js` (L18-42), `Backend/src/modules/sales/services/payment-method.service.js` (L31-70).
+- **Severidad:** **Media**
+- **Causa Raíz:** `updatePaymentMethod`, `toggleStatus` y `deletePaymentMethod` ejecutan operaciones `prisma.paymentMethod.update` / `findUnique` basándose exclusivamente en `where: { id: parsedId }` sin comprobar el `tenantId` del llamante. Cualquier usuario autenticado con permisos de administrador de una sede puede modificar o desactivar métodos de pago de otra sede simplemente enviando su UUID en la URL.
+- **Impacto:** Alteración no autorizada de medios de pago entre empresas clientes (SaaS Cross-Tenant Tampering).
+- **Remediación:** Obtener `tenantId = getTenantId()` y validar previamente que el método de pago pertenezca al restaurante antes de cualquier actualización, conmutación (`toggle`) o eliminación.
+
+### `[SA-04]` Archivos Huérfanos en Disco y Pérdida Prematura de Imagen Anterior en Tienda
+- **Componentes:** `Backend/src/modules/store/controllers/store.controller.js` (L70-90, L111-131), `Backend/src/modules/store/services/store.service.js` (L453-470, L487-505).
+- **Severidad:** **Media**
+- **Causa Raíz:** En `uploadLogo` y `uploadBanner`, si la invocación a `storeService.updateLogo` o `updateBanner` falla tras almacenar el archivo en disco, el bloque `catch` envía el error al middleware `next(error)` sin borrar el archivo recién subido en `req.file.path`. Asimismo, en `store.service.js`, `deleteUploadedFile(existing.logoUrl)` se ejecuta *antes* de `prisma.tenant.update(...)`. Si la base de datos rechaza la actualización, el restaurante queda sin logo anterior y con el nuevo archivo desvinculado.
+- **Impacto:** Corrupción de datos visuales en el escaparate digital y acumulación progresiva de archivos residuales en disco (`uploads/store/`).
+- **Remediación:** En el controlador, invocar `deleteUploadedFile(req.file.path)` dentro del `catch`. En el servicio, eliminar la imagen previa únicamente *después* de que `prisma.tenant.update` confirme la persistencia exitosa.
+
+### `[SA-05]` Inconsistencia Case-Sensitive y Falta de Sanitización en Creación de Mesas
+- **Componentes:** `Backend/src/modules/tables/services/table.service.js` (L73-98), `Backend/prisma/schema.prisma` (L454).
+- **Severidad:** **Media**
+- **Causa Raíz:** `createTable(name)` no ejecuta `name.trim()` ni verifica colisión case-insensitive contra mesas existentes. La restricción de base de datos `@@unique([tenantId, name])` en PostgreSQL distingue entre mayúsculas y minúsculas por defecto. Esto permite registrar "Mesa 1", "mesa 1" y "  Mesa 1  " como registros independientes para la misma sucursal.
+- **Impacto:** Duplicidad de mesas en el mapa de salón, pedidos asignados a la mesa errónea y errores visuales en las pantallas de comandas.
+- **Remediación:** Sanitizar `name.trim()`, validar obligatoriedad de texto no vacío y verificar mediante `findFirst` con `{ equals: trimmedName, mode: 'insensitive' }` retornando código `409` antes de insertar.
+
+### `[SA-06]` Silenciamiento de Excepción de Auto-Facturación Sin Caja Abierta
+- **Componentes:** `Backend/src/modules/store/services/store.service.js` (L635-650, L705-715).
+- **Severidad:** **Media**
+- **Causa Raíz:** Cuando una comanda virtual o de tienda pasa a `DELIVERED` en `store.service.js:639`, se intenta auto-convertir a venta (`convertOrderToSale`). Si no hay sesión de caja abierta, el servicio atrapa el error con un simple `console.warn` y retorna la orden con status `DELIVERED`. El personal asume que la venta fue registrada, pero la orden no tiene `Sale` asociado, el inventario no se deduce y el dinero no ingresa a caja.
+- **Impacto:** Discrepancia crítica entre comandas entregadas e ingresos facturados; descontrol de existencias en el inventario.
+- **Remediación:** Incluir una advertencia explícita en el objeto de respuesta (`invoicingWarning`) informando que la orden fue entregada pero requiere facturación manual o apertura de caja, y permitir que la interfaz notifique al usuario.
+
+### `[SA-07]` Archivos Multimedia Huérfanos al Purgar Restaurantes en SaaS
+- **Componentes:** `Backend/src/modules/saas/services/saas.service.js` (L522-670).
+- **Severidad:** **Baja**
+- **Causa Raíz:** `deleteTenantPermanently` borra en cascada los registros de todas las tablas asociadas al tenant, pero no invoca la eliminación de los archivos físicos apuntados por `tenant.logoUrl` y `tenant.bannerUrl`.
+- **Impacto:** Degradación paulatina del almacenamiento en disco del servidor al purgar restaurantes cancelados o de prueba.
+- **Remediación:** Extraer `tenant.logoUrl` y `tenant.bannerUrl` antes de la eliminación y llamar a `deleteUploadedFile` tras confirmar la transacción.
+
+### `[SA-08]` Filtro Incompleto de Roles por Tenant y Omisión de Roles Globales
+- **Componentes:** `Backend/src/modules/users/controllers/user.controller.js` (L4-11), `Backend/src/modules/users/services/user.service.js` (L8-25).
+- **Severidad:** **Baja**
+- **Causa Raíz:** `UserController.getRoles` no lee `req.query.tenantId`. Si un SuperAdmin solicita roles en el panel administrativo, `UserService.getRoles` no recibe el tenant objetivo. Asimismo, si existen roles globales del sistema con `tenantId: null`, la condición `where.tenantId = tenantId` los excluye para los tenants regulares.
+- **Impacto:** Visualización incompleta o mezcla de roles en la gestión administrativa de usuarios.
+- **Remediación:** Extraer `tenantId` desde parámetros de consulta o contexto y estructurar la consulta Prisma como `{ OR: [{ tenantId }, { tenantId: null }] }`.
+
+---
+
+## 12.3 Diffs Propuestos para la Remediación (Modo Plan)
+
+### 1. Diff para `SA-01` (`kitchen.controller.js`, `kitchen.service.js`, `store.controller.js`, `store.service.js`)
+```diff
+--- a/Backend/src/modules/kitchen/controllers/kitchen.controller.js
++++ b/Backend/src/modules/kitchen/controllers/kitchen.controller.js
+@@ -35,1 +35,1 @@
+-      const updated = await kitchenService.updateOrderStatus(tenantId, id, status);
++      const updated = await kitchenService.updateOrderStatus(tenantId, id, status, req.user?.id);
+
+--- a/Backend/src/modules/kitchen/services/kitchen.service.js
++++ b/Backend/src/modules/kitchen/services/kitchen.service.js
+@@ -115,3 +115,3 @@
+-  async updateOrderStatus(tenantId, orderId, status) {
++  async updateOrderStatus(tenantId, orderId, status, userId = null) {
+...
+-        await storeService.convertOrderToSale(tenantId, orderId, null);
++        await storeService.convertOrderToSale(tenantId, orderId, userId);
+
+--- a/Backend/src/modules/store/controllers/store.controller.js
++++ b/Backend/src/modules/store/controllers/store.controller.js
+@@ -183,1 +183,1 @@
+-      const updated = await storeService.updateOrderStatus(tenantId, id, status);
++      const updated = await storeService.updateOrderStatus(tenantId, id, status, req.user?.id);
+
+--- a/Backend/src/modules/store/services/store.service.js
++++ b/Backend/src/modules/store/services/store.service.js
+@@ -625,3 +625,3 @@
+-  async updateOrderStatus(tenantId, orderId, status) {
++  async updateOrderStatus(tenantId, orderId, status, userId = null) {
+...
+-        await this.convertOrderToSale(tenantId, orderId, null);
++        await this.convertOrderToSale(tenantId, orderId, userId);
+```
+
+### 2. Diff para `SA-02` (`Backend/src/modules/production/services/production.service.js`)
+```diff
+--- a/Backend/src/modules/production/services/production.service.js
++++ b/Backend/src/modules/production/services/production.service.js
+@@ -19,4 +19,4 @@
+-      const manufacturedIngredient = await tx.ingredient.findUnique({
+-        where: { id: ingredientId },
++      const manufacturedIngredient = await tx.ingredient.findFirst({
++        where: { id: ingredientId, ...(tenantId ? { tenantId } : {}) },
+         include: {
+...
+@@ -192,3 +192,3 @@
+-      if (tenantId && order.tenantId && order.tenantId !== tenantId) {
++      if (tenantId && order.tenantId !== tenantId) {
+         throw Object.assign(new Error('Acceso no autorizado a esta orden'), { statusCode: 403 });
+       }
+```
+
+### 3. Diff para `SA-03` (`Backend/src/modules/sales/services/payment-method.service.js`)
+```diff
+--- a/Backend/src/modules/sales/services/payment-method.service.js
++++ b/Backend/src/modules/sales/services/payment-method.service.js
+@@ -31,6 +31,14 @@
+   async updatePaymentMethod(id, data) {
++    const tenantId = getTenantId();
+     const parsedId = String(id);
++    const existing = await prisma.paymentMethod.findFirst({
++      where: { id: parsedId, ...(tenantId ? { tenantId } : {}) }
++    });
++    if (!existing) {
++      throw Object.assign(new Error('Método de pago no encontrado en este establecimiento'), { statusCode: 404 });
++    }
+...
+   async toggleStatus(id) {
++    const tenantId = getTenantId();
+     const parsedId = String(id);
+-    const method = await prisma.paymentMethod.findUnique({ 
+-      where: { id: parsedId } 
++    const method = await prisma.paymentMethod.findFirst({ 
++      where: { id: parsedId, ...(tenantId ? { tenantId } : {}) } 
+     });
+...
+   async deletePaymentMethod(id) {
++    const tenantId = getTenantId();
+     const parsedId = String(id);
+-    const method = await prisma.paymentMethod.findUnique({
+-      where: { id: parsedId },
++    const method = await prisma.paymentMethod.findFirst({
++      where: { id: parsedId, ...(tenantId ? { tenantId } : {}) },
+```
+
+---
+
+## 12.4 Plan de Acción Fase 6 (Ordenado por Prioridad)
+
+| Prioridad | IDs | Tarea Técnica | Esfuerzo Estimado |
+| :---: | :--- | :--- | :---: |
+| **P1 (Alta)** | `SA-01`, `SA-02` | 1. Propagar `userId` (`req.user.id`) en `kitchen.controller`, `kitchen.service`, `store.controller` y `store.service` para atribuir correctamente las ventas auto-facturadas a la caja del operador.<br>2. Restringir por `tenantId` la consulta de recetas de insumos elaborados y la anulación de lotes en `ProductionService`. | 1.0 h |
+| **P2 (Media)** | `SA-03`, `SA-04`, `SA-05`, `SA-06` | 3. Validar pertenencia por `tenantId` en `update`, `toggleStatus` y `delete` de `PaymentMethodService`.<br>4. Añadir limpieza de archivo en catch de `store.controller.js` y diferir `deleteUploadedFile` en `store.service.js` hasta confirmar persistencia.<br>5. Aplicar `trim()` y unicidad case-insensitive (`findFirst({ mode: 'insensitive' })`) en `TableService.createTable`.<br>6. Proveer retroalimentación (`invoicingWarning`) al operador cuando un pedido en tienda se entrega pero no se puede facturar por falta de caja abierta. | 1.0 h |
+| **P3 (Baja)** | `SA-07`, `SA-08` | 7. Purgar archivos físicos de `logoUrl` y `bannerUrl` en disco al eliminar permanentemente un tenant en `SaasService`.<br>8. Soportar `tenantId` explícito en `UserController.getRoles` y admitir roles globales del sistema en `UserService.getRoles`. | 0.5 h |
+| **Total** | **`SA-01`..`SA-08`** | **Cierre completo de la Sexta Auditoría (Fase 6)** | **2.5 h** |
+
+---
+
+## 12.5 Bitácora de Commits y Estado de la Sexta Auditoría
+
+*Pendiente de ejecución por confirmación del usuario.*
