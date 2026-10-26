@@ -420,7 +420,14 @@ class ProductService {
     }
 
     // No tiene historial de ventas ni pedidos -> Borrado permanente (Hard delete)
-    await prisma.product.delete({ where: { id } });
+    // Desvincular opciones de combos que apunten a este producto (linkedProductId) antes de borrar
+    await prisma.$transaction(async (tx) => {
+      await tx.productModifierOption.updateMany({
+        where: { linkedProductId: id },
+        data: { linkedProductId: null }
+      });
+      await tx.product.delete({ where: { id } });
+    });
     if (product.imageUrl && typeof product.imageUrl === 'string' && product.imageUrl.startsWith('/uploads/products/')) {
       const { deleteUploadedFile } = require('../../../utils/fileCleaner');
       deleteUploadedFile(product.imageUrl);

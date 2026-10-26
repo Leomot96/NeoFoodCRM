@@ -143,8 +143,11 @@ class UserService {
   }
 
   // 4. Actualizar Usuario
-  async updateUser(id, data) {
-    const existingUser = await prisma.user.findUnique({ where: { id } });
+  async updateUser(id, data, requestingUserId = null) {
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      include: { role: true }
+    });
     if (!existingUser) {
       const error = new Error('Usuario no encontrado');
       error.statusCode = 404;
@@ -156,6 +159,20 @@ class UserService {
       const error = new Error('No tienes permisos para modificar un usuario de otro establecimiento');
       error.statusCode = 403;
       throw error;
+    }
+
+    // Impedir que el usuario autenticado desactive su propia cuenta o cambie su propio rol en sesión
+    if (requestingUserId && existingUser.id === requestingUserId) {
+      if (data.isActive === false) {
+        const error = new Error('No puedes desactivar tu propia cuenta mientras estás en sesión');
+        error.statusCode = 400;
+        throw error;
+      }
+      if (data.roleId && data.roleId !== existingUser.roleId) {
+        const error = new Error('No puedes cambiar el rol de tu propia cuenta en uso');
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     // Protección de seguridad para cuentas demo
@@ -213,6 +230,28 @@ class UserService {
         throw error;
       }
       validatedRoleId = targetRole.id;
+    }
+
+    // Impedir dejar al restaurante sin al menos un Administrador activo
+    const existingRoleName = String(existingUser.role?.name || '').trim().toLowerCase();
+    const isCurrentlyAdmin = existingRoleName === 'administrador';
+    const isDeactivatingAdmin = isCurrentlyAdmin && existingUser.isActive && data.isActive === false;
+    const isDemotingAdmin = isCurrentlyAdmin && existingUser.isActive && validatedRoleId && validatedRoleId !== existingUser.roleId;
+
+    if ((isDeactivatingAdmin || isDemotingAdmin) && existingUser.tenantId) {
+      const remainingAdmins = await prisma.user.count({
+        where: {
+          tenantId: existingUser.tenantId,
+          id: { not: existingUser.id },
+          isActive: true,
+          role: { name: 'Administrador' }
+        }
+      });
+      if (remainingAdmins === 0) {
+        const error = new Error('El establecimiento debe conservar al menos un usuario Administrador activo');
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     const updateData = {

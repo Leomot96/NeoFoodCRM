@@ -155,10 +155,21 @@ class ProductionService {
     if (status) where.status = status;
     if (ingredientId) where.ingredientId = ingredientId;
     if (startDate && endDate) {
-      where.createdAt = {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      };
+      const startRaw = String(startDate).trim();
+      const endRaw = String(endDate).trim();
+      const start = /^\d{4}-\d{2}-\d{2}$/.test(startRaw)
+        ? new Date(`${startRaw}T00:00:00.000`)
+        : new Date(startRaw);
+      const end = /^\d{4}-\d{2}-\d{2}$/.test(endRaw)
+        ? new Date(`${endRaw}T23:59:59.999`)
+        : new Date(endRaw);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw Object.assign(new Error('Rango de fechas inválido'), { statusCode: 400 });
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(endRaw) && end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
+        end.setHours(23, 59, 59, 999);
+      }
+      where.createdAt = { gte: start, lte: end };
     }
 
     return await prisma.productionOrder.findMany({

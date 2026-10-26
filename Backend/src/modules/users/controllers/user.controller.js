@@ -51,7 +51,7 @@ exports.createUser = async (req, res, next) => {
 // Actualizar un usuario
 exports.updateUser = async (req, res, next) => {
   try {
-    const user = await userService.updateUser(req.params.id, req.body);
+    const user = await userService.updateUser(req.params.id, req.body, req.user?.id);
     res.status(200).json({ success: true, data: user });
   } catch (error) {
     next(error);

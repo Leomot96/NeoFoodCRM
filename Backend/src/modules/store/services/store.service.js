@@ -552,9 +552,11 @@ class StoreService {
       where.OR = [
         { customerName: { contains: s } },
         { customerPhone: { contains: s } },
-        { deliveryAddress: { contains: s } },
-        { orderNumber: !isNaN(parseInt(s, 10)) ? parseInt(s, 10) : undefined }
-      ].filter(cond => cond.orderNumber !== undefined || !cond.orderNumber);
+        { deliveryAddress: { contains: s } }
+      ];
+      if (/^\d+$/.test(s)) {
+        where.OR.push({ orderNumber: parseInt(s, 10) });
+      }
     }
 
     return await prisma.order.findMany({
