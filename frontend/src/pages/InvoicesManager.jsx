@@ -156,7 +156,8 @@ const InvoicesManager = () => {
       // Abono parcial o total
       await api.put(`/invoices/${selectedInvoice.id}/abono`, {
         amount: amountToPay,
-        paymentMethodId: editData.paymentMethodId
+        paymentMethodId: editData.paymentMethodId,
+        date: amountToPay >= invoiceTotal ? (editData.date?.startDate || null) : null
       });
       alert(amountToPay >= invoiceTotal
         ? "Factura pagada en su totalidad correctamente."

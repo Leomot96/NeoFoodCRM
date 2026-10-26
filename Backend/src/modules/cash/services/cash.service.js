@@ -10,6 +10,10 @@ function iterateSalePayments(sales, callback) {
         callback(methodName, amount, sale);
       });
     } else {
+      // Si la venta fue originada a crédito (tiene registro DEBT en customerCredits),
+      // sus cobros reales ya se contabilizan vía session.customerCredits (type: 'PAYMENT')
+      const hadInitialDebt = Array.isArray(sale.customerCredits) && sale.customerCredits.some(c => c.type === 'DEBT');
+      if (hadInitialDebt) return;
       const methodName = sale.paymentMethod?.name || 'Desconocido';
       const amount = parseFloat(sale.finalAmount || 0);
       callback(methodName, amount, sale);
@@ -121,7 +125,7 @@ class CashService {
       const session = await tx.cashSession.findUnique({
         where: { id: sessionId },
         include: {
-          sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
+          sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } }, customerCredits: { select: { type: true } } } },
           cashMovements: true,
           customerCredits: { include: { paymentMethod: true } }
         }
@@ -193,7 +197,7 @@ class CashService {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
         cashMovements: { orderBy: { createdAt: 'desc' } },
-        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } }, // Necesario para sumar y desglosar las ventas
+        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } }, customerCredits: { select: { type: true } } } }, // Necesario para sumar y desglosar las ventas
         customerCredits: { include: { paymentMethod: true } } // Añadido para incluir Abonos al total
       },
       orderBy: { openedAt: 'desc' },
@@ -265,9 +269,15 @@ class CashService {
   }
 
   async getDailyReport(date) {
-    const [year, month, day] = date.split('-').map(Number);
+    if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+      throw Object.assign(new Error('El parámetro date debe tener formato válido YYYY-MM-DD'), { statusCode: 400 });
+    }
+    const [year, month, day] = date.trim().split('-').map(Number);
     const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
     const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+    if (Number.isNaN(startOfDay.getTime()) || startOfDay.getMonth() !== month - 1 || startOfDay.getDate() !== day) {
+      throw Object.assign(new Error('Fecha proporcionada inválida'), { statusCode: 400 });
+    }
 
     const sessions = await prisma.cashSession.findMany({
       where: { openedAt: { gte: startOfDay, lte: endOfDay } },
@@ -275,7 +285,7 @@ class CashService {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
         cashMovements: { orderBy: { createdAt: 'desc' } },
-        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
+        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } }, customerCredits: { select: { type: true } } } },
         customerCredits: { include: { paymentMethod: true } }
       },
       orderBy: { openedAt: 'asc' }
@@ -376,8 +386,13 @@ class CashService {
   }
 
   async getMonthlyReport(year, month) {
-    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    const parsedYear = parseInt(year, 10);
+    const parsedMonth = parseInt(month, 10);
+    if (!Number.isInteger(parsedYear) || parsedYear < 2000 || parsedYear > 2100 || !Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
+      throw Object.assign(new Error('Los parámetros year (2000-2100) y month (1-12) deben ser válidos'), { statusCode: 400 });
+    }
+    const startDate = new Date(parsedYear, parsedMonth - 1, 1, 0, 0, 0, 0);
+    const endDate = new Date(parsedYear, parsedMonth, 0, 23, 59, 59, 999);
 
     const sessions = await prisma.cashSession.findMany({
       where: { openedAt: { gte: startDate, lte: endDate } },
@@ -385,7 +400,7 @@ class CashService {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
         cashMovements: { orderBy: { createdAt: 'desc' } },
-        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
+        sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } }, customerCredits: { select: { type: true } } } },
         customerCredits: { include: { paymentMethod: true } }
       },
       orderBy: { openedAt: 'asc' }

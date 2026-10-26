@@ -457,6 +457,25 @@ class SaleService {
     });
   }
 
+  _parseDateRange(startDate, endDate) {
+    if (!startDate || !endDate) return undefined;
+    const startRaw = String(startDate).trim();
+    const endRaw = String(endDate).trim();
+    const start = /^\d{4}-\d{2}-\d{2}$/.test(startRaw)
+      ? new Date(`${startRaw}T00:00:00.000`)
+      : new Date(startRaw);
+    const end = /^\d{4}-\d{2}-\d{2}$/.test(endRaw)
+      ? new Date(`${endRaw}T23:59:59.999`)
+      : new Date(endRaw);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw Object.assign(new Error('Rango de fechas inválido'), { statusCode: 400 });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(endRaw) && end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
+      end.setHours(23, 59, 59, 999);
+    }
+    return { gte: start, lte: end };
+  }
+
   // ==========================================
   // HISTORIAL Y FACTURACIÓN
   // ==========================================
@@ -467,10 +486,7 @@ class SaleService {
     if (paymentMethodId) whereClause.paymentMethodId = paymentMethodId;
     if (cashSessionId) whereClause.cashSessionId = cashSessionId;
     if (startDate && endDate) {
-      whereClause.createdAt = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      };
+      whereClause.createdAt = this._parseDateRange(startDate, endDate);
     }
 
     const skip = (page - 1) * limit;
@@ -574,15 +590,13 @@ class SaleService {
   // ==========================================
   async getUtilityReport(startDate, endDate) {
     const tenantId = getTenantId();
+    const dateRange = this._parseDateRange(startDate, endDate);
     // 1. Obtener todas las ventas del periodo filtradas estrictamente por tenantId
     const sales = await prisma.saleDetail.findMany({
       where: {
         sale: {
           ...(tenantId ? { tenantId } : {}),
-          createdAt: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
-          }
+          createdAt: dateRange
         }
       },
       include: {
@@ -687,13 +701,49 @@ class SaleService {
       include: {
         user: { select: { id: true, name: true, email: true } },
         cashMovements: true,
-        sales: { select: { finalAmount: true, paymentMethod: { select: { name: true } } } }
+        sales: {
+          select: {
+            finalAmount: true,
+            paymentMethod: { select: { name: true } },
+            payments: { include: { paymentMethod: { select: { name: true } } } },
+            customerCredits: { select: { type: true } }
+          }
+        },
+        customerCredits: {
+          where: { type: 'PAYMENT' },
+          select: { amount: true }
+        }
       },
       orderBy: { openedAt: 'desc' }
     });
 
     let activeCashSession = { status: 'CLOSED' };
     if (openSession) {
+      let sessionNonCreditSales = 0;
+      for (const s of openSession.sales || []) {
+        if (Array.isArray(s.payments) && s.payments.length > 0) {
+          for (const p of s.payments) {
+            const mName = (p.paymentMethod?.name || s.paymentMethod?.name || '').toLowerCase();
+            const isCredit = mName.includes('crédito') || mName.includes('credito') || mName.includes('fiao');
+            if (!isCredit) {
+              sessionNonCreditSales += parseFloat(p.amount || 0);
+            }
+          }
+        } else {
+          const hadInitialDebt = Array.isArray(s.customerCredits) && s.customerCredits.some(c => c.type === 'DEBT');
+          if (hadInitialDebt) continue;
+          const mName = (s.paymentMethod?.name || '').toLowerCase();
+          const isCredit = mName.includes('crédito') || mName.includes('credito') || mName.includes('fiao');
+          if (!isCredit) {
+            sessionNonCreditSales += parseFloat(s.finalAmount || 0);
+          }
+        }
+      }
+      const sessionAbonos = (openSession.customerCredits || []).reduce(
+        (sum, c) => sum + parseFloat(c.amount || 0),
+        0
+      );
+
       activeCashSession = {
         id: openSession.id,
         status: 'OPEN',
@@ -701,7 +751,7 @@ class SaleService {
         openingAmount: parseFloat(openSession.openingAmount),
         user: openSession.user,
         userId: openSession.userId,
-        totalSales: openSession.sales.reduce((sum, s) => sum + parseFloat(s.finalAmount || 0), 0)
+        totalSales: sessionNonCreditSales + sessionAbonos
       };
     }
 

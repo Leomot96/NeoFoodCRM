@@ -22,9 +22,9 @@ exports.updatePaymentMethod = async (req, res, next) => {
 
 exports.addAbono = async (req, res, next) => {
   try {
-    const { amount, paymentMethodId } = req.body;
+    const { amount, paymentMethodId, date } = req.body;
     const userId = req.user.id;
-    const sale = await invoiceService.addAbono(req.params.id, amount, paymentMethodId, userId);
+    const sale = await invoiceService.addAbono(req.params.id, amount, paymentMethodId, userId, date);
     res.status(200).json({ success: true, data: sale });
   } catch (error) {
     next(error);

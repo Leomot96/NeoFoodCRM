@@ -26,6 +26,9 @@ class InvoiceService {
             include: {
                 customer: { select: { name: true, document: true } },
                 paymentMethod: { select: { name: true } },
+                payments: {
+                    include: { paymentMethod: { select: { id: true, name: true } } }
+                },
                 order: { select: { table: { select: { name: true } } } },
                 details: { 
                     include: { 
@@ -145,13 +148,18 @@ class InvoiceService {
                 });
             }
 
-            // Si la venta tenía un único registro en SalePayment, sincronizar su paymentMethodId
-            if (Array.isArray(sale.payments) && sale.payments.length === 1) {
-                await tx.salePayment.update({
-                    where: { id: sale.payments[0].id },
-                    data: { paymentMethodId }
-                });
-            }
+            // Sincronizar los registros de SalePayment con el nuevo método de pago
+            await tx.salePayment.deleteMany({
+                where: { saleId: sale.id }
+            });
+            await tx.salePayment.create({
+                data: {
+                    saleId: sale.id,
+                    paymentMethodId,
+                    amount: sale.totalAmount,
+                    notes: 'Actualización de método de pago en factura'
+                }
+            });
 
             return await tx.sale.update({
                 where: { id: saleId },
@@ -160,10 +168,21 @@ class InvoiceService {
         });
     }
 
-    async addAbono(saleId, amount, paymentMethodId, userId) {
+    async addAbono(saleId, amount, paymentMethodId, userId, date = null) {
         const numericAmount = parseFloat(amount);
         if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
             throw Object.assign(new Error('El monto del abono debe ser mayor a 0'), { statusCode: 400 });
+        }
+
+        let parsedPaymentDate = null;
+        if (date) {
+            const rawDate = String(date).trim();
+            parsedPaymentDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+                ? new Date(`${rawDate}T12:00:00.000Z`)
+                : new Date(rawDate);
+            if (Number.isNaN(parsedPaymentDate.getTime())) {
+                throw Object.assign(new Error('Fecha proporcionada inválida'), { statusCode: 400 });
+            }
         }
 
         const tenantId = getTenantId();
@@ -225,6 +244,9 @@ class InvoiceService {
                     finalAmount: sale.totalAmount,  // Restaurar al monto original
                     paymentMethodId: paymentMethodId // Cambiar método de crédito al real
                 };
+                if (parsedPaymentDate) {
+                    updateData.createdAt = parsedPaymentDate;
+                }
             } else {
                 // Abono PARCIAL: simplemente descontar del saldo pendiente
                 updateData = { finalAmount: { decrement: numericAmount } };
