@@ -40,7 +40,8 @@ import {
   Sandwich,
   MapPin,
   KeyRound,
-  LogIn
+  LogIn,
+  Menu
 } from 'lucide-react';
 import api from '../../api/axios';
 import {
@@ -243,6 +244,28 @@ const LandingPage = () => {
   const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'semiannual' | 'annual'
   const [openFaq, setOpenFaq] = useState(0);
   const [activeTab, setActiveTab] = useState('pos');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Bloqueo de scroll cuando el drawer móvil está abierto
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // Cerrar drawer móvil con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -296,7 +319,7 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* 2. NAVBAR NAVEGACIÓN */}
+      {/* 2. NAVBAR NAVEGACIÓN (ESTILO FLOATING PILL) */}
       <header className={styles.navbar}>
         <div className={styles.navContainer}>
           <a
@@ -309,6 +332,7 @@ const LandingPage = () => {
               } else {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }
+              setMobileMenuOpen(false);
             }}
             className={styles.brandLink}
             title="Volver al inicio de NeoFood"
@@ -340,8 +364,139 @@ const LandingPage = () => {
               <span className={styles.trialNavTextShort}>Prueba Gratis</span>
             </button>
           </div>
+
+          {/* Botón Burger Móvil inspirado en OlaClick */}
+          <button
+            type="button"
+            className={styles.burgerBtn}
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú de navegación'}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
       </header>
+
+      {/* Menú Drawer Móvil con Fondo Oscurecido */}
+      {mobileMenuOpen && (
+        <div
+          className={styles.mobileBackdrop}
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className={`${styles.mobileDrawer} ${mobileMenuOpen ? styles.mobileDrawerOpen : ''}`}>
+        <div className={styles.mobileDrawerHeader}>
+          <div className={styles.brandLink}>
+            <img src="/isotipo.svg" alt="NeoFood" className={styles.navIsotipoImg} />
+            <img src="/logo_blanco.svg" alt="NeoFood" className={styles.navLogoImg} />
+          </div>
+          <button
+            type="button"
+            className={styles.mobileCloseBtn}
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Cerrar menú"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <nav className={styles.mobileNavLinks}>
+          <a
+            href="#modulos"
+            onClick={(e) => {
+              scrollToSection(e, 'modulos');
+              setMobileMenuOpen(false);
+            }}
+            className={styles.mobileNavLink}
+          >
+            <Layers size={18} className={styles.mobileNavIcon} />
+            <span>Módulos del Sistema</span>
+          </a>
+          <a
+            href="#whatsapp"
+            onClick={(e) => {
+              scrollToSection(e, 'whatsapp');
+              setMobileMenuOpen(false);
+            }}
+            className={styles.mobileNavLink}
+          >
+            <MessageCircle size={18} className={styles.mobileNavIcon} />
+            <span>Tienda WhatsApp</span>
+          </a>
+          <a
+            href="#demos"
+            onClick={(e) => {
+              scrollToSection(e, 'demos');
+              setMobileMenuOpen(false);
+            }}
+            className={styles.mobileNavLink}
+          >
+            <UtensilsCrossed size={18} className={styles.mobileNavIcon} />
+            <span>Demos en Vivo</span>
+          </a>
+          <a
+            href="#precios"
+            onClick={(e) => {
+              scrollToSection(e, 'precios');
+              setMobileMenuOpen(false);
+            }}
+            className={styles.mobileNavLink}
+          >
+            <CreditCard size={18} className={styles.mobileNavIcon} />
+            <span>Planes & Precios</span>
+          </a>
+          <a
+            href="#faq"
+            onClick={(e) => {
+              scrollToSection(e, 'faq');
+              setMobileMenuOpen(false);
+            }}
+            className={styles.mobileNavLink}
+          >
+            <HelpCircle size={18} className={styles.mobileNavIcon} />
+            <span>Preguntas Frecuentes</span>
+          </a>
+        </nav>
+
+        <div className={styles.mobileDrawerDivider}></div>
+
+        <div className={styles.mobileDrawerActions}>
+          <Link
+            to="/login"
+            className={styles.mobileLoginBtn}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <LogIn size={18} />
+            <span>Iniciar Sesión</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              handleStartTrial('pro');
+            }}
+            className={styles.mobileTrialBtn}
+          >
+            <Sparkles size={18} />
+            <span>Prueba {TRIAL_DAYS} Días Gratis</span>
+          </button>
+
+          <a
+            href={`https://wa.me/${SUPPORT_WHATSAPP}?text=Hola%20NeoFood,%20quisiera%20asesoría%20sobre%20el%20sistema.`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.mobileSupportLink}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <MessageCircle size={16} style={{ color: '#25D366' }} />
+            <span>¿Dudas? Habla con un Asesor</span>
+          </a>
+        </div>
+      </div>
 
       {/* 3. HERO SECTION */}
       <section className={styles.heroSection}>
@@ -1092,23 +1247,30 @@ const LandingPage = () => {
           <div className={styles.cycleSelectorWrapper}>
             <div className={styles.cycleSelector}>
               <button
+                type="button"
                 onClick={() => setBillingCycle('monthly')}
                 className={`${styles.cycleBtn} ${billingCycle === 'monthly' ? styles.cycleBtnActive : ''}`}
               >
-                Mensual
+                <span>Mensual</span>
               </button>
               <button
+                type="button"
                 onClick={() => setBillingCycle('semiannual')}
                 className={`${styles.cycleBtn} ${billingCycle === 'semiannual' ? styles.cycleBtnActive : ''}`}
               >
-                Semestral (6 meses)
+                <span className={styles.semiannualFull}>Semestral (6 meses)</span>
+                <span className={styles.semiannualShort}>Semestral</span>
               </button>
               <button
+                type="button"
                 onClick={() => setBillingCycle('annual')}
-                className={`${styles.cycleBtn} ${billingCycle === 'annual' ? styles.cycleBtnActive : ''}`}
+                className={`${styles.cycleBtn} ${styles.cycleBtnAnnual} ${billingCycle === 'annual' ? styles.cycleBtnActive : ''}`}
               >
-                <span>Anual</span>
-                <span className={styles.savingsBadge}>Ahorra 17% (2 meses gratis)</span>
+                <span className={styles.annualLabel}>Anual</span>
+                <span className={styles.savingsBadge}>
+                  <span className={styles.savingsBadgeFull}>Ahorra 17% (2 meses gratis)</span>
+                  <span className={styles.savingsBadgeMobile}>-17% Ahorro</span>
+                </span>
               </button>
             </div>
           </div>
