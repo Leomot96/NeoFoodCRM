@@ -43,7 +43,9 @@ const STRICTLY_SCOPED_MODELS = [
   'inventorymovement',
   'productionorder',
   'order',
-  'cashsession'
+  'cashsession',
+  'sale',
+  'configuration'
 ];
 
 function applyReadWhereScope(modelLower, args) {
@@ -73,6 +75,10 @@ const prisma = basePrisma.$extends({
         return query(args);
       },
       async findFirst({ model, operation, args, query }) {
+        applyReadWhereScope(model.toLowerCase(), args);
+        return query(args);
+      },
+      async findFirstOrThrow({ model, operation, args, query }) {
         applyReadWhereScope(model.toLowerCase(), args);
         return query(args);
       },
@@ -176,6 +182,31 @@ const prisma = basePrisma.$extends({
       },
       async updateMany({ model, operation, args, query }) {
         applyReadWhereScope(model.toLowerCase(), args);
+        return query(args);
+      },
+      async upsert({ model, operation, args, query }) {
+        const tenantId = getTenantId();
+        const modelLower = model.toLowerCase();
+        const mustScope = tenantId && (!isSuperAdmin() || STRICTLY_SCOPED_MODELS.includes(modelLower)) && TENANT_MODELS.includes(modelLower);
+        if (mustScope) {
+          if (args.where) {
+            const check = await basePrisma[model].findUnique({
+              where: args.where,
+              select: { tenantId: true }
+            });
+            if (check && check.tenantId && check.tenantId !== tenantId) {
+              const error = new Error('Acceso denegado: El registro pertenece a otro establecimiento');
+              error.statusCode = 404;
+              throw error;
+            }
+          }
+          if (args.create && (!isSuperAdmin() || (!args.create.tenantId && !args.create.tenant))) {
+            args.create.tenantId = tenantId;
+          }
+          if (!isSuperAdmin() && args.update && 'tenantId' in args.update) {
+            args.update.tenantId = tenantId;
+          }
+        }
         return query(args);
       },
       async delete({ model, operation, args, query }) {

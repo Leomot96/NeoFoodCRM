@@ -165,7 +165,7 @@ class MovementService {
       // C. Descuento de Variedades / Bases / Opciones
       const variationsList = item.modifiers || item.variations || [];
       for (const v of variationsList) {
-        const variationId = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.id);
+        const variationId = typeof v === 'string' ? v : (v.variationId || v.optionId || v.modifierId || v.id);
         if (variationId) {
           const opt = await tx.productModifierOption.findUnique({
             where: { id: variationId },

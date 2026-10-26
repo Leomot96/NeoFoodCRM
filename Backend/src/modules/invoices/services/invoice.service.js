@@ -1,50 +1,57 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class InvoiceService {
     async getInvoices(filters = {}) {
         const { invoiceNumber, customerId, paymentMethodId, date } = filters;
-        
+        const tenantId = getTenantId();
+
         // Filtros dinámicos
         const where = {};
+        if (tenantId) where.tenantId = tenantId;
         if (invoiceNumber) where.invoiceNumber = { contains: invoiceNumber };
         if (customerId) where.customerId = customerId;
         if (paymentMethodId) where.paymentMethodId = paymentMethodId;
         if (date) {
-        const start = new Date(date);
-        const end = new Date(date);
-        end.setDate(end.getDate() + 1);
-        where.createdAt = { gte: start, lt: end };
+            const start = new Date(date);
+            if (!Number.isNaN(start.getTime())) {
+                const end = new Date(date);
+                end.setDate(end.getDate() + 1);
+                where.createdAt = { gte: start, lt: end };
+            }
         }
 
         return await prisma.sale.findMany({ 
-        where,
-        include: {
-            customer: { select: { name: true, document: true } },
-            paymentMethod: { select: { name: true } },
-            order: { select: { table: { select: { name: true } } } },
-            details: { 
-                include: { 
-                    product: { select: { name: true } } ,
-                    saleDetailAdditions: { include: { addition: { select: { name: true } } } },
-                    saleDetailVariations: { include: { variation: { select: { name: true } } } }
-                } 
+            where,
+            include: {
+                customer: { select: { name: true, document: true } },
+                paymentMethod: { select: { name: true } },
+                order: { select: { table: { select: { name: true } } } },
+                details: { 
+                    include: { 
+                        product: { select: { name: true } },
+                        saleDetailAdditions: { include: { addition: { select: { name: true } } } },
+                        saleDetailVariations: { include: { variation: { select: { name: true } } } }
+                    } 
+                },
+                // Historial de abonos para mostrar el detalle de créditos
+                customerCredits: {
+                    orderBy: { createdAt: 'asc' },
+                    include: { paymentMethod: { select: { name: true } } }
+                }
             },
-            // Historial de abonos para mostrar el detalle de créditos
-            customerCredits: {
-                orderBy: { createdAt: 'asc' },
-                include: { paymentMethod: { select: { name: true } } }
-            }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100
+            orderBy: { createdAt: 'desc' },
+            take: 100
         });
     }
 
     async updatePaymentMethod(saleId, paymentMethodId, date, userId) {
+        const tenantId = getTenantId();
+
         // 1. Obtener la venta original
-        const sale = await prisma.sale.findUnique({
-            where: { id: saleId },
-            include: { paymentMethod: true, payments: true }
+        const sale = await prisma.sale.findFirst({
+            where: { id: saleId, ...(tenantId ? { tenantId } : {}) },
+            include: { paymentMethod: true, payments: true, customerCredits: true }
         });
 
         if (!sale) {
@@ -52,8 +59,8 @@ class InvoiceService {
         }
 
         // 2. Obtener el nuevo método de pago
-        const newPaymentMethod = await prisma.paymentMethod.findUnique({
-            where: { id: paymentMethodId }
+        const newPaymentMethod = await prisma.paymentMethod.findFirst({
+            where: { id: paymentMethodId, ...(tenantId ? { tenantId } : {}) }
         });
 
         if (!newPaymentMethod) {
@@ -63,29 +70,46 @@ class InvoiceService {
         const isOldCredit = sale.paymentMethod.name.toLowerCase().includes('crédito') || sale.paymentMethod.name.toLowerCase().includes('credito') || sale.paymentMethod.name.toLowerCase().includes('fiao');
         const isNewCredit = newPaymentMethod.name.toLowerCase().includes('crédito') || newPaymentMethod.name.toLowerCase().includes('credito') || newPaymentMethod.name.toLowerCase().includes('fiao');
 
+        if (!isOldCredit && isNewCredit && !sale.customerId) {
+            throw Object.assign(new Error('No se puede cambiar a Crédito una factura sin cliente asignado'), { statusCode: 400 });
+        }
+
         const dataToUpdate = { paymentMethodId };
         
-        // Si enviaste una nueva fecha, la reemplaza
+        // Si enviaste una nueva fecha válida, la reemplaza
         if (date) {
-            dataToUpdate.createdAt = new Date(date);
+            const parsedDate = new Date(date);
+            if (Number.isNaN(parsedDate.getTime())) {
+                throw Object.assign(new Error('Fecha proporcionada inválida'), { statusCode: 400 });
+            }
+            dataToUpdate.createdAt = parsedDate;
         }
 
         return await prisma.$transaction(async (tx) => {
             // Si cambia de Crédito a No-Crédito (ej. Efectivo o Nequi)
             if (isOldCredit && !isNewCredit && sale.customerId) {
-                // Descontamos la deuda del cliente
-                await tx.customer.update({
-                    where: { id: sale.customerId },
-                    data: { balance: { decrement: sale.finalAmount } }
-                });
+                const debtCredits = (sale.customerCredits || []).filter(c => c.type === 'DEBT');
+                const paymentCredits = (sale.customerCredits || []).filter(c => c.type === 'PAYMENT');
+                const totalDebt = debtCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
+                const totalPaid = paymentCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
+                const netUnpaidDebt = totalDebt > 0
+                    ? Math.max(0, totalDebt - totalPaid)
+                    : Math.max(0, parseFloat(sale.finalAmount || 0));
 
-                // Eliminamos el registro de deuda en el historial de crédito para esa venta
+                if (netUnpaidDebt > 0) {
+                    await tx.customer.update({
+                        where: { id: sale.customerId },
+                        data: { balance: { decrement: netUnpaidDebt } }
+                    });
+                }
+
+                // Eliminamos los registros de crédito asociados a esa venta y restauramos finalAmount al totalAmount
                 await tx.customerCredit.deleteMany({
-                    where: { saleId: sale.id, type: 'DEBT' }
+                    where: { saleId: sale.id }
                 });
+                dataToUpdate.finalAmount = sale.totalAmount;
                 
-                // Asignar el dinero a la CAJA ACTUAL si el usuario tiene una abierta y si es efectivo u otro
-                // para que aparezca en el turno de hoy, no en el turno en que se generó la factura.
+                // Asignar el dinero a la CAJA ACTUAL si el usuario tiene una abierta
                 if (userId) {
                     const activeSession = await tx.cashSession.findFirst({
                         where: { userId, status: 'OPEN' }
@@ -99,13 +123,11 @@ class InvoiceService {
             
             // Si cambia de No-Crédito a Crédito (Lo fiaron por error y lo corrigen)
             if (!isOldCredit && isNewCredit && sale.customerId) {
-                // Aumentar la deuda
                 await tx.customer.update({
                     where: { id: sale.customerId },
                     data: { balance: { increment: sale.finalAmount } }
                 });
                 
-                // Crear la deuda
                 await tx.customerCredit.create({
                     data: {
                         customerId: sale.customerId,
@@ -140,9 +162,11 @@ class InvoiceService {
             throw Object.assign(new Error('El monto del abono debe ser mayor a 0'), { statusCode: 400 });
         }
 
+        const tenantId = getTenantId();
+
         return await prisma.$transaction(async (tx) => {
-            const sale = await tx.sale.findUnique({
-                where: { id: saleId },
+            const sale = await tx.sale.findFirst({
+                where: { id: saleId, ...(tenantId ? { tenantId } : {}) },
                 include: { paymentMethod: true, customer: true }
             });
 
@@ -161,7 +185,9 @@ class InvoiceService {
                 throw Object.assign(new Error('Debe tener una caja abierta para registrar un abono'), { statusCode: 400 });
             }
 
-            const paymentMethod = await tx.paymentMethod.findUnique({ where: { id: paymentMethodId } });
+            const paymentMethod = await tx.paymentMethod.findFirst({
+                where: { id: paymentMethodId, ...(tenantId ? { tenantId } : {}) }
+            });
             if (!paymentMethod) {
                 throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
             }
@@ -208,15 +234,26 @@ class InvoiceService {
     }
 
     async cancelInvoice(saleId, userId, reason = 'Venta de prueba / Anulación por error') {
+        const tenantId = getTenantId();
+
         return await prisma.$transaction(async (tx) => {
-            const sale = await tx.sale.findUnique({
-                where: { id: saleId },
+            const sale = await tx.sale.findFirst({
+                where: { id: saleId, ...(tenantId ? { tenantId } : {}) },
                 include: {
                     details: {
                         include: {
                             product: {
                                 include: {
                                     ingredients: true
+                                }
+                            },
+                            saleDetailVariations: {
+                                include: {
+                                    variation: {
+                                        include: {
+                                            linkedProduct: true
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -259,7 +296,7 @@ class InvoiceService {
                 }
             }
 
-            // 2. Revertir stock de productos directos (trackStock) y sub-productos en combos (linkedProductId)
+            // 2. Revertir stock de productos directos (trackStock) y sub-productos en combos (saleDetailVariations.variation.linkedProduct)
             for (const d of sale.details) {
                 if (d.product?.trackStock) {
                     await tx.product.update({
@@ -267,20 +304,14 @@ class InvoiceService {
                         data: { stock: { increment: d.quantity } }
                     });
                 }
-                if (d.product?.isCombo && Array.isArray(d.product.ingredients)) {
-                    for (const comp of d.product.ingredients) {
-                        if (comp.linkedProductId) {
-                            const linkedProd = await tx.product.findUnique({
-                                where: { id: comp.linkedProductId },
-                                select: { id: true, trackStock: true }
+                if (Array.isArray(d.saleDetailVariations)) {
+                    for (const sdv of d.saleDetailVariations) {
+                        const linkedProd = sdv.variation?.linkedProduct;
+                        if (linkedProd?.trackStock) {
+                            await tx.product.update({
+                                where: { id: linkedProd.id },
+                                data: { stock: { increment: d.quantity } }
                             });
-                            if (linkedProd?.trackStock) {
-                                const restoreQty = Math.round(parseFloat(comp.quantity || 1) * d.quantity);
-                                await tx.product.update({
-                                    where: { id: linkedProd.id },
-                                    data: { stock: { increment: restoreQty } }
-                                });
-                            }
                         }
                     }
                 }

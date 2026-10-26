@@ -228,7 +228,9 @@ class StoreService {
         const priceExtra = Math.max(0, parseFloat(dbOpt.priceExtra || 0));
         unitPrice += priceExtra;
         validatedModifiers.push({
+          id: dbOpt.id,
           optionId: dbOpt.id,
+          variationId: dbOpt.id,
           modifierName: dbOpt.modifierName,
           optionName: dbOpt.name,
           priceExtra
@@ -658,7 +660,21 @@ class StoreService {
       include: {
         details: {
           include: {
-            product: { include: { ingredients: true } }
+            product: {
+              include: {
+                ingredients: true,
+                modifiers: {
+                  include: {
+                    options: {
+                      include: {
+                        linkedProduct: { include: { ingredients: true } }
+                      }
+                    }
+                  }
+                },
+                additions: true
+              }
+            }
           }
         },
         sale: true
@@ -728,15 +744,32 @@ class StoreService {
       throw Object.assign(new Error('No hay métodos de pago activos configurados en el establecimiento'), { statusCode: 400 });
     }
 
+    const isCreditSale = paymentMethod.name.toLowerCase().includes('crédito') ||
+                         paymentMethod.name.toLowerCase().includes('credito') ||
+                         paymentMethod.name.toLowerCase().includes('fiao');
+
+    if (isCreditSale && !order.customerId) {
+      throw Object.assign(new Error('No se puede facturar a crédito un pedido sin cliente registrado asociado.'), { statusCode: 400 });
+    }
+
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
     const invoiceNumber = `FE-WEB-${order.orderNumber}-${randomSuffix.toString().slice(0, 2)}`;
 
     return await prisma.$transaction(async (tx) => {
       const processedDetails = order.details.map(d => {
+        const parsedModifiers = typeof d.modifiers === 'string' ? JSON.parse(d.modifiers) : (d.modifiers || []);
+        const parsedAdditions = typeof d.additions === 'string' ? JSON.parse(d.additions) : (d.additions || []);
         return {
+          ...(d.product || {}),
           ...d,
-          modifiers: typeof d.modifiers === 'string' ? JSON.parse(d.modifiers) : (d.modifiers || []),
-          additions: typeof d.additions === 'string' ? JSON.parse(d.additions) : (d.additions || [])
+          id: d.productId,
+          productId: d.productId,
+          name: d.product?.name || 'Producto',
+          trackStock: Boolean(d.product?.trackStock),
+          isCombo: Boolean(d.product?.isCombo),
+          ingredients: d.product?.ingredients || [],
+          modifiers: parsedModifiers,
+          additions: parsedAdditions
         };
       });
 
@@ -755,13 +788,27 @@ class StoreService {
           finalAmount: order.totalAmount,
           details: {
             create: costedDetails.map(d => {
-              const mods = d.modifiers || [];
-              const adds = d.additions || [];
+              const mods = Array.isArray(d.modifiers) ? d.modifiers : [];
+              const adds = Array.isArray(d.additions) ? d.additions : [];
               const descParts = [];
-              if (mods.length > 0) descParts.push(mods.map(m => `${m.modifierName}: ${m.optionName}`).join(', '));
+              if (mods.length > 0) descParts.push(mods.map(m => `${m.modifierName || 'Opción'}: ${m.optionName || m.name || ''}`).join(', '));
               if (adds.length > 0) descParts.push(adds.map(a => `+ ${a.name}`).join(', '));
               if (d.notes) descParts.push(`Nota: "${d.notes}"`);
               const finalNotes = descParts.length > 0 ? descParts.join(' | ') : (d.notes || null);
+
+              const validAdditions = adds
+                .map(a => ({
+                  additionId: a.additionId || a.id,
+                  quantity: parseInt(a.quantity || 1, 10),
+                  priceAtSale: parseFloat(a.price || 0)
+                }))
+                .filter(a => Boolean(a.additionId));
+
+              const validVariations = mods
+                .map(m => ({
+                  variationId: m.variationId || m.optionId || m.id
+                }))
+                .filter(m => Boolean(m.variationId));
 
               return {
                 productId: d.productId,
@@ -770,12 +817,39 @@ class StoreService {
                 subtotal: d.subtotal,
                 unitCost: d.unitCost || 0,
                 totalCost: d.totalCost || 0,
-                notes: finalNotes
+                notes: finalNotes,
+                ...(validAdditions.length > 0 ? { saleDetailAdditions: { create: validAdditions } } : {}),
+                ...(validVariations.length > 0 ? { saleDetailVariations: { create: validVariations } } : {})
               };
             })
+          },
+          payments: {
+            create: [{
+              paymentMethodId: paymentMethod.id,
+              amount: order.totalAmount
+            }]
           }
         }
       });
+
+      if (isCreditSale && order.customerId) {
+        await tx.customer.update({
+          where: { id: order.customerId },
+          data: { balance: { increment: order.totalAmount } }
+        });
+
+        await tx.customerCredit.create({
+          data: {
+            customerId: order.customerId,
+            type: 'DEBT',
+            amount: order.totalAmount,
+            description: `Venta a Crédito Tienda Virtual #${invoiceNumber}`,
+            saleId: sale.id,
+            paymentMethodId: paymentMethod.id,
+            cashSessionId: activeSession.id
+          }
+        });
+      }
 
       await tx.order.update({
         where: { id: order.id },

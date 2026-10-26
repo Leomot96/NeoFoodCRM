@@ -375,6 +375,12 @@ class SaasService {
       throw error;
     }
 
+    if (id === 'default-tenant-001' && cleanStatus !== 'ACTIVE') {
+      const error = new Error('No está permitido suspender ni desactivar la sede principal del sistema');
+      error.statusCode = 400;
+      throw error;
+    }
+
     const existingTenant = await prisma.tenant.findUnique({ where: { id } });
     if (!existingTenant) {
       const error = new Error('Establecimiento no encontrado');
@@ -404,6 +410,12 @@ class SaasService {
 
     const updateData = { planId: plan.id };
     if (billingCycle) {
+      const validCycles = ['monthly', 'semiannual', 'annual', 'trial'];
+      if (!validCycles.includes(billingCycle)) {
+        const error = new Error('Ciclo de facturación inválido');
+        error.statusCode = 400;
+        throw error;
+      }
       updateData.billingCycle = billingCycle;
     }
     if (typeof daysToAdd === 'number' && daysToAdd > 0) {
@@ -443,10 +455,21 @@ class SaasService {
     }
 
     const targetCycle = billingCycle || tenant.billingCycle || 'monthly';
+    const validCycles = ['monthly', 'semiannual', 'annual', 'trial'];
+    if (!validCycles.includes(targetCycle)) {
+      const error = new Error('Ciclo de facturación inválido');
+      error.statusCode = 400;
+      throw error;
+    }
 
     let newEndsAt = null;
     if (customEndsAt) {
       newEndsAt = new Date(customEndsAt);
+      if (Number.isNaN(newEndsAt.getTime())) {
+        const error = new Error('La fecha de expiración personalizada es inválida');
+        error.statusCode = 400;
+        throw error;
+      }
     } else {
       let days = 30;
       if (typeof durationDays === 'number' && durationDays > 0) {
