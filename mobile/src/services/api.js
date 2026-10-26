@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Preferences } from '@capacitor/preferences';
 
-const DEFAULT_SERVER_URL = import.meta.env?.VITE_API_URL || 'http://192.168.0.16:4000/api/v1';
+const DEFAULT_SERVER_URL = import.meta.env?.VITE_API_URL || 'https://api.neofood.co/api/v1';
 
 // Determina si un host es IP de red local/loopback (permite http:// en LAN) o dominio remoto (fuerza https://)
 const normalizeServerUrl = (rawUrl) => {
@@ -80,22 +80,109 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Interceptor para manejo de respuestas y errores
+// Interceptor para manejo de respuestas y rotación de refreshToken ante 401
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(token);
+  });
+  failedQueue = [];
+};
+
+const clearMobileAuth = () => {
+  sessionStorage.removeItem('neofood_token');
+  sessionStorage.removeItem('neofood_refresh_token');
+  sessionStorage.removeItem('neofood_user');
+  sessionStorage.removeItem('neofood_tenant_id');
+  localStorage.removeItem('neofood_token');
+  localStorage.removeItem('neofood_refresh_token');
+  localStorage.removeItem('neofood_user');
+  Preferences.remove({ key: 'neofood_token' }).catch(() => {});
+  Preferences.remove({ key: 'neofood_refresh_token' }).catch(() => {});
+  Preferences.remove({ key: 'neofood_user' }).catch(() => {});
+  if (typeof unauthorizedCallback === 'function') {
+    unauthorizedCallback();
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Sesión expirada o no autorizada
-      sessionStorage.removeItem('neofood_token');
-      sessionStorage.removeItem('neofood_user');
-      sessionStorage.removeItem('neofood_tenant_id');
-      localStorage.removeItem('neofood_token');
-      localStorage.removeItem('neofood_user');
-      Preferences.remove({ key: 'neofood_token' }).catch(() => {});
-      Preferences.remove({ key: 'neofood_user' }).catch(() => {});
-      if (typeof unauthorizedCallback === 'function') {
-        unauthorizedCallback();
+  async (error) => {
+    const originalRequest = error.config || {};
+    const status = error.response?.status;
+    const isAuthRoute =
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/refresh-token');
+
+    if (status === 401 && !originalRequest._retry && !isAuthRoute) {
+      let refreshToken =
+        sessionStorage.getItem('neofood_refresh_token') ||
+        localStorage.getItem('neofood_refresh_token');
+      if (!refreshToken) {
+        try {
+          const pref = await Preferences.get({ key: 'neofood_refresh_token' });
+          refreshToken = pref?.value;
+        } catch {
+          // ignore
+        }
       }
+
+      if (!refreshToken) {
+        clearMobileAuth();
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((newToken) => {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const baseUrl = api.defaults.baseURL || DEFAULT_SERVER_URL;
+        const refreshRes = await axios.post(`${baseUrl}/auth/refresh-token`, { refreshToken });
+        const newAccessToken = refreshRes.data?.data?.accessToken || refreshRes.data?.accessToken;
+        const newRefreshToken = refreshRes.data?.data?.refreshToken || refreshRes.data?.refreshToken;
+
+        if (!newAccessToken) {
+          throw new Error('No se recibió accessToken');
+        }
+
+        sessionStorage.setItem('neofood_token', newAccessToken);
+        localStorage.setItem('neofood_token', newAccessToken);
+        Preferences.set({ key: 'neofood_token', value: newAccessToken }).catch(() => {});
+
+        if (newRefreshToken) {
+          sessionStorage.setItem('neofood_refresh_token', newRefreshToken);
+          localStorage.setItem('neofood_refresh_token', newRefreshToken);
+          Preferences.set({ key: 'neofood_refresh_token', value: newRefreshToken }).catch(() => {});
+        }
+
+        processQueue(null, newAccessToken);
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        clearMobileAuth();
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    if (status === 401) {
+      clearMobileAuth();
     }
     return Promise.reject(error);
   }

@@ -14,7 +14,8 @@ export const getFullImageUrl = (path) => {
   const currentBase =
     api?.defaults?.baseURL ||
     localStorage.getItem('neofood_server_url') ||
-    'http://192.168.0.16:4000/api/v1';
+    import.meta.env?.VITE_API_URL ||
+    'https://api.neofood.co/api/v1';
 
   // 2. Remover el sufijo '/api/v1' para obtener la raíz del servidor
   const serverRoot = currentBase.replace(/\/api\/v1\/?$/, '');

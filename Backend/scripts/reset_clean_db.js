@@ -254,7 +254,9 @@ async function main() {
 
   // 5. Crear Usuarios del Sistema
   console.log('\n👤 Sembrando Usuarios Clave...');
-  const passwordHash = await bcrypt.hash('123456', 10);
+  const crypto = require('crypto');
+  const rawSeedPassword = process.env.SEED_DEFAULT_PASSWORD || crypto.randomBytes(9).toString('base64url');
+  const passwordHash = await bcrypt.hash(rawSeedPassword, 10);
 
   const adminUser = await prisma.user.create({
     data: {
@@ -268,7 +270,7 @@ async function main() {
       isActive: true
     }
   });
-  console.log(`   ✔️ SuperAdmin Creado: ${adminUser.email} (Contraseña: 123456)`);
+  console.log(`   ✔️ SuperAdmin Creado: ${adminUser.email} (Contraseña: ${rawSeedPassword})`);
 
   const demoUser = await prisma.user.create({
     data: {
@@ -282,7 +284,7 @@ async function main() {
       isActive: true
     }
   });
-  console.log(`   ✔️ Administrador Demo Creado: ${demoUser.email} (Contraseña: 123456)`);
+  console.log(`   ✔️ Administrador Demo Creado: ${demoUser.email} (Contraseña: ${rawSeedPassword})`);
 
   // 6. Métodos de Pago Base
   console.log('\n💳 Sembrando Métodos de Pago Base...');
@@ -381,11 +383,11 @@ async function main() {
   console.log('1. Super Administrador (Panel SaaS y Sede Principal):');
   console.log('   - URL: http://localhost:5173/login');
   console.log('   - Email: admin@neofood.com');
-  console.log('   - Password: 123456');
+  console.log(`   - Password: ${rawSeedPassword}`);
   console.log('\n2. Tienda de Demostración (Operación Limpia de Restaurante):');
   console.log('   - URL: http://localhost:5173/login');
   console.log('   - Email: demo@neofood.com');
-  console.log('   - Password: 123456');
+  console.log(`   - Password: ${rawSeedPassword}`);
   console.log('   - Tienda Virtual QR: http://localhost:5173/tienda/restaurante-demo');
   console.log('========================================================\n');
 }
