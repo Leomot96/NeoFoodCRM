@@ -159,6 +159,22 @@ class CustomerService {
 
       const isCash = paymentMethod.name.toLowerCase().includes('efectivo') || paymentMethod.name.toLowerCase().includes('cash');
 
+      // 2.5 Si se especifica saleId, verificar que la factura pertenezca al mismo cliente y tenant
+      if (saleId) {
+        const linkedSale = await tx.sale.findFirst({
+          where: {
+            id: saleId,
+            customerId,
+            ...(tenantId ? { tenantId } : {})
+          }
+        });
+        if (!linkedSale) {
+          const error = new Error('La factura indicada no existe o no pertenece a este cliente');
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+
       // 3. Registramos el abono en el historial del cliente
       const credit = await tx.customerCredit.create({
         data: {

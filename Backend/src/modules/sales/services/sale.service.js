@@ -56,7 +56,10 @@ class SaleService {
 
       const validOptions = candidateVarIds.length > 0 
         ? await tx.productModifierOption.findMany({
-            where: { id: { in: candidateVarIds } },
+            where: {
+              id: { in: candidateVarIds },
+              ...(effectiveTenantId ? { modifier: { product: { tenantId: effectiveTenantId } } } : {})
+            },
             select: { id: true, name: true, priceExtra: true }
           })
         : [];
@@ -66,7 +69,7 @@ class SaleService {
         ? await tx.productAddition.findMany({
             where: {
               id: { in: candidateAddIds },
-              ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {})
+              ...(effectiveTenantId ? { product: { tenantId: effectiveTenantId } } : {})
             },
             select: { id: true, name: true, price: true }
           })
@@ -82,7 +85,8 @@ class SaleService {
           },
           include: {
             ingredients: true,
-            modifierGroups: { include: { options: true } }
+            modifiers: { include: { options: true } },
+            additions: true
           }
         });
 
@@ -98,33 +102,56 @@ class SaleService {
         // Calcular precio en el servidor basado en el precio base del producto + modificadores + adiciones de BD
         let basePlusModifiersPrice = parseFloat(product.price);
         const itemMods = item.variations || item.modifiers || [];
-        const prodOptions = (product.modifierGroups || []).flatMap(g => g.options || []);
+        const prodOptions = (product.modifiers || []).flatMap(g => g.options || []);
+        const prodAdds = product.additions || [];
 
         const normalizedMods = itemMods.map(v => {
           const rawId = typeof v === 'string' ? v : (v.variationId || v.modifierId || v.optionId || v.id);
           const explicitName = typeof v === 'object' ? (v.name || v.optionName) : null;
-          const dbOpt = validOptionsMap.get(rawId) || prodOptions.find(o => o.id === rawId || (explicitName && o.name === explicitName));
-          const extra = dbOpt ? parseFloat(dbOpt.priceExtra || 0) : Math.max(0, parseFloat(v?.price || v?.priceExtra || 0));
+          const dbOpt = prodOptions.find(o => (rawId && o.id === rawId) || (explicitName && o.name === explicitName))
+            || (rawId ? validOptionsMap.get(rawId) : null);
+          if (!dbOpt) {
+            throw Object.assign(new Error(`Opción de modificador inválida en el producto "${product.name}"`), { statusCode: 400 });
+          }
+          const extra = Math.max(0, parseFloat(dbOpt.priceExtra || 0));
           basePlusModifiersPrice += extra;
           return {
-            variationId: dbOpt ? dbOpt.id : null,
-            name: dbOpt ? dbOpt.name : (explicitName || 'Variedad'),
+            id: dbOpt.id,
+            variationId: dbOpt.id,
+            name: dbOpt.name,
             price: extra,
             priceExtra: extra
           };
         });
 
+        // Verificar que los grupos de modificadores obligatorios tengan al menos una opción seleccionada
+        const selectedOptionIds = new Set(normalizedMods.map(m => m.variationId).filter(Boolean));
+        for (const modGroup of (product.modifiers || [])) {
+          if (modGroup.isRequired && Array.isArray(modGroup.options) && modGroup.options.length > 0) {
+            const hasGroupSelection = modGroup.options.some(opt => selectedOptionIds.has(opt.id));
+            if (!hasGroupSelection) {
+              throw Object.assign(new Error(`El modificador "${modGroup.name}" es obligatorio para "${product.name}"`), { statusCode: 400 });
+            }
+          }
+        }
+
         let additionsUnitSum = 0;
         const itemAdds = item.additions || [];
         const normalizedAdds = itemAdds.map(a => {
           const rawId = a.additionId || a.id;
-          const dbAdd = validAdditionsMap.get(rawId);
+          const explicitName = a.name || null;
+          const dbAdd = prodAdds.find(pa => (rawId && pa.id === rawId) || (explicitName && pa.name === explicitName))
+            || (rawId ? validAdditionsMap.get(rawId) : null);
+          if (!dbAdd) {
+            throw Object.assign(new Error(`Adición inválida en el producto "${product.name}"`), { statusCode: 400 });
+          }
           const addQty = Math.max(1, parseInt(a.quantity, 10) || 1);
-          const addPrice = dbAdd ? parseFloat(dbAdd.price || 0) : Math.max(0, parseFloat(a.price || 0));
+          const addPrice = Math.max(0, parseFloat(dbAdd.price || 0));
           additionsUnitSum += addPrice * addQty;
           return {
-            additionId: dbAdd ? dbAdd.id : null,
-            name: dbAdd ? dbAdd.name : (a.name || 'Adición Extra'),
+            id: dbAdd.id,
+            additionId: dbAdd.id,
+            name: dbAdd.name,
             quantity: addQty,
             price: addPrice
           };
@@ -172,6 +199,16 @@ class SaleService {
         });
         if (defaultCustomer) {
           effectiveCustomerId = defaultCustomer.id;
+        }
+      }
+
+      // Si se envía tableId, verificar que pertenezca al establecimiento
+      if (tableId && effectiveTenantId) {
+        const checkTable = await tx.table.findFirst({
+          where: { id: tableId, tenantId: effectiveTenantId }
+        });
+        if (!checkTable) {
+          throw Object.assign(new Error('La mesa seleccionada no pertenece a este establecimiento'), { statusCode: 400 });
         }
       }
 

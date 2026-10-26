@@ -235,6 +235,17 @@ class StoreService {
         });
       }
 
+      // Verificar que los grupos de modificadores obligatorios tengan al menos una opción seleccionada
+      const selectedOptionIds = new Set(validatedModifiers.map(m => m.optionId).filter(Boolean));
+      for (const modGroup of (product.modifiers || [])) {
+        if (modGroup.isRequired && Array.isArray(modGroup.options) && modGroup.options.length > 0) {
+          const hasSelection = modGroup.options.some(opt => selectedOptionIds.has(opt.id));
+          if (!hasSelection) {
+            throw Object.assign(new Error(`El modificador "${modGroup.name}" es obligatorio para "${product.name}"`), { statusCode: 400 });
+          }
+        }
+      }
+
       // Validar y sumar adiciones exclusivamente desde la BD
       const selectedAdditions = Array.isArray(item.additions) ? item.additions : [];
       const validatedAdditions = [];

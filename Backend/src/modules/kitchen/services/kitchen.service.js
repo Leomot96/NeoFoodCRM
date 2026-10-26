@@ -156,6 +156,24 @@ class KitchenService {
       throw Object.assign(new Error('El pedido debe incluir al menos un producto'), { statusCode: 400 });
     }
 
+    if (tableId) {
+      const validTable = await prisma.table.findFirst({
+        where: { id: tableId, ...(tenantId ? { tenantId } : {}) }
+      });
+      if (!validTable) {
+        throw Object.assign(new Error('La mesa seleccionada no pertenece a este restaurante'), { statusCode: 400 });
+      }
+    }
+
+    if (customerId) {
+      const validCustomer = await prisma.customer.findFirst({
+        where: { id: customerId, ...(tenantId ? { tenantId } : {}) }
+      });
+      if (!validCustomer) {
+        throw Object.assign(new Error('El cliente seleccionado no pertenece a este restaurante'), { statusCode: 400 });
+      }
+    }
+
     let totalAmount = 0;
     const processedDetails = [];
 
@@ -189,28 +207,51 @@ class KitchenService {
       const rawMods = Array.isArray(item.modifiers) ? item.modifiers : (Array.isArray(item.variations) ? item.variations : []);
       const verifiedMods = [];
       for (const m of rawMods) {
-        const optId = m.id || m.optionId;
-        const dbOpt = optId ? validOptionMap.get(optId) : null;
-        const extra = dbOpt ? parseFloat(dbOpt.priceExtra || 0) : 0;
+        const optId = m.id || m.optionId || m.variationId;
+        const optName = m.name || m.optionName;
+        const dbOpt = (optId && validOptionMap.get(optId))
+          || (optName ? [...validOptionMap.values()].find(o => o.name === optName) : null);
+        if (!dbOpt) {
+          throw Object.assign(new Error(`Opción de modificador inválida en el producto "${product.name}"`), { statusCode: 400 });
+        }
+        const extra = Math.max(0, parseFloat(dbOpt.priceExtra || 0));
         unitPrice += extra;
         verifiedMods.push({
           ...m,
-          name: dbOpt ? dbOpt.name : m.name,
+          id: dbOpt.id,
+          optionId: dbOpt.id,
+          name: dbOpt.name,
           priceExtra: extra
         });
+      }
+
+      const selectedOptionIds = new Set(verifiedMods.map(m => m.id).filter(Boolean));
+      for (const modGroup of (product.modifiers || [])) {
+        if (modGroup.isRequired && Array.isArray(modGroup.options) && modGroup.options.length > 0) {
+          const hasSelection = modGroup.options.some(opt => selectedOptionIds.has(opt.id));
+          if (!hasSelection) {
+            throw Object.assign(new Error(`El modificador "${modGroup.name}" es obligatorio para "${product.name}"`), { statusCode: 400 });
+          }
+        }
       }
 
       const rawAdds = Array.isArray(item.additions) ? item.additions : [];
       const verifiedAdds = [];
       for (const a of rawAdds) {
         const addId = a.id || a.additionId;
-        const dbAdd = addId ? validAdditionMap.get(addId) : null;
+        const dbAdd = (addId && validAdditionMap.get(addId))
+          || (a.name ? (product.additions || []).find(pa => pa.name === a.name) : null);
+        if (!dbAdd) {
+          throw Object.assign(new Error(`Adición inválida en el producto "${product.name}"`), { statusCode: 400 });
+        }
         const addQty = Math.max(1, parseInt(a.quantity, 10) || 1);
-        const addPrice = dbAdd ? parseFloat(dbAdd.price || 0) : 0;
+        const addPrice = Math.max(0, parseFloat(dbAdd.price || 0));
         unitPrice += addPrice * addQty;
         verifiedAdds.push({
           ...a,
-          name: dbAdd ? dbAdd.name : a.name,
+          id: dbAdd.id,
+          additionId: dbAdd.id,
+          name: dbAdd.name,
           price: addPrice,
           quantity: addQty
         });
