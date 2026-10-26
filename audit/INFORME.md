@@ -3084,6 +3084,19 @@ Con la remediación y verificación exitosa de los 70 hallazgos previos (`NF-01`
 
 ---
 
-## 12.5 Bitácora de Commits y Estado de la Sexta Auditoría
+## 12.5 Bitácora de Commits y Cierre de la Sexta Auditoría (`SA-01` a `SA-08` — 100% Completado)
 
-*Pendiente de ejecución por confirmación del usuario.*
+| # | Commit Hash | Hallazgos Cerrados | Mensaje del Commit | Archivos Modificados |
+| :---: | :---: | :--- | :--- | :--- |
+| **23** | `b15df71` | `SA-01`, `SA-02`, `SA-06` | `fix(kitchen-store-production): propagar userId al auto-facturar y aislar tenant en produccion [SA-01, SA-02, SA-06]` | `Backend/src/modules/kitchen/controllers/kitchen.controller.js`, `Backend/src/modules/kitchen/services/kitchen.service.js`, `Backend/src/modules/production/services/production.service.js`, `Backend/src/modules/store/controllers/store.controller.js`, `Backend/src/modules/store/services/store.service.js` |
+| **24** | `326f4e4` | `SA-03`, `SA-04`, `SA-05`, `SA-07`, `SA-08` | `fix(payments-store-tables-saas-users): aislar metodos de pago, sanear mesas y assets [SA-03, SA-04, SA-05, SA-07, SA-08]` | `Backend/src/modules/inventory/controllers/product.controller.js`, `Backend/src/modules/saas/services/saas.service.js`, `Backend/src/modules/sales/services/payment-method.service.js`, `Backend/src/modules/store/controllers/store.controller.js`, `Backend/src/modules/store/services/store.service.js`, `Backend/src/modules/tables/services/table.service.js`, `Backend/src/modules/users/controllers/user.controller.js`, `Backend/src/modules/users/services/user.service.js` |
+
+### Balance Global Final tras las 6 Auditorías
+- **Fase 1 (`NF-01` a `NF-32`):** ✅ **32 / 32 Resueltos** (Orden canónico preservado).
+- **Fase 2 (`RA-01` a `RA-14`):** ✅ **14 / 14 Resueltos**.
+- **Fase 3 (`TA-01` a `TA-08`):** ✅ **8 / 8 Resueltos**.
+- **Fase 4 (`CA-01` a `CA-08`):** ✅ **8 / 8 Resueltos**.
+- **Fase 5 (`QA-01` a `QA-08`):** ✅ **8 / 8 Resueltos**.
+- **Fase 6 (`SA-01` a `SA-08`):** ✅ **8 / 8 Resueltos**.
+- **Total Acumulado de Hallazgos Auditados y Resueltos:** **78 / 78 (100%)**.
+- **Verificación de Carga y Compilación:** `BACKEND_LOAD_OK` (`node -e "require('./Backend/src/app')"`) y `frontend` (`vite build`) ejecutados en limpio con cero advertencias bloqueantes ni errores.
