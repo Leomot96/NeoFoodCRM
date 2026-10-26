@@ -13,14 +13,16 @@ class CashController {
   async closeSession(req, res, next) {
     try {
       const { closingAmount } = req.body;
-      const session = await cashService.closeSession(req.params.id, req.user.id, closingAmount);
+      const roleName = req.user?.role?.name || req.user?.role;
+      const session = await cashService.closeSession(req.params.id, req.user.id, closingAmount, roleName);
       res.status(200).json({ success: true, message: 'Caja cerrada exitosamente', data: session });
     } catch (error) { next(error); }
   }
 
   async registerMovement(req, res, next) {
     try {
-      const movement = await cashService.registerMovement(req.params.id, req.user.id, req.body);
+      const roleName = req.user?.role?.name || req.user?.role;
+      const movement = await cashService.registerMovement(req.params.id, req.user.id, req.body, roleName);
       res.status(201).json({ success: true, message: 'Movimiento registrado', data: movement });
     } catch (error) { next(error); }
   }

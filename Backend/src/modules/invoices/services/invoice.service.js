@@ -44,17 +44,21 @@ class InvoiceService {
         // 1. Obtener la venta original
         const sale = await prisma.sale.findUnique({
             where: { id: saleId },
-            include: { paymentMethod: true }
+            include: { paymentMethod: true, payments: true }
         });
 
         if (!sale) {
-            throw new Error('Venta no encontrada');
+            throw Object.assign(new Error('Venta no encontrada'), { statusCode: 404 });
         }
 
         // 2. Obtener el nuevo método de pago
         const newPaymentMethod = await prisma.paymentMethod.findUnique({
             where: { id: paymentMethodId }
         });
+
+        if (!newPaymentMethod) {
+            throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
+        }
 
         const isOldCredit = sale.paymentMethod.name.toLowerCase().includes('crédito') || sale.paymentMethod.name.toLowerCase().includes('credito') || sale.paymentMethod.name.toLowerCase().includes('fiao');
         const isNewCredit = newPaymentMethod.name.toLowerCase().includes('crédito') || newPaymentMethod.name.toLowerCase().includes('credito') || newPaymentMethod.name.toLowerCase().includes('fiao');
@@ -89,9 +93,6 @@ class InvoiceService {
                     
                     if (activeSession) {
                         dataToUpdate.cashSessionId = activeSession.id;
-
-                        // Ya no creamos un CashMovement aquí para evitar doble conteo.
-                        // La sesión calculará automáticamente esto sumando las ventas en efectivo.
                     }
                 }
             }
@@ -118,6 +119,14 @@ class InvoiceService {
                 });
             }
 
+            // Si la venta tenía un único registro en SalePayment, sincronizar su paymentMethodId
+            if (Array.isArray(sale.payments) && sale.payments.length === 1) {
+                await tx.salePayment.update({
+                    where: { id: sale.payments[0].id },
+                    data: { paymentMethodId }
+                });
+            }
+
             return await tx.sale.update({
                 where: { id: saleId },
                 data: dataToUpdate
@@ -126,15 +135,22 @@ class InvoiceService {
     }
 
     async addAbono(saleId, amount, paymentMethodId, userId) {
+        const numericAmount = parseFloat(amount);
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+            throw Object.assign(new Error('El monto del abono debe ser mayor a 0'), { statusCode: 400 });
+        }
+
         return await prisma.$transaction(async (tx) => {
             const sale = await tx.sale.findUnique({
                 where: { id: saleId },
                 include: { paymentMethod: true, customer: true }
             });
 
-            if (!sale) throw new Error('Venta no encontrada');
-            if (!sale.customerId) throw new Error('La venta no está asociada a un cliente');
-            if (amount <= 0 || amount > sale.finalAmount) throw new Error('Monto de abono inválido o superior al total de la factura');
+            if (!sale) throw Object.assign(new Error('Venta no encontrada'), { statusCode: 404 });
+            if (!sale.customerId) throw Object.assign(new Error('La venta no está asociada a un cliente'), { statusCode: 400 });
+            if (numericAmount > parseFloat(sale.finalAmount)) {
+                throw Object.assign(new Error('Monto de abono inválido o superior al saldo pendiente de la factura'), { statusCode: 400 });
+            }
 
             // Encontrar la sesión activa del usuario
             const activeSession = await tx.cashSession.findFirst({
@@ -142,15 +158,18 @@ class InvoiceService {
             });
 
             if (!activeSession) {
-                throw new Error('Debe tener una caja abierta para registrar un abono');
+                throw Object.assign(new Error('Debe tener una caja abierta para registrar un abono'), { statusCode: 400 });
             }
 
             const paymentMethod = await tx.paymentMethod.findUnique({ where: { id: paymentMethodId } });
+            if (!paymentMethod) {
+                throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
+            }
 
             // 1. Reducir deuda del cliente
             await tx.customer.update({
                 where: { id: sale.customerId },
-                data: { balance: { decrement: amount } }
+                data: { balance: { decrement: numericAmount } }
             });
 
             // 2. Registrar el abono (PAYMENT)
@@ -158,7 +177,7 @@ class InvoiceService {
                 data: {
                     customerId: sale.customerId,
                     type: 'PAYMENT',
-                    amount: amount,
+                    amount: numericAmount,
                     description: `Abono a Factura #${sale.invoiceNumber || saleId}`,
                     saleId: sale.id,
                     paymentMethodId: paymentMethodId,
@@ -166,23 +185,19 @@ class InvoiceService {
                 }
             });
 
-            // 3. Ya no creamos movimiento de caja extra aquí.
-            // La función de caja (getHistory) sumariza automáticamente los abonos
-            // en efectivo o tarjeta basándose en los registros de CustomerCredit.
-
             // 4. Modificar el valor de la factura
             let updateData;
 
             // Si es un pago TOTAL: restaurar finalAmount al valor original (totalAmount)
             // para que la factura quede como una factura normal completamente pagada
-            if (Number(amount) === Number(sale.finalAmount)) {
+            if (Math.abs(numericAmount - parseFloat(sale.finalAmount)) < 0.01) {
                 updateData = {
                     finalAmount: sale.totalAmount,  // Restaurar al monto original
                     paymentMethodId: paymentMethodId // Cambiar método de crédito al real
                 };
             } else {
                 // Abono PARCIAL: simplemente descontar del saldo pendiente
-                updateData = { finalAmount: { decrement: amount } };
+                updateData = { finalAmount: { decrement: numericAmount } };
             }
 
             return await tx.sale.update({
@@ -199,7 +214,11 @@ class InvoiceService {
                 include: {
                     details: {
                         include: {
-                            product: true
+                            product: {
+                                include: {
+                                    ingredients: true
+                                }
+                            }
                         }
                     },
                     payments: true,
@@ -240,7 +259,7 @@ class InvoiceService {
                 }
             }
 
-            // 2. Revertir stock de productos directos (trackStock)
+            // 2. Revertir stock de productos directos (trackStock) y sub-productos en combos (linkedProductId)
             for (const d of sale.details) {
                 if (d.product?.trackStock) {
                     await tx.product.update({
@@ -248,16 +267,37 @@ class InvoiceService {
                         data: { stock: { increment: d.quantity } }
                     });
                 }
+                if (d.product?.isCombo && Array.isArray(d.product.ingredients)) {
+                    for (const comp of d.product.ingredients) {
+                        if (comp.linkedProductId) {
+                            const linkedProd = await tx.product.findUnique({
+                                where: { id: comp.linkedProductId },
+                                select: { id: true, trackStock: true }
+                            });
+                            if (linkedProd?.trackStock) {
+                                const restoreQty = Math.round(parseFloat(comp.quantity || 1) * d.quantity);
+                                await tx.product.update({
+                                    where: { id: linkedProd.id },
+                                    data: { stock: { increment: restoreQty } }
+                                });
+                            }
+                        }
+                    }
+                }
             }
 
-            // 3. Revertir saldos de crédito de cliente si los hubo
+            // 3. Revertir saldos de crédito de cliente descontando únicamente la deuda neta pendiente (totalDebt - totalPaid)
             if (sale.customerId) {
                 const debtCredits = (sale.customerCredits || []).filter(c => c.type === 'DEBT');
+                const paymentCredits = (sale.customerCredits || []).filter(c => c.type === 'PAYMENT');
                 const totalDebt = debtCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
-                if (totalDebt > 0) {
+                const totalPaid = paymentCredits.reduce((acc, c) => acc + parseFloat(c.amount || 0), 0);
+                const netUnpaidDebt = Math.max(0, totalDebt - totalPaid);
+
+                if (netUnpaidDebt > 0) {
                     await tx.customer.update({
                         where: { id: sale.customerId },
-                        data: { balance: { decrement: totalDebt } }
+                        data: { balance: { decrement: netUnpaidDebt } }
                     });
                 }
                 await tx.customerCredit.deleteMany({
@@ -276,7 +316,14 @@ class InvoiceService {
                 });
             }
 
-            // 5. Eliminar la venta para retirarla de la sesión de caja y reportes
+            // 5. Eliminar hijos de venta y la venta para retirarla de la sesión de caja y reportes
+            const detailIds = (sale.details || []).map(d => d.id);
+            if (detailIds.length > 0) {
+                await tx.saleDetailAddition.deleteMany({ where: { saleDetailId: { in: detailIds } } });
+                await tx.saleDetailVariation.deleteMany({ where: { saleDetailId: { in: detailIds } } });
+                await tx.saleDetail.deleteMany({ where: { id: { in: detailIds } } });
+            }
+            await tx.salePayment.deleteMany({ where: { saleId: sale.id } });
             await tx.sale.delete({
                 where: { id: sale.id }
             });

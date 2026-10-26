@@ -6,14 +6,22 @@ const { validatePassword } = require('../../../utils/passwordValidator');
 class UserService {
   // 1. Obtener todos los roles para el formulario del Frontend
   async getRoles() {
+    const tenantId = getTenantId();
     const where = {};
-    if (!isSuperAdmin()) {
-      where.name = { notIn: ['SuperAdmin', 'SUPERADMIN'] };
+    if (tenantId) {
+      where.tenantId = tenantId;
     }
-    return await prisma.role.findMany({
+    if (!isSuperAdmin()) {
+      where.name = { notIn: ['SuperAdmin', 'SUPERADMIN', 'superadmin'] };
+    }
+    const roles = await prisma.role.findMany({
       where,
       orderBy: { name: 'asc' }
     });
+    if (!isSuperAdmin()) {
+      return roles.filter(r => String(r.name || '').trim().toUpperCase() !== 'SUPERADMIN');
+    }
+    return roles;
   }
 
   // Obtener lista de restaurantes (tenants) para el filtro de SuperAdmin
@@ -103,7 +111,7 @@ class UserService {
       error.statusCode = 400;
       throw error;
     }
-    if (!isSuperAdmin() && (targetRole.name === 'SuperAdmin' || targetRole.name === 'SUPERADMIN')) {
+    if (!isSuperAdmin() && String(targetRole.name || '').trim().toUpperCase() === 'SUPERADMIN') {
       const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
       error.statusCode = 403;
       throw error;
@@ -181,7 +189,7 @@ class UserService {
         error.statusCode = 400;
         throw error;
       }
-      if (!isSuperAdmin() && (targetRole.name === 'SuperAdmin' || targetRole.name === 'SUPERADMIN')) {
+      if (!isSuperAdmin() && String(targetRole.name || '').trim().toUpperCase() === 'SUPERADMIN') {
         const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
         error.statusCode = 403;
         throw error;
@@ -303,6 +311,7 @@ class UserService {
             await tx.saleDetail.deleteMany({ where: { id: { in: detailIds } } });
           }
 
+          await tx.salePayment.deleteMany({ where: { saleId: { in: saleIds } } });
           await tx.customerCredit.deleteMany({ where: { saleId: { in: saleIds } } });
           await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
         }
@@ -338,6 +347,8 @@ class UserService {
             await tx.saleDetailVariation.deleteMany({ where: { saleDetailId: { in: detailIds } } });
             await tx.saleDetail.deleteMany({ where: { id: { in: detailIds } } });
           }
+          await tx.salePayment.deleteMany({ where: { saleId: { in: linkedSaleIds } } });
+          await tx.customerCredit.deleteMany({ where: { saleId: { in: linkedSaleIds } } });
           await tx.sale.deleteMany({ where: { id: { in: linkedSaleIds } } });
         }
 

@@ -20,6 +20,11 @@ function iterateSalePayments(sales, callback) {
 class CashService {
   
   async openSession(userId, openingAmount, tenantId = null) {
+    const parsedOpening = parseFloat(openingAmount);
+    if (!Number.isFinite(parsedOpening) || parsedOpening < 0) {
+      throw Object.assign(new Error('El monto de apertura debe ser un número válido mayor o igual a 0'), { statusCode: 400 });
+    }
+
     let effectiveTenantId = tenantId;
     if (!effectiveTenantId) {
       const user = await prisma.user.findUnique({
@@ -41,31 +46,47 @@ class CashService {
       data: {
         userId,
         tenantId: effectiveTenantId || null,
-        openingAmount: parseFloat(openingAmount),
+        openingAmount: parsedOpening,
         status: 'OPEN'
       }
     });
   }
 
-  async closeSession(sessionId, userId, closingAmount) {
+  async closeSession(sessionId, userId, closingAmount, userRole = null) {
+    const parsedClosing = parseFloat(closingAmount);
+    if (!Number.isFinite(parsedClosing) || parsedClosing < 0) {
+      throw Object.assign(new Error('El monto de cierre debe ser un número válido mayor o igual a 0'), { statusCode: 400 });
+    }
+
     const session = await prisma.cashSession.findUnique({ where: { id: sessionId } });
 
     if (!session) throw Object.assign(new Error('Sesión de caja no encontrada'), { statusCode: 404 });
-    if (session.userId !== userId) throw Object.assign(new Error('Solo el titular puede cerrar esta caja'), { statusCode: 403 });
+    const normalizedRole = String(userRole || '').trim();
+    const canForceClose = ['Administrador', 'Supervisor', 'SuperAdmin', 'SUPERADMIN'].includes(normalizedRole);
+    if (session.userId !== userId && !canForceClose) {
+      throw Object.assign(new Error('Solo el titular o un Administrador/Supervisor puede cerrar esta caja'), { statusCode: 403 });
+    }
     if (session.status === 'CLOSED') throw Object.assign(new Error('La caja ya se encuentra cerrada'), { statusCode: 400 });
 
     return await prisma.cashSession.update({
       where: { id: sessionId },
       data: {
         status: 'CLOSED',
-        closingAmount: parseFloat(closingAmount),
+        closingAmount: parsedClosing,
         closedAt: new Date()
       }
     });
   }
 
-  async registerMovement(sessionId, userId, data) {
+  async registerMovement(sessionId, userId, data, userRole = null) {
     const { type, amount, description } = data;
+    const parsedAmount = parseFloat(amount);
+    if (!['IN', 'OUT'].includes(type)) {
+      throw Object.assign(new Error('El tipo de movimiento debe ser IN o OUT'), { statusCode: 400 });
+    }
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      throw Object.assign(new Error('El monto del movimiento debe ser mayor a 0'), { statusCode: 400 });
+    }
 
     const session = await prisma.cashSession.findUnique({ where: { id: sessionId } });
     
@@ -73,7 +94,9 @@ class CashService {
       throw Object.assign(new Error('La sesión de caja no existe o está cerrada'), { statusCode: 400 });
     }
     
-    if (session.userId !== userId) {
+    const normalizedRole = String(userRole || '').trim();
+    const canManageMovement = ['Administrador', 'Supervisor', 'SuperAdmin', 'SUPERADMIN'].includes(normalizedRole);
+    if (session.userId !== userId && !canManageMovement) {
       throw Object.assign(new Error('No tiene permisos para registrar movimientos en esta caja'), { statusCode: 403 });
     }
 
@@ -81,7 +104,7 @@ class CashService {
       data: {
         cashSessionId: sessionId,
         type,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         description
       }
     });
@@ -89,13 +112,18 @@ class CashService {
 
   async createAudit(sessionId, auditorId, data) {
     const { actualAmount, notes } = data;
+    const actual = parseFloat(actualAmount);
+    if (!Number.isFinite(actual) || actual < 0) {
+      throw Object.assign(new Error('El monto físico contado debe ser un número válido mayor o igual a 0'), { statusCode: 400 });
+    }
 
     return await prisma.$transaction(async (tx) => {
       const session = await tx.cashSession.findUnique({
         where: { id: sessionId },
         include: {
           sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } } } },
-          cashMovements: true
+          cashMovements: true,
+          customerCredits: { include: { paymentMethod: true } }
         }
       });
 
@@ -116,15 +144,18 @@ class CashService {
       expectedCash += cashSales;
 
       const movementsIn = session.cashMovements
-        .filter(m => m.type === 'IN')
+        .filter(m => m.type === 'IN' && !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente'))
         .reduce((sum, m) => sum + parseFloat(m.amount), 0);
       const movementsOut = session.cashMovements
         .filter(m => m.type === 'OUT')
         .reduce((sum, m) => sum + parseFloat(m.amount), 0);
-      
-      expectedCash = expectedCash + movementsIn - movementsOut;
 
-      const actual = parseFloat(actualAmount);
+      const cashAbonos = (session.customerCredits || [])
+        .filter(c => c.type === 'PAYMENT' && c.paymentMethod?.name?.toLowerCase().includes('efectivo'))
+        .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      
+      expectedCash = expectedCash + movementsIn - movementsOut + cashAbonos;
+
       const difference = actual - expectedCash;
 
       const audit = await tx.cashAudit.create({
@@ -471,4 +502,4 @@ class CashService {
   }
 }
 
-module.exports = new CashService();
+module.exports = new CashService();

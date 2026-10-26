@@ -11,7 +11,7 @@ router.use(protectRoute);
 router.get('/', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), invoiceController.getInvoices);
 router.put('/:id/payment', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), invoiceController.updatePaymentMethod);
 router.put('/:id/abono', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), invoiceController.addAbono);
-router.delete('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), invoiceController.cancelInvoice);
-router.post('/:id/cancel', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR, ROLES.CAJERO), invoiceController.cancelInvoice);
+router.delete('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), invoiceController.cancelInvoice);
+router.post('/:id/cancel', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), invoiceController.cancelInvoice);
 
 module.exports = router;
