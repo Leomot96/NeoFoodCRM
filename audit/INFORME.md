@@ -2728,3 +2728,167 @@ Tras el cierre de los 54 hallazgos previos (`NF-01`..`NF-32`, `RA-01`..`RA-14` y
 - **Fase 3 (`TA-01` a `TA-08`):** ✅ **8 / 8 Resueltos**.
 - **Fase 4 (`CA-01` a `CA-08`):** ✅ **8 / 8 Resueltos**.
 - **Total de Hallazgos Auditados y Cerrados:** **62 / 62 (100%)**.
+
+---
+
+# 11. Quinta Auditoría Profunda (Post-Remediación Fase 4 — `HEAD afc115d`)
+
+**Fecha de auditoría:** 2026-10-26  
+**Commit base auditado:** `afc115d` (`HEAD -> main`, tras completar las fases de remediación 1, 2, 3 y 4)  
+**Metodología:** Auditoría estática exhaustiva en modo **SOLO LECTURA** de flujos cruzados entre módulos (`InvoicesManager.jsx` ↔ `InvoiceService` ↔ `CustomerService` ↔ `CashService`), consistencia contable de sesiones de caja ante abonos parciales/totales, filtros Prisma en tienda virtual y reportes, restricciones de claves foráneas en catálogo (`ProductModifierOption.linkedProductId`) y auto-protección de cuentas administradoras (`UserController` / `UserService`).
+
+---
+
+## 11.1 Resumen Ejecutivo de la Quinta Auditoría
+
+Tras la resolución de los 62 hallazgos previos (`NF-01`..`NF-32`, `RA-01`..`RA-14`, `TA-01`..`TA-08` y `CA-01`..`CA-08`), la inspección línea por línea de los controladores, servicios y vistas del frontend en `HEAD afc115d` permitió identificar **8 hallazgos adicionales de borde e integración (`QA-01` a `QA-08`)**:
+
+1. **`[QA-01]` (Alta — Desincronización de `SalePayment` y Doble Contabilización en Caja al Saldar Facturas a Crédito en `InvoiceService.addAbono` y `CustomerService.payCustomerCredit`):** Cuando una factura a crédito se termina de pagar mediante abonos (`addAbono` en `invoice.service.js:223-227` o `payCustomerCredit` en `customer.service.js:212-218`), el servicio cambia `sale.paymentMethodId` al medio de pago del último abono (ej. `'Efectivo'`) y restaura `sale.finalAmount = sale.totalAmount`, pero **no** actualiza `Sale.payments` (`SalePayment`), que sigue diciendo `'Crédito'`. Peor aún: como cada abono ya creó un registro `CustomerCredit (type: 'PAYMENT')` que `CashService` (`cash.service.js:230-246`) suma a `totalSales`, `salesByMethod` y `expectedCash` (`cashAbonos`), si una venta legada no tiene `SalePayment` o si se sincroniza `SalePayment` al medio de pago real, `iterateSalePayments(session.sales)` en la caja original **volvería a sumar la venta como efectivo además de los abonos ya sumados en `CustomerCredit`**. Y en sentido inverso, al cambiar una factura de Contado a Crédito en `InvoiceService.updatePaymentMethod` (`invoice.service.js:129-146`), si la venta original fue en Efectivo, no se descuenta de la caja si tenía pagos divididos (`sale.payments.length > 1`).
+2. **`[QA-02]` (Alta — `InvoicesManager.jsx` Ignora el Campo `date` en el Modal de Pago Total y No Incluye `payments` en `InvoiceService.getInvoices`):** En `frontend/src/pages/InvoicesManager.jsx:650-662`, el modal permite elegir *"Fecha (Solo si paga el total)"* (`editData.date`), pero `handleEditSubmit` (`líneas 157-160`) envía únicamente `{ amount, paymentMethodId }` a `PUT /invoices/:id/abono` sin enviar `date`, y `InvoiceService.addAbono` (`invoice.service.js:163`) tampoco acepta `date`. Además, `InvoiceService.getInvoices` (`invoice.service.js:26-42`) no incluye `payments: { include: { paymentMethod: true } }`, por lo que `invoice.payments` en `InvoicesManager.jsx:292, 388` siempre es `undefined` y las facturas con pago dividido nunca muestran su desglose en la tabla ni en el modal de detalles.
+3. **`[QA-03]` (Media — Auto-Bloqueo de Administrador en `UserService.updateUser` / `UserController.updateUser`):** Aunque `deleteUser` impide que un administrador elimine su propia cuenta (`req.user.id === req.params.id`), `updateUser` (`user.controller.js:52-59` y `user.service.js:146-240`) permite que el administrador en sesión se desactive a sí mismo (`isActive: false`) o se cambie el rol a `Mesero`/`Cajero`, dejando al restaurante sin ningún `Administrador` activo.
+4. **`[QA-04]` (Media — Filtro `where.OR` Defectuoso en `StoreService.getStoreOrders`):** En `store.service.js:550-558`, `.filter(cond => cond.orderNumber !== undefined || !cond.orderNumber)` evalúa `!undefined === true` cuando `search` no es numérico, dejando `{ orderNumber: undefined }` dentro del arreglo `where.OR` enviado a Prisma.
+5. **`[QA-05]` a `[QA-08]` (Media / Baja):** `ProductService.deleteProduct` no verifica ni desvincula `ProductModifierOption.linkedProductId` antes de ejecutar `prisma.product.delete`, provocando error `P2003` si un producto sin ventas directas formaba parte de un combo; `CashService.getDailyReport` y `getMonthlyReport` no validan formatos de `date`, `year` y `month` (`Invalid Date` en Prisma); `ReportService._getDateFilter` y los filtros de fecha en `SaleService`, `PurchaseService` y `ProductionService` interpretan `YYYY-MM-DD` en UTC medianoche o no incluyen las `23:59:59.999` del `endDate` ni validan `Invalid Date`; y `SaleService.getDashboardSummary` (`sale.service.js:704`) calcula `activeCashSession.totalSales` sumando ventas a crédito no cobradas y omitiendo abonos de cartera (`CustomerCredit`).
+
+| Severidad (Hallazgos `QA`) | Cantidad | IDs |
+| :--- | :---: | :--- |
+| **Crítica** | **0** | — |
+| **Alta** | **2** | `QA-01`, `QA-02` |
+| **Media** | **4** | `QA-03`, `QA-04`, `QA-05`, `QA-06` |
+| **Baja** | **2** | `QA-07`, `QA-08` |
+| **Total** | **8** | `QA-01` .. `QA-08` |
+
+---
+
+## 11.2 Tabla Consolidada de Hallazgos — Quinta Auditoría (`QA-01` a `QA-08`)
+
+| ID | Severidad | Categoría | Archivo:línea | Descripción | Evidencia | Impacto | Corrección propuesta |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
+| **QA-01** | **Alta** | Integridad Financiera / Contabilidad de Caja y Cartera | `Backend/src/modules/invoices/services/invoice.service.js:149-154, 223-227`, `Backend/src/modules/customers/services/customer.service.js:212-218`, `Backend/src/modules/cash/services/cash.service.js:6-20, 218-246` | 1. En `addAbono` y `payCustomerCredit`, cuando se completa el pago de una factura a crédito, se sobrescribe `sale.paymentMethodId = paymentMethodId` (ej. Efectivo) mientras `SalePayment` permanece en `'Crédito'`, y si la venta no tenía `SalePayment` (o si se actualizara `SalePayment`), `CashService` sumaría la venta original en `iterateSalePayments(session.sales)` **además** de sumar los `CustomerCredit (type: 'PAYMENT')` en `session.customerCredits`, duplicando el ingreso en caja.<br>2. En `InvoiceService.updatePaymentMethod` (`líneas 149-154`), al cambiar una factura de Crédito a Contado o viceversa, solo se actualiza `sale.payments[0]` si `sale.payments.length === 1`, dejando inconsistentes los registros `SalePayment` si la venta tenía pagos divididos o no tenía `SalePayment`. | `invoice.service.js:224-227`: `updateData = { finalAmount: sale.totalAmount, paymentMethodId: paymentMethodId }`. Y en `cash.service.js:218-246`, se suman tanto `iterateSalePayments(session.sales)` (excluyendo `'crédito'`) como `session.customerCredits` (`type: 'PAYMENT'`). | Si una venta a crédito pagada mediante abonos cambia su `paymentMethodId` a `'Efectivo'`, o bien queda inconsistente frente a `Sale.payments` (`Crédito`), o bien se duplica el dinero esperado en caja (`Sale` + `CustomerCredit`). | 1. En `CashService` (`iterateSalePayments` en `cash.service.js:6-20`), si una venta tiene registros de deuda/abonos en `customerCredits` (venta originada a crédito cuyos cobros reales entran por `CustomerCredit` `PAYMENT`), no contar como ingreso directo en `iterateSalePayments` la porción de deuda cobrada por abonos, o mantener `SalePayment` con el método `'Crédito'` original para el arqueo de la sesión de origen y reflejar el pago por abonos a través de `customerCredits`.<br>2. En `InvoiceService.updatePaymentMethod`, reemplazar `sale.payments` para que coincida con el nuevo `paymentMethodId` y `sale.totalAmount`. |
+| **QA-02** | **Alta** | Integración Frontend-Backend en Facturas (`InvoicesManager` ↔ `InvoiceService`) | `frontend/src/pages/InvoicesManager.jsx:156-160, 292, 388, 650-662`, `Backend/src/modules/invoices/services/invoice.service.js:26-42, 163-238` | 1. `InvoiceService.getInvoices` (`invoice.service.js:26-42`) no incluye la relación `payments: { include: { paymentMethod: { select: { name: true } } } }`, por lo que `invoice.payments` en `InvoicesManager.jsx:292, 388` siempre es `undefined` y las facturas con pago dividido nunca muestran el badge `"Dividido (N)"` ni el desglose de pagos.<br>2. En `InvoicesManager.jsx:650-662`, el formulario de abono ofrece el selector *"Fecha (Solo si paga el total)"*, pero `handleEditSubmit` (`líneas 157-160`) no envía `date` en el payload de `PUT /invoices/:id/abono` ni `InvoiceService.addAbono` lo procesa. | `invoice.service.js:26-42`: `include` contiene `customer`, `paymentMethod`, `order`, `details`, `customerCredits`, pero omite `payments`. `InvoicesManager.jsx:157`: `await api.put(\`/invoices/\${selectedInvoice.id}/abono\`, { amount: amountToPay, paymentMethodId: editData.paymentMethodId })`. | 1. Las facturas con pago dividido se muestran en el módulo de Facturas como si hubieran sido pagadas con un único medio de pago.<br>2. La fecha seleccionada por el administrador al saldar una factura es ignorada silenciosamente. | 1. Incluir `payments: { include: { paymentMethod: { select: { id: true, name: true } } } }` en `InvoiceService.getInvoices`.<br>2. Enviar `date: editData.date?.startDate` desde `InvoicesManager.jsx:157` cuando se paga el total, y aceptarlo/validarlo opcionalmente en `InvoiceController.addAbono` / `InvoiceService.addAbono`. |
+| **QA-03** | **Media** | Control de Acceso / Prevención de Auto-Bloqueo Administrativo | `Backend/src/modules/users/controllers/user.controller.js:52-59`, `Backend/src/modules/users/services/user.service.js:146-240` | `UserController.updateUser` y `UserService.updateUser` no impiden que el usuario autenticado desactive su propia cuenta (`isActive: false`) ni que se degrade su propio rol de `Administrador` a otro rol, ni verifican que quede al menos un `Administrador` activo en el restaurante. | `user.service.js:205`: `isActive: data.isActive` sin comprobar `id === requestingUserId` ni contar administradores activos restantes del tenant. | Un administrador puede desactivar accidentalmente su propio usuario o quitarse el rol de `Administrador`, dejando al establecimiento bloqueado sin ningún administrador activo. | En `UserController.updateUser` y `UserService.updateUser`, prohibir que un usuario desactive su propia cuenta en sesión (`req.user.id === req.params.id && data.isActive === false`) o degrade su propio rol de `Administrador`, y verificar que no se desactive ni degrade al único `Administrador` activo del restaurante. |
+| **QA-04** | **Media** | Bug Lógico en Búsqueda de Pedidos Web (`StoreService.getStoreOrders`) | `Backend/src/modules/store/services/store.service.js:550-558` | En `getStoreOrders`, el filtro `.filter(cond => cond.orderNumber !== undefined || !cond.orderNumber)` conserva `{ orderNumber: undefined }` cuando `search` es texto no numérico porque `!cond.orderNumber` es `!undefined === true`. | `store.service.js:557`: `.filter(cond => cond.orderNumber !== undefined || !cond.orderNumber)`. | Al buscar un pedido por nombre o teléfono del cliente en `StoreOrdersManager`, se inyecta `{ orderNumber: undefined }` dentro de `where.OR`, alterando el filtrado de Prisma. | Construir `where.OR` agregando `{ orderNumber: parseInt(s, 10) }` únicamente cuando `/^\d+$/.test(s)`. |
+| **QA-05** | **Media** | Integridad Referencial en Combos (`ProductService.deleteProduct`) | `Backend/src/modules/inventory/services/product.service.js:396-432`, `Backend/prisma/schema.prisma:315-316` | `ProductModifierOption.linkedProductId` referencia a `Product.id` sin `onDelete: SetNull`. En `ProductService.deleteProduct(id)` (`líneas 404-409`), solo se cuentan `saleDetail` y `orderDetail`. Si un producto nunca se vendió individualmente pero está vinculado como opción de un combo (`ProductModifierOption.linkedProductId`), `prisma.product.delete` falla con error `P2003`. | `product.service.js:404-407`: solo consulta `prisma.saleDetail.count` y `prisma.orderDetail.count`, omitiendo `prisma.productModifierOption.count({ where: { linkedProductId: id } })`. | Eliminar un producto nuevo o sin ventas que haya sido asociado como ítem elegible en un combo falla con HTTP 400 (`P2003`) o rompe la edición del combo. | En `ProductService.deleteProduct`, desvincular `await prisma.productModifierOption.updateMany({ where: { linkedProductId: id }, data: { linkedProductId: null } })` antes del borrado físico, o incluir su conteo para desactivar o limpiar la referencia de forma segura. |
+| **QA-06** | **Media** | Validación de Fechas y Parámetros en Reportes de Caja (`CashController` / `CashService`) | `Backend/src/modules/cash/controllers/cash.controller.js:51-69`, `Backend/src/modules/cash/services/cash.service.js:267-271, 378-381` | En `CashService.getDailyReport(date)`, `date.split('-').map(Number)` no valida que `date` tenga formato `YYYY-MM-DD` válido; si se envía un valor corrupto, `new Date(year, month - 1, day)` produce `Invalid Date` y Prisma lanza `PrismaClientValidationError`. Lo mismo ocurre en `getMonthlyReport(year, month)` si `year` o `month` no son enteros válidos (`1..12`). | `cash.controller.js:66`: `parseInt(year), parseInt(month)` sin verificar `Number.isInteger` ni rango `1..12`; `cash.service.js:268`: `const [year, month, day] = date.split('-').map(Number);`. | Peticiones con parámetros de fecha mal formados en `/api/v1/cash/reports/daily` o `/monthly` provocan errores internos de Prisma en lugar de responder `400 Bad Request`. | Validar en `CashService.getDailyReport` que `/^\d{4}-\d{2}-\d{2}$/.test(date)` y que la fecha construida sea válida, y en `getMonthlyReport` que `year` (`2000..2100`) y `month` (`1..12`) sean enteros válidos, lanzando error `400` en caso contrario. |
+| **QA-07** | **Baja** | Normalización de Rangos de Fecha (`endDate` a las `23:59:59.999`) en Consultas Históricas | `Backend/src/modules/sales/services/sale.service.js:469-474, 582-585`, `Backend/src/modules/purchases/services/purchase.service.js:204-209, 240-243`, `Backend/src/modules/production/services/production.service.js:157-162`, `Backend/src/modules/reports/services/report.service.js:7-15` | Cuando el frontend envía `startDate="2026-10-26"` y `endDate="2026-10-26"`, `new Date(endDate)` se evalúa a las `00:00:00.000Z`, excluyendo todas las ventas, compras u órdenes de producción ocurridas durante ese último día en `SaleService.getSalesHistory`, `SaleService.getUtilityReport`, `PurchaseService.getPurchasesHistory`, `PurchaseService.getPurchasesReport` y `ProductionService.getProductionOrders`. Además, no se valida si `startDate` o `endDate` producen `Invalid Date`. | `sale.service.js:582-585`: `createdAt: { gte: new Date(startDate), lte: new Date(endDate) }` (sin ajustar `endDate` al final del día `23:59:59.999`). | Filtrar un único día (`startDate === endDate`) o consultar hasta el día de hoy en Historial de Ventas, Utilidad, Compras o Producción devuelve `0` resultados para las operaciones del día final. | Normalizar los rangos `[startDate, endDate]` en `SaleService`, `PurchaseService`, `ProductionService` y `ReportService` parseando `start` al inicio del día (`00:00:00.000`) y `end` al final del día (`23:59:59.999`), validando que ambas fechas sean válidas (`!Number.isNaN`). |
+| **QA-08** | **Baja** | Exactitud de KPI de Caja Activa en `SaleService.getDashboardSummary` | `Backend/src/modules/sales/services/sale.service.js:685-706` | En `getDashboardSummary`, `activeCashSession.totalSales` suma `openSession.sales.reduce((sum, s) => sum + parseFloat(s.finalAmount || 0), 0)` incluyendo ventas a crédito no cobradas en esa sesión y omitiendo los abonos de cartera (`customerCredits` con `type: 'PAYMENT'`) recibidos en la sesión activa, difiriendo del cálculo real de `CashService`. | `sale.service.js:704`: `totalSales: openSession.sales.reduce((sum, s) => sum + parseFloat(s.finalAmount || 0), 0)`. | El widget de "Caja Abierta" en el Dashboard principal muestra un total de ventas en sesión distinto al que muestra el módulo de Caja cuando existen ventas a crédito o abonos. | En `getDashboardSummary`, incluir `payments: { include: { paymentMethod: true } }` y `customerCredits: { where: { type: 'PAYMENT' } }` en `openSession` para calcular `totalSales` con la misma regla contable de `CashService` (ventas no-crédito + abonos cobrados en la sesión). |
+
+---
+
+## 11.3 Diffs Sugeridos para los Hallazgos Principales (`QA-01` a `QA-05`)
+
+### 1. Diff para `QA-01` (`Backend/src/modules/cash/services/cash.service.js` e `invoice.service.js`)
+```diff
+--- a/Backend/src/modules/cash/services/cash.service.js
++++ b/Backend/src/modules/cash/services/cash.service.js
+@@ -6,6 +6,15 @@ const { getTenantId } = require('../../../context/tenantContext');
+ function iterateSalePayments(sales, callback) {
+   for (const sale of sales || []) {
+     if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+       for (const p of sale.payments) {
+         const methodName = p.paymentMethod?.name || sale.paymentMethod?.name || 'Otro';
+         const amount = parseFloat(p.amount || 0);
+         callback(methodName, amount, sale);
+       }
+     } else {
++      // Si la venta fue originalmente a crédito (tiene registro DEBT en customerCredits),
++      // sus cobros reales ya se contabilizan en session.customerCredits (type: 'PAYMENT')
++      const hadInitialDebt = Array.isArray(sale.customerCredits) && sale.customerCredits.some(c => c.type === 'DEBT');
++      if (hadInitialDebt) continue;
+       const methodName = sale.paymentMethod?.name || 'Otro';
+       const amount = parseFloat(sale.finalAmount || 0);
+       callback(methodName, amount, sale);
+     }
+   }
+ }
+```
+
+### 2. Diff para `QA-02` (`Backend/src/modules/invoices/services/invoice.service.js` y `frontend/src/pages/InvoicesManager.jsx`)
+```diff
+--- a/Backend/src/modules/invoices/services/invoice.service.js
++++ b/Backend/src/modules/invoices/services/invoice.service.js
+@@ -27,6 +27,9 @@ class InvoiceService {
+             include: {
+                 customer: { select: { name: true, document: true } },
+                 paymentMethod: { select: { name: true } },
++                payments: {
++                    include: { paymentMethod: { select: { id: true, name: true } } }
++                },
+                 order: { select: { table: { select: { name: true } } } },
+                 details: { 
+```
+
+### 3. Diff para `QA-03` (`Backend/src/modules/users/services/user.service.js`)
+```diff
+--- a/Backend/src/modules/users/services/user.service.js
++++ b/Backend/src/modules/users/services/user.service.js
+@@ -146,7 +146,7 @@ class UserService {
+-  async updateUser(id, data, tenantId = null) {
++  async updateUser(id, data, tenantId = null, requestingUserId = null) {
+     const existingUser = await prisma.user.findFirst({
+       where: { id, ...(tenantId ? { tenantId } : {}) },
+       include: { role: true }
+     });
+@@ -155,6 +155,15 @@ class UserService {
+       throw Object.assign(new Error('Usuario no encontrado en este establecimiento'), { statusCode: 404 });
+     }
++    if (requestingUserId && existingUser.id === requestingUserId) {
++      if (data.isActive === false) {
++        throw Object.assign(new Error('No puedes desactivar tu propia cuenta mientras estás en sesión'), { statusCode: 400 });
++      }
++      if (data.roleId && data.roleId !== existingUser.roleId) {
++        throw Object.assign(new Error('No puedes cambiar el rol de tu propia cuenta activa'), { statusCode: 400 });
++      }
++    }
+```
+
+### 4. Diff para `QA-04` (`Backend/src/modules/store/services/store.service.js`)
+```diff
+--- a/Backend/src/modules/store/services/store.service.js
++++ b/Backend/src/modules/store/services/store.service.js
+@@ -550,11 +550,13 @@ class StoreService {
+     if (search && search.trim()) {
+       const s = search.trim();
+       where.OR = [
+         { customerName: { contains: s } },
+         { customerPhone: { contains: s } },
+-        { deliveryAddress: { contains: s } },
+-        { orderNumber: !isNaN(parseInt(s, 10)) ? parseInt(s, 10) : undefined }
+-      ].filter(cond => cond.orderNumber !== undefined || !cond.orderNumber);
++        { deliveryAddress: { contains: s } }
++      ];
++      if (/^\d+$/.test(s)) {
++        where.OR.push({ orderNumber: parseInt(s, 10) });
++      }
+     }
+```
+
+---
+
+## 11.4 Plan de Acción Fase 5 (Ordenado por Prioridad)
+
+| Prioridad | IDs | Tarea Técnica | Esfuerzo Estimado |
+| :---: | :--- | :--- | :---: |
+| **P1 (Alta)** | `QA-01`, `QA-02` | 1. Evitar la doble contabilización en caja de facturas a crédito saldadas por abonos (`InvoiceService.addAbono`, `CustomerService.payCustomerCredit`, `CashService.iterateSalePayments`) y sincronizar `SalePayment` en `InvoiceService.updatePaymentMethod`.<br>2. Incluir `payments` en `InvoiceService.getInvoices` y soportar el parámetro opcional `date` al pagar la totalidad en `InvoicesManager.jsx` e `InvoiceService.addAbono`. | 1.0 h |
+| **P2 (Media)** | `QA-03`, `QA-04`, `QA-05`, `QA-06` | 3. Impedir que un administrador se desactive a sí mismo, cambie su propio rol o deje al restaurante sin ningún `Administrador` activo en `UserController.updateUser` / `UserService.updateUser`.<br>4. Corregir la construcción de `where.OR` en `StoreService.getStoreOrders` cuando `search` no es numérico.<br>5. Desvincular `ProductModifierOption.linkedProductId` antes de eliminar un producto sin ventas en `ProductService.deleteProduct`.<br>6. Validar formato y rangos de `date`, `year` y `month` en `CashService.getDailyReport` y `getMonthlyReport`. | 1.0 h |
+| **P3 (Baja)** | `QA-07`, `QA-08` | 7. Normalizar los filtros `startDate` (`00:00:00.000`) y `endDate` (`23:59:59.999`) con validación de `Invalid Date` en `SaleService`, `PurchaseService`, `ProductionService` y `ReportService`.<br>8. Alinear el cálculo de `activeCashSession.totalSales` en `SaleService.getDashboardSummary` con la lógica contable de `CashService`. | 0.5 h |
+| **Total** | **`QA-01`..`QA-08`** | **Cierre completo de la Quinta Auditoría (Fase 5)** | **2.5 h** |
+
+---
+
+## 11.5 Bitácora de Commits y Cierre de la Quinta Auditoría (`QA-01` a `QA-08` — 100% Completado)
+
+| # | Commit Hash | Hallazgos Cerrados | Mensaje del Commit | Archivos Modificados |
+| :---: | :---: | :--- | :--- | :--- |
+| **21** | `4e314a7` | `QA-01`, `QA-02`, `QA-06`, `QA-08` | `fix(cash-invoices-sales): evitar doble conteo en caja de abonos, incluir payments en facturas y alinear KPI de caja [QA-01, QA-02, QA-06, QA-08]` | `Backend/src/modules/cash/services/cash.service.js`, `Backend/src/modules/invoices/controllers/invoice.controller.js`, `Backend/src/modules/invoices/services/invoice.service.js`, `frontend/src/pages/InvoicesManager.jsx`, `Backend/src/modules/sales/services/sale.service.js` |
+| **22** | `a8f722d` | `QA-03`, `QA-04`, `QA-05`, `QA-07` | `fix(users-store-inventory-reports): prevenir auto-bloqueo admin, limpiar linkedProductId en combos y normalizar endDate [QA-03, QA-04, QA-05, QA-07]` | `Backend/src/modules/users/controllers/user.controller.js`, `Backend/src/modules/users/services/user.service.js`, `Backend/src/modules/store/services/store.service.js`, `Backend/src/modules/inventory/services/product.service.js`, `Backend/src/modules/purchases/services/purchase.service.js`, `Backend/src/modules/production/services/production.service.js`, `Backend/src/modules/reports/services/report.service.js` |
+
+### Balance Global Final tras las 5 Auditorías
+- **Fase 1 (`NF-01` a `NF-32`):** ✅ **32 / 32 Resueltos** (Orden canónico preservado).
+- **Fase 2 (`RA-01` a `RA-14`):** ✅ **14 / 14 Resueltos**.
+- **Fase 3 (`TA-01` a `TA-08`):** ✅ **8 / 8 Resueltos**.
+- **Fase 4 (`CA-01` a `CA-08`):** ✅ **8 / 8 Resueltos**.
+- **Fase 5 (`QA-01` a `QA-08`):** ✅ **8 / 8 Resueltos**.
+- **Total de Hallazgos Auditados y Cerrados:** **70 / 70 (100%)**.
+- **Verificación de Carga y Compilación:** `BACKEND_LOAD_OK` (`node -e "require('./Backend/src/app')"`) y `frontend` (`vite build`) sin errores.
+
+
