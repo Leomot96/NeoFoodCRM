@@ -1,11 +1,13 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class MovementService {
   
   // Movimiento manual (Entradas, Salidas por avería, Ajustes) tanto para insumos de bodega como productos
-  async registerManualMovement(data, userId) {
+  async registerManualMovement(data, userId, tenantIdParam = null) {
     const { ingredientId, productId, type, quantity, reason } = data; // type: 'IN', 'OUT', 'ADJUSTMENT' | 'SET'
     const normalizedType = type === 'SET' ? 'ADJUSTMENT' : type;
+    const tenantId = tenantIdParam || getTenantId();
 
     const numericQuantity = parseFloat(quantity);
     if (isNaN(numericQuantity) || numericQuantity < 0) {
@@ -18,9 +20,11 @@ class MovementService {
     return await prisma.$transaction(async (tx) => {
       // 1. Ajuste de Producto de Catálogo
       if (productId) {
-        const product = await tx.product.findUnique({ where: { id: productId } });
+        const product = await tx.product.findFirst({
+          where: { id: productId, ...(tenantId ? { tenantId } : {}) }
+        });
         if (!product) {
-          throw Object.assign(new Error('Producto no encontrado'), { statusCode: 404 });
+          throw Object.assign(new Error('Producto no encontrado en este establecimiento'), { statusCode: 404 });
         }
 
         const currentStock = parseFloat(product.stock || 0);
@@ -55,9 +59,11 @@ class MovementService {
         throw Object.assign(new Error('Debe especificar un insumo o producto para registrar el movimiento'), { statusCode: 400 });
       }
 
-      const ingredient = await tx.ingredient.findUnique({ where: { id: ingredientId } });
+      const ingredient = await tx.ingredient.findFirst({
+        where: { id: ingredientId, ...(tenantId ? { tenantId } : {}) }
+      });
       if (!ingredient) {
-        throw Object.assign(new Error('Ingrediente no encontrado'), { statusCode: 404 });
+        throw Object.assign(new Error('Ingrediente no encontrado en este establecimiento'), { statusCode: 404 });
       }
 
       const currentStock = parseFloat(ingredient.currentStock || 0);
@@ -75,6 +81,7 @@ class MovementService {
 
       const movement = await tx.inventoryMovement.create({
         data: {
+          tenantId: tenantId || null,
           ingredientId,
           userId,
           type: normalizedType,
@@ -107,7 +114,9 @@ class MovementService {
       
       // Helper para deducir un ingrediente y sumar costo
       const deductIngredient = async (ingId, qtyNeeded, reason) => {
-        const ing = await tx.ingredient.findUnique({ where: { id: ingId } });
+        const ing = await tx.ingredient.findFirst({
+          where: { id: ingId, ...(tenantId ? { tenantId } : {}) }
+        });
         if (ing) {
           await tx.inventoryMovement.create({
             data: {
@@ -152,7 +161,9 @@ class MovementService {
       for (const add of additionsList) {
         const additionId = add.additionId || add.id;
         if (additionId) {
-          const prodAdd = await tx.productAddition.findUnique({ where: { id: additionId } });
+          const prodAdd = await tx.productAddition.findFirst({
+            where: { id: additionId, ...(tenantId ? { product: { tenantId } } : {}) }
+          });
           if (prodAdd && prodAdd.ingredientId && prodAdd.quantity) {
             const addMultiplier = parseInt(add.quantity || 1, 10);
             const totalAddQty = parseFloat(prodAdd.quantity) * addMultiplier * quantity;
@@ -167,8 +178,8 @@ class MovementService {
       for (const v of variationsList) {
         const variationId = typeof v === 'string' ? v : (v.variationId || v.optionId || v.modifierId || v.id);
         if (variationId) {
-          const opt = await tx.productModifierOption.findUnique({
-            where: { id: variationId },
+          const opt = await tx.productModifierOption.findFirst({
+            where: { id: variationId, ...(tenantId ? { modifier: { product: { tenantId } } } : {}) },
             include: {
               ingredients: true,
               linkedProduct: { include: { ingredients: true } }

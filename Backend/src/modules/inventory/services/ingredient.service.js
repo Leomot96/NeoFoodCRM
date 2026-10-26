@@ -99,7 +99,10 @@ class IngredientService {
   }
 
   async getIngredientById(id) {
-    const ingredient = await prisma.ingredient.findUnique({ where: { id } });
+    const tenantId = getTenantId();
+    const ingredient = await prisma.ingredient.findFirst({
+      where: { id, ...(tenantId ? { tenantId } : {}) }
+    });
     if (!ingredient) {
       const error = new Error('Ingrediente no encontrado');
       error.statusCode = 404;

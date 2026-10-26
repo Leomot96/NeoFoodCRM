@@ -1,4 +1,5 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class PurchaseService {
   _parsePurchaseDate(purchaseDate) {
@@ -16,8 +17,9 @@ class PurchaseService {
   // ==========================================
   // CREACIÓN DE COMPRA (Actualiza Inventario)
   // ==========================================
-  async createPurchase(data, userId) {
+  async createPurchase(data, userId, tenantIdParam = null) {
     const { supplierId, invoiceNumber, purchaseDate, details } = data;
+    const tenantId = tenantIdParam || getTenantId();
 
     const dateToSave = this._parsePurchaseDate(purchaseDate);
 
@@ -27,7 +29,9 @@ class PurchaseService {
 
     return await prisma.$transaction(async (tx) => {
       if (supplierId) {
-        const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
+        const supplier = await tx.supplier.findFirst({
+          where: { id: supplierId, ...(tenantId ? { tenantId } : {}) }
+        });
         if (!supplier) {
           throw Object.assign(new Error('El proveedor seleccionado no pertenece a este establecimiento'), { statusCode: 404 });
         }
@@ -43,7 +47,9 @@ class PurchaseService {
           throw Object.assign(new Error('Cantidad o costo unitario inválido en el detalle de la compra'), { statusCode: 400 });
         }
 
-        const ingExists = await tx.ingredient.findUnique({ where: { id: detail.ingredientId } });
+        const ingExists = await tx.ingredient.findFirst({
+          where: { id: detail.ingredientId, ...(tenantId ? { tenantId } : {}) }
+        });
         if (!ingExists) {
           throw Object.assign(new Error('Uno de los insumos seleccionados no pertenece a este establecimiento'), { statusCode: 404 });
         }
@@ -62,6 +68,7 @@ class PurchaseService {
       // 2. Crear la Compra Principal
       const purchase = await tx.purchase.create({
         data: {
+          tenantId: tenantId || null,
           supplierId,
           invoiceNumber,
           totalCost: totalPurchaseCost,
@@ -79,6 +86,7 @@ class PurchaseService {
         // Ingresar movimiento en la bitácora de inventario
         await tx.inventoryMovement.create({
           data: {
+            tenantId: tenantId || null,
             ingredientId: item.ingredientId,
             userId: userId,
             type: 'IN',
@@ -87,9 +95,11 @@ class PurchaseService {
           }
         });
 
-        const ing = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
-        const oldStock = parseFloat(ing.currentStock || 0);
-        const oldAvgCost = parseFloat(ing.averageCost || ing.costPerUnit || ing.lastCost || 0);
+        const ing = await tx.ingredient.findFirst({
+          where: { id: item.ingredientId, ...(tenantId ? { tenantId } : {}) }
+        });
+        const oldStock = parseFloat(ing?.currentStock || 0);
+        const oldAvgCost = parseFloat(ing?.averageCost || ing?.costPerUnit || ing?.lastCost || 0);
         
         const newStock = oldStock + item.quantity;
         let newAvgCost = item.unitCost;
@@ -121,14 +131,15 @@ class PurchaseService {
   // ==========================================
   // ANULACIÓN DE COMPRA (Revierte Inventario)
   // ==========================================
-  async cancelPurchase(purchaseId, userId) {
+  async cancelPurchase(purchaseId, userId, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     return await prisma.$transaction(async (tx) => {
-      const purchase = await tx.purchase.findUnique({
-        where: { id: purchaseId },
+      const purchase = await tx.purchase.findFirst({
+        where: { id: purchaseId, ...(tenantId ? { tenantId } : {}) },
         include: { details: true }
       });
 
-      if (!purchase) throw Object.assign(new Error('Compra no encontrada'), { statusCode: 404 });
+      if (!purchase) throw Object.assign(new Error('Compra no encontrada en este establecimiento'), { statusCode: 404 });
       if (purchase.status === 'CANCELLED') throw Object.assign(new Error('La compra ya está anulada'), { statusCode: 400 });
 
       // 1. Cambiar estado
@@ -142,6 +153,7 @@ class PurchaseService {
         // Registrar el movimiento de salida por anulación
         await tx.inventoryMovement.create({
           data: {
+            tenantId: purchase.tenantId || tenantId || null,
             ingredientId: item.ingredientId,
             userId: userId,
             type: 'OUT',
@@ -151,18 +163,24 @@ class PurchaseService {
         });
 
         // Descontar del stock (se asume que la anulación es inmediata y el stock existe)
-        const ingredient = await tx.ingredient.findUnique({ where: { id: item.ingredientId } });
-        const newStock = parseFloat(ingredient.currentStock) - parseFloat(item.quantity);
+        const ingredient = await tx.ingredient.findFirst({
+          where: { id: item.ingredientId, ...(tenantId ? { tenantId } : {}) }
+        });
+        const currentStockVal = parseFloat(ingredient?.currentStock || 0);
+        const newStock = currentStockVal - parseFloat(item.quantity);
 
         if (newStock < 0) {
-          throw Object.assign(new Error(`No se puede anular: El ingrediente ${ingredient.name} quedaría con stock negativo`), { statusCode: 400 });
+          throw Object.assign(new Error(`No se puede anular: El ingrediente ${ingredient?.name || item.ingredientId} quedaría con stock negativo`), { statusCode: 400 });
         }
 
         const prevPurchaseDetail = await tx.purchaseDetail.findFirst({
           where: {
             ingredientId: item.ingredientId,
             purchaseId: { not: purchaseId },
-            purchase: { status: 'COMPLETED' }
+            purchase: {
+              status: 'COMPLETED',
+              ...(tenantId ? { tenantId } : {})
+            }
           },
           orderBy: { purchase: { createdAt: 'desc' } }
         });
@@ -175,7 +193,7 @@ class PurchaseService {
           if (newStock <= 0) {
             costUpdate.averageCost = prevUnitCost;
           } else {
-            const currentTotalVal = parseFloat(ingredient.currentStock) * parseFloat(ingredient.averageCost || item.unitCost || 0);
+            const currentTotalVal = currentStockVal * parseFloat(ingredient.averageCost || item.unitCost || 0);
             const removedVal = parseFloat(item.quantity) * parseFloat(item.unitCost || 0);
             const recalcAvg = (currentTotalVal - removedVal) / newStock;
             costUpdate.averageCost = recalcAvg > 0 ? recalcAvg : prevUnitCost;
@@ -214,9 +232,11 @@ class PurchaseService {
   // ==========================================
   // HISTORIAL Y REPORTES
   // ==========================================
-  async getPurchasesHistory(filters = {}) {
+  async getPurchasesHistory(filters = {}, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const { startDate, endDate, supplierId, status } = filters;
     const whereClause = {};
+    if (tenantId) whereClause.tenantId = tenantId;
 
     if (supplierId) whereClause.supplierId = supplierId;
     if (status) whereClause.status = status;
@@ -234,36 +254,42 @@ class PurchaseService {
     });
   }
 
-  async getPurchaseById(id) {
-    const purchase = await prisma.purchase.findUnique({
-      where: { id },
+  async getPurchaseById(id, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
+    const purchase = await prisma.purchase.findFirst({
+      where: { id, ...(tenantId ? { tenantId } : {}) },
       include: {
         supplier: true,
         details: { include: { ingredient: true } }
       }
     });
 
-    if (!purchase) throw Object.assign(new Error('Compra no encontrada'), { statusCode: 404 });
+    if (!purchase) throw Object.assign(new Error('Compra no encontrada en este establecimiento'), { statusCode: 404 });
     return purchase;
   }
 
-  async getPurchasesReport(startDate, endDate) {
+  async getPurchasesReport(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateRange = this._parseDateRange(startDate, endDate);
-    // Retorna el total gastado agrupado por proveedor en un rango de fechas
+    // Retorna el total gastado agrupado por proveedor en un rango de fechas filtrado por tenantId
     const report = await prisma.purchase.groupBy({
       by: ['supplierId'],
       where: {
         status: 'COMPLETED',
-        createdAt: dateRange
+        createdAt: dateRange,
+        ...(tenantId ? { tenantId } : {})
       },
       _sum: {
         totalCost: true
       }
     });
 
-    // Enriquecer con los nombres de los proveedores
+    // Enriquecer con los nombres de los proveedores asegurando pertenencia al tenant
     const enrichedReport = await Promise.all(report.map(async (row) => {
-      const supplier = await prisma.supplier.findUnique({ where: { id: row.supplierId }, select: { name: true } });
+      const supplier = await prisma.supplier.findFirst({
+        where: { id: row.supplierId, ...(tenantId ? { tenantId } : {}) },
+        select: { name: true }
+      });
       return {
         supplierName: supplier?.name || 'Proveedor',
         totalSpent: row._sum.totalCost
@@ -272,9 +298,18 @@ class PurchaseService {
 
     return enrichedReport;
   }
-  async updatePurchaseMetadata(id, data) {
+
+  async updatePurchaseMetadata(id, data, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const { invoiceNumber, purchaseDate } = data;
     const dateToSave = this._parsePurchaseDate(purchaseDate);
+
+    const existing = await prisma.purchase.findFirst({
+      where: { id: String(id), ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!existing) {
+      throw Object.assign(new Error('Compra no encontrada en este establecimiento'), { statusCode: 404 });
+    }
     
     return await prisma.purchase.update({
       where: { id: String(id) },
