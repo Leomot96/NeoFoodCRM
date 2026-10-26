@@ -24,10 +24,14 @@ class ReportService {
     };
   }
 
-  async getSalesAndProfits(startDate, endDate) {
+  async getSalesAndProfits(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateFilter = this._getDateFilter(startDate, endDate);
     const sales = await prisma.sale.findMany({
-      where: { createdAt: dateFilter },
+      where: {
+        ...(dateFilter ? { createdAt: dateFilter } : {}),
+        ...(tenantId ? { tenantId } : {})
+      },
       include: { 
         customer: true, 
         paymentMethod: true,
@@ -77,10 +81,14 @@ class ReportService {
     });
   }
 
-  async getPurchases(startDate, endDate) {
+  async getPurchases(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateFilter = this._getDateFilter(startDate, endDate);
     const purchases = await prisma.purchase.findMany({
-      where: { createdAt: dateFilter },
+      where: {
+        ...(dateFilter ? { createdAt: dateFilter } : {}),
+        ...(tenantId ? { tenantId } : {})
+      },
       include: { supplier: true },
       orderBy: { createdAt: 'desc' }
     });
@@ -88,20 +96,27 @@ class ReportService {
     return purchases.map(p => ({
       invoice: p.invoiceNumber || 'Sin Factura',
       date: p.createdAt,
-      supplier: p.supplier.name,
+      supplier: p.supplier?.name || 'Proveedor Desconocido',
       status: p.status,
       totalCost: parseFloat(p.totalCost)
     }));
   }
 
-  async getInventory() {
+  async getInventory(tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     // El inventario no se filtra por fecha, es el stock actual
     const ingredients = await prisma.ingredient.findMany({ 
-      where: { isActive: true }, 
+      where: {
+        isActive: true,
+        ...(tenantId ? { tenantId } : {})
+      }, 
       orderBy: { name: 'asc' } 
     });
     const products = await prisma.product.findMany({ 
-      where: { trackStock: true }, 
+      where: {
+        trackStock: true,
+        ...(tenantId ? { tenantId } : {})
+      }, 
       orderBy: { name: 'asc' } 
     });
 
@@ -129,17 +144,21 @@ class ReportService {
     return [...invIngredients, ...invProducts];
   }
 
-  async getCashSessions(startDate, endDate) {
+  async getCashSessions(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateFilter = this._getDateFilter(startDate, endDate);
     const sessions = await prisma.cashSession.findMany({
-      where: { openedAt: dateFilter },
+      where: {
+        ...(dateFilter ? { openedAt: dateFilter } : {}),
+        ...(tenantId ? { tenantId } : {})
+      },
       include: { user: true, cashAudit: true },
       orderBy: { openedAt: 'desc' }
     });
 
     return sessions.map(s => ({
       date: s.openedAt,
-      user: s.user.name,
+      user: s.user?.name || 'Usuario Desconocido',
       status: s.status,
       opening: parseFloat(s.openingAmount),
       closing: parseFloat(s.closingAmount || 0),
@@ -148,11 +167,11 @@ class ReportService {
     }));
   }
 
-  async getTopProducts(startDate, endDate) {
+  async getTopProducts(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateFilter = this._getDateFilter(startDate, endDate);
-    const tenantId = getTenantId();
     const whereClause = {
-      createdAt: dateFilter,
+      ...(dateFilter ? { createdAt: dateFilter } : {}),
       ...(tenantId ? { sale: { tenantId } } : {})
     };
 
@@ -164,7 +183,10 @@ class ReportService {
     });
 
     const products = await prisma.product.findMany({ 
-      where: { id: { in: grouped.map(g => g.productId) } } 
+      where: {
+        id: { in: grouped.map(g => g.productId) },
+        ...(tenantId ? { tenantId } : {})
+      } 
     });
 
     return grouped.map(g => {
@@ -177,18 +199,26 @@ class ReportService {
     });
   }
 
-  async getTopCustomers(startDate, endDate) {
+  async getTopCustomers(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateFilter = this._getDateFilter(startDate, endDate);
     const grouped = await prisma.sale.groupBy({
       by: ['customerId'],
-      where: { customerId: { not: null }, createdAt: dateFilter },
+      where: {
+        customerId: { not: null },
+        ...(dateFilter ? { createdAt: dateFilter } : {}),
+        ...(tenantId ? { tenantId } : {})
+      },
       _count: { id: true },
       _sum: { finalAmount: true },
       orderBy: { _sum: { finalAmount: 'desc' } }
     });
 
     const customers = await prisma.customer.findMany({ 
-      where: { id: { in: grouped.map(g => g.customerId) } } 
+      where: {
+        id: { in: grouped.map(g => g.customerId) },
+        ...(tenantId ? { tenantId } : {})
+      } 
     });
 
     return grouped.map(g => {

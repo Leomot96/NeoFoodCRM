@@ -232,6 +232,19 @@ class CustomerService {
             ? { finalAmount: linkedSale.totalAmount, paymentMethodId }
             : { finalAmount: { decrement: parsedAmount } }
         });
+        if (isFullPayment) {
+          await tx.salePayment.deleteMany({
+            where: { saleId: linkedSale.id }
+          });
+          await tx.salePayment.create({
+            data: {
+              saleId: linkedSale.id,
+              paymentMethodId,
+              amount: linkedSale.totalAmount,
+              notes: 'Pago total de crédito vía abono de cliente'
+            }
+          });
+        }
       }
 
       // 5. SOLO suma dinero físico si pagaron en Efectivo

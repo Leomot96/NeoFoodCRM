@@ -14,7 +14,8 @@ class CashController {
     try {
       const { closingAmount } = req.body;
       const roleName = req.user?.role?.name || req.user?.role;
-      const session = await cashService.closeSession(req.params.id, req.user.id, closingAmount, roleName);
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const session = await cashService.closeSession(req.params.id, req.user.id, closingAmount, roleName, tenantId);
       res.status(200).json({ success: true, message: 'Caja cerrada exitosamente', data: session });
     } catch (error) { next(error); }
   }
@@ -22,15 +23,17 @@ class CashController {
   async registerMovement(req, res, next) {
     try {
       const roleName = req.user?.role?.name || req.user?.role;
-      const movement = await cashService.registerMovement(req.params.id, req.user.id, req.body, roleName);
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const movement = await cashService.registerMovement(req.params.id, req.user.id, req.body, roleName, tenantId);
       res.status(201).json({ success: true, message: 'Movimiento registrado', data: movement });
     } catch (error) { next(error); }
   }
 
   async auditSession(req, res, next) {
     try {
+      const tenantId = req.tenantId || req.user?.tenantId;
       // req.user.id corresponde al auditor (Admin/Supervisor)
-      const audit = await cashService.createAudit(req.params.id, req.user.id, req.body);
+      const audit = await cashService.createAudit(req.params.id, req.user.id, req.body, tenantId);
       res.status(201).json({ success: true, message: 'Arqueo guardado exitosamente', data: audit });
     } catch (error) { next(error); }
   }
@@ -38,12 +41,13 @@ class CashController {
   async getHistory(req, res, next) {
     try {
       const query = { ...req.query };
+      const tenantId = req.tenantId || req.user?.tenantId;
       // Si es Cajero, solo puede ver sus propias sesiones de caja
       const roleName = req.user?.role?.name || req.user?.role;
       if (roleName === 'Cajero') {
         query.userId = req.user.id;
       }
-      const history = await cashService.getHistory(query);
+      const history = await cashService.getHistory(query, tenantId);
       res.status(200).json({ success: true, data: history });
     } catch (error) { next(error); }
   }
@@ -51,9 +55,10 @@ class CashController {
   async getDailyReport(req, res, next) {
     try {
       const { date } = req.query; // Formato esperado: YYYY-MM-DD
+      const tenantId = req.tenantId || req.user?.tenantId;
       if (!date) return res.status(400).json({ success: false, message: 'El parámetro date es requerido' });
       
-      const report = await cashService.getDailyReport(date);
+      const report = await cashService.getDailyReport(date, tenantId);
       res.status(200).json({ success: true, data: report });
     } catch (error) { next(error); }
   }
@@ -61,9 +66,10 @@ class CashController {
   async getMonthlyReport(req, res, next) {
     try {
       const { year, month } = req.query;
+      const tenantId = req.tenantId || req.user?.tenantId;
       if (!year || !month) return res.status(400).json({ success: false, message: 'Los parámetros year y month son requeridos' });
       
-      const report = await cashService.getMonthlyReport(parseInt(year), parseInt(month));
+      const report = await cashService.getMonthlyReport(parseInt(year), parseInt(month), tenantId);
       res.status(200).json({ success: true, data: report });
     } catch (error) { next(error); }
   }

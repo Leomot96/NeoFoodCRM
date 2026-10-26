@@ -479,10 +479,12 @@ class SaleService {
   // ==========================================
   // HISTORIAL Y FACTURACIÓN
   // ==========================================
-  async getSalesHistory(filters = {}, page = 1, limit = 50) {
+  async getSalesHistory(filters = {}, page = 1, limit = 50, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const { startDate, endDate, paymentMethodId, cashSessionId } = filters;
     const whereClause = {};
 
+    if (tenantId) whereClause.tenantId = tenantId;
     if (paymentMethodId) whereClause.paymentMethodId = paymentMethodId;
     if (cashSessionId) whereClause.cashSessionId = cashSessionId;
     if (startDate && endDate) {
@@ -520,9 +522,13 @@ class SaleService {
     };
   }
 
-  async getInvoiceData(saleId) {
-    const sale = await prisma.sale.findUnique({
-      where: { id: saleId },
+  async getInvoiceData(saleId, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
+    const sale = await prisma.sale.findFirst({
+      where: {
+        id: saleId,
+        ...(tenantId ? { tenantId } : {})
+      },
       include: {
         tenant: true,
         details: { 
@@ -588,8 +594,8 @@ class SaleService {
   // ==========================================
   // REPORTE DE UTILIDAD (VENTAS VS COSTOS)
   // ==========================================
-  async getUtilityReport(startDate, endDate) {
-    const tenantId = getTenantId();
+  async getUtilityReport(startDate, endDate, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const dateRange = this._parseDateRange(startDate, endDate);
     // 1. Obtener todas las ventas del periodo filtradas estrictamente por tenantId
     const sales = await prisma.saleDetail.findMany({
@@ -656,9 +662,9 @@ class SaleService {
   // ==========================================
   // RESUMEN UNIFICADO PARA EL DASHBOARD
   // ==========================================
-  async getDashboardSummary() {
+  async getDashboardSummary(userId = null, tenantIdParam = null) {
     const now = new Date();
-    const tenantId = getTenantId();
+    const tenantId = tenantIdParam || getTenantId();
     
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
@@ -668,7 +674,10 @@ class SaleService {
 
     // 1. Ventas de Hoy
     const todaySales = await prisma.sale.aggregate({
-      where: { createdAt: { gte: startOfToday, lte: endOfToday } },
+      where: {
+        createdAt: { gte: startOfToday, lte: endOfToday },
+        ...(tenantId ? { tenantId } : {})
+      },
       _sum: { finalAmount: true },
       _count: true
     });
@@ -676,7 +685,10 @@ class SaleService {
 
     // 2. Ventas del Mes
     const monthSales = await prisma.sale.aggregate({
-      where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
+      where: {
+        createdAt: { gte: startOfMonth, lte: endOfMonth },
+        ...(tenantId ? { tenantId } : {})
+      },
       _sum: { finalAmount: true },
       _count: true
     });
@@ -686,7 +698,8 @@ class SaleService {
     const monthPurchases = await prisma.purchase.aggregate({
       where: {
         createdAt: { gte: startOfMonth, lte: endOfMonth },
-        status: 'COMPLETED'
+        status: 'COMPLETED',
+        ...(tenantId ? { tenantId } : {})
       },
       _sum: { totalCost: true }
     });
@@ -697,7 +710,10 @@ class SaleService {
 
     // 5. Estado de Caja (buscar sesión OPEN activa)
     const openSession = await prisma.cashSession.findFirst({
-      where: { status: 'OPEN' },
+      where: {
+        status: 'OPEN',
+        ...(tenantId ? { tenantId } : {})
+      },
       include: {
         user: { select: { id: true, name: true, email: true } },
         cashMovements: true,
@@ -765,7 +781,10 @@ class SaleService {
       const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 
       const dayAgg = await prisma.sale.aggregate({
-        where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+        where: {
+          createdAt: { gte: startOfDay, lte: endOfDay },
+          ...(tenantId ? { tenantId } : {})
+        },
         _sum: { finalAmount: true }
       });
 
@@ -787,7 +806,10 @@ class SaleService {
 
     const topProductIds = topSaleDetails.map(t => t.productId);
     const productsData = await prisma.product.findMany({
-      where: { id: { in: topProductIds } },
+      where: {
+        id: { in: topProductIds },
+        ...(tenantId ? { tenantId } : {})
+      },
       select: { id: true, name: true }
     });
     const productNameMap = {};
@@ -801,7 +823,10 @@ class SaleService {
 
     // 8. Insumos con bajo stock
     const allIngredients = await prisma.ingredient.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(tenantId ? { tenantId } : {})
+      },
       orderBy: { currentStock: 'asc' }
     });
     const lowStockItems = allIngredients

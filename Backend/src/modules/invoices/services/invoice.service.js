@@ -119,7 +119,7 @@ class InvoiceService {
                 // Asignar el dinero a la CAJA ACTUAL si el usuario tiene una abierta
                 if (userId) {
                     const activeSession = await tx.cashSession.findFirst({
-                        where: { userId, status: 'OPEN' }
+                        where: { userId, status: 'OPEN', ...(tenantId ? { tenantId } : {}) }
                     });
                     
                     if (activeSession) {
@@ -201,7 +201,7 @@ class InvoiceService {
 
             // Encontrar la sesión activa del usuario
             const activeSession = await tx.cashSession.findFirst({
-                where: { userId, status: 'OPEN' }
+                where: { userId, status: 'OPEN', ...(tenantId ? { tenantId } : {}) }
             });
 
             if (!activeSession) {
@@ -247,6 +247,18 @@ class InvoiceService {
                 if (parsedPaymentDate) {
                     updateData.createdAt = parsedPaymentDate;
                 }
+                // Sincronizar SalePayment para que la factura refleje el medio de pago real
+                await tx.salePayment.deleteMany({
+                    where: { saleId: sale.id }
+                });
+                await tx.salePayment.create({
+                    data: {
+                        saleId: sale.id,
+                        paymentMethodId,
+                        amount: sale.totalAmount,
+                        notes: 'Pago total de crédito vía abono'
+                    }
+                });
             } else {
                 // Abono PARCIAL: simplemente descontar del saldo pendiente
                 updateData = { finalAmount: { decrement: numericAmount } };

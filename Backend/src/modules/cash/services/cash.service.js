@@ -1,4 +1,5 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 // Helper para procesar medios de pago (soporta cobro único y cuenta dividida / pagos mixtos)
 function iterateSalePayments(sales, callback) {
@@ -56,13 +57,16 @@ class CashService {
     });
   }
 
-  async closeSession(sessionId, userId, closingAmount, userRole = null) {
+  async closeSession(sessionId, userId, closingAmount, userRole = null, tenantIdParam = null) {
     const parsedClosing = parseFloat(closingAmount);
     if (!Number.isFinite(parsedClosing) || parsedClosing < 0) {
       throw Object.assign(new Error('El monto de cierre debe ser un número válido mayor o igual a 0'), { statusCode: 400 });
     }
 
-    const session = await prisma.cashSession.findUnique({ where: { id: sessionId } });
+    const tenantId = tenantIdParam || getTenantId();
+    const session = await prisma.cashSession.findFirst({
+      where: { id: sessionId, ...(tenantId ? { tenantId } : {}) }
+    });
 
     if (!session) throw Object.assign(new Error('Sesión de caja no encontrada'), { statusCode: 404 });
     const normalizedRole = String(userRole || '').trim();
@@ -82,7 +86,7 @@ class CashService {
     });
   }
 
-  async registerMovement(sessionId, userId, data, userRole = null) {
+  async registerMovement(sessionId, userId, data, userRole = null, tenantIdParam = null) {
     const { type, amount, description } = data;
     const parsedAmount = parseFloat(amount);
     if (!['IN', 'OUT'].includes(type)) {
@@ -92,7 +96,10 @@ class CashService {
       throw Object.assign(new Error('El monto del movimiento debe ser mayor a 0'), { statusCode: 400 });
     }
 
-    const session = await prisma.cashSession.findUnique({ where: { id: sessionId } });
+    const tenantId = tenantIdParam || getTenantId();
+    const session = await prisma.cashSession.findFirst({
+      where: { id: sessionId, ...(tenantId ? { tenantId } : {}) }
+    });
     
     if (!session || session.status === 'CLOSED') {
       throw Object.assign(new Error('La sesión de caja no existe o está cerrada'), { statusCode: 400 });
@@ -114,16 +121,17 @@ class CashService {
     });
   }
 
-  async createAudit(sessionId, auditorId, data) {
+  async createAudit(sessionId, auditorId, data, tenantIdParam = null) {
     const { actualAmount, notes } = data;
     const actual = parseFloat(actualAmount);
     if (!Number.isFinite(actual) || actual < 0) {
       throw Object.assign(new Error('El monto físico contado debe ser un número válido mayor o igual a 0'), { statusCode: 400 });
     }
 
+    const tenantId = tenantIdParam || getTenantId();
     return await prisma.$transaction(async (tx) => {
-      const session = await tx.cashSession.findUnique({
-        where: { id: sessionId },
+      const session = await tx.cashSession.findFirst({
+        where: { id: sessionId, ...(tenantId ? { tenantId } : {}) },
         include: {
           sales: { include: { paymentMethod: true, payments: { include: { paymentMethod: true } }, customerCredits: { select: { type: true } } } },
           cashMovements: true,
@@ -180,10 +188,12 @@ class CashService {
 
   // --- MODIFICADO: Calculamos el Efectivo Esperado aquí para el Frontend ---
 // --- MODIFICADO: Calculamos el Efectivo Esperado y Total de Ventas al vuelo ---
-  async getHistory(filters = {}) {
+  async getHistory(filters = {}, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const { userId, status, startDate, endDate } = filters;
     const where = {};
 
+    if (tenantId) where.tenantId = tenantId;
     if (userId) where.userId = userId;
     if (status) where.status = status;
     if (startDate && endDate) {
@@ -268,10 +278,11 @@ class CashService {
     });
   }
 
-  async getDailyReport(date) {
+  async getDailyReport(date, tenantIdParam = null) {
     if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
       throw Object.assign(new Error('El parámetro date debe tener formato válido YYYY-MM-DD'), { statusCode: 400 });
     }
+    const tenantId = tenantIdParam || getTenantId();
     const [year, month, day] = date.trim().split('-').map(Number);
     const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
     const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
@@ -280,7 +291,10 @@ class CashService {
     }
 
     const sessions = await prisma.cashSession.findMany({
-      where: { openedAt: { gte: startOfDay, lte: endOfDay } },
+      where: {
+        openedAt: { gte: startOfDay, lte: endOfDay },
+        ...(tenantId ? { tenantId } : {})
+      },
       include: {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
@@ -385,17 +399,21 @@ class CashService {
     };
   }
 
-  async getMonthlyReport(year, month) {
+  async getMonthlyReport(year, month, tenantIdParam = null) {
     const parsedYear = parseInt(year, 10);
     const parsedMonth = parseInt(month, 10);
     if (!Number.isInteger(parsedYear) || parsedYear < 2000 || parsedYear > 2100 || !Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
       throw Object.assign(new Error('Los parámetros year (2000-2100) y month (1-12) deben ser válidos'), { statusCode: 400 });
     }
+    const tenantId = tenantIdParam || getTenantId();
     const startDate = new Date(parsedYear, parsedMonth - 1, 1, 0, 0, 0, 0);
     const endDate = new Date(parsedYear, parsedMonth, 0, 23, 59, 59, 999);
 
     const sessions = await prisma.cashSession.findMany({
-      where: { openedAt: { gte: startDate, lte: endDate } },
+      where: {
+        openedAt: { gte: startDate, lte: endDate },
+        ...(tenantId ? { tenantId } : {})
+      },
       include: {
         user: { select: { name: true } },
         cashAudit: { select: { difference: true, actualAmount: true } },
