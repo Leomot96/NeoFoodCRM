@@ -504,18 +504,18 @@ const LandingPage = () => {
         <div className={styles.heroContainer}>
           <div className={styles.heroBadge}>
             <Sparkles size={14} className={styles.heroBadgeIcon} />
-            <span>Software Gastronómico Todo-en-Uno • {TRIAL_DAYS} Días Gratis</span>
+            <span>Software Gastronómico para Colombia • {TRIAL_DAYS} Días Gratis</span>
           </div>
 
           <h1 className={styles.heroTitle}>
             El Sistema Operativo Definitivo para{' '}
-            <span className={styles.heroGradientText}>Tu Restaurante</span>
+            <span className={styles.heroGradientText}>Tu Restaurante en Colombia</span>
           </h1>
 
           <p className={styles.heroSubtitle}>
             Unifica tu <strong>Punto de Venta (POS)</strong>, <strong>Pantalla de Cocina (KDS)</strong>,
             <strong> Tienda Virtual con pedidos por WhatsApp</strong>, <strong>Control de Caja</strong>,
-            <strong> Sub-Recetas e Inventario CMP</strong> en una sola plataforma en la nube.
+            <strong> Sub-Recetas e Inventario CMP</strong> en una sola plataforma en la nube diseñada para restaurantes en Colombia.
           </p>
 
           <div className={styles.heroCtaGroup}>
@@ -1588,14 +1588,14 @@ const LandingPage = () => {
                   </a>
                 </li>
                 <li><span>Horario: Lun - Sáb (8:00 AM - 8:00 PM)</span></li>
-                <li><span>Colombia & Latinoamérica</span></li>
+                <li><span>Disponible en Colombia 🇨🇴</span></li>
               </ul>
             </div>
           </div>
 
           <div className={styles.footerBottom}>
             <p className={styles.copyright}>
-              &copy; {new Date().getFullYear()} NeoFood CRM & POS. Todos los derechos reservados. Diseñado para potenciar el sector gastronómico.
+              &copy; {new Date().getFullYear()} NeoFood CRM & POS. Todos los derechos reservados. Diseñado para potenciar el sector gastronómico en Colombia.
             </p>
             <div className={styles.footerLegal}>
               <span>Versión 1.9.0</span>

@@ -1,0 +1,18 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /saas
+Disallow: /dashboard
+Disallow: /pos
+Disallow: /cocina
+Disallow: /caja
+Disallow: /compras
+Disallow: /inventario
+Disallow: /configuracion
+Disallow: /reportes
+Disallow: /api/
+
+# Host y Sitemap
+Host: https://neo-food-crm-ezb8.vercel.app
+Sitemap: https://neo-food-crm-ezb8.vercel.app/sitemap.xml
