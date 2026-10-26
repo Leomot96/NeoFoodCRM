@@ -2283,3 +2283,264 @@ A continuación se detalla cada uno de los **commits atómicos** creados en la r
 
 
 
+---
+
+# 9. Tercera Auditoría Profunda (Post-Remediación Fase 2 — `HEAD 9a60762`)
+
+**Fecha de auditoría:** 2026-10-26  
+**Commit base auditado:** `9a60762` (`HEAD -> main`, tras completar las fases de remediación 1 y 2)  
+**Metodología:** Revisión línea por línea en modo **SOLO LECTURA** de todos los servicios de negocio, controladores, rutas, middlewares y configuración de Prisma (`Backend/src/**`, `Backend/prisma/schema.prisma`, `frontend/src/**` y `mobile/src/**`), cruzando las estructuras de datos pasadas entre módulos con los modelos reales de `schema.prisma`.
+
+---
+
+## 9.1 Resumen Ejecutivo de la Tercera Auditoría
+
+Tras el cierre verificado de los 32 hallazgos iniciales (`NF-01`..`NF-32`) y de los 14 hallazgos de la segunda auditoría (`RA-01`..`RA-14`), el análisis profundo de flujos inter-módulo (Tienda Virtual -> Cocina -> Ventas -> Inventario -> Facturación -> Reportes -> Caja) permitió descubrir **8 hallazgos adicionales (`TA-01` a `TA-08`)** de lógica de negocio, integridad contable/inventario y endurecimiento multi-tenant:
+
+1. **`[TA-01]` (Crítica — Conversión de Pedidos Web `StoreService.convertOrderToSale`):** Al facturar un pedido de la tienda virtual (o despacharlo en cocina), `convertOrderToSale` pasa objetos `OrderDetail` (donde el producto está anidado en `d.product`) a `MovementService.processSaleInventoryAndCost`, el cual busca `item.trackStock`, `item.ingredients` e `item.id` en la raíz del objeto. Como resultado, **los pedidos de tienda virtual nunca descuentan stock de productos ni ingredientes de recetas**, registran `unitCost = 0`, no crean registros en `SalePayment` ni `SaleDetailVariation`/`SaleDetailAddition`, y no incrementan `customer.balance` si son a crédito.
+2. **`[TA-02]` (Alta — Aislamiento de `Sale` para SuperAdmin, Reversión de Combos y Cambio a Crédito en `InvoiceService`):** `'sale'` y `'configuration'` no están en `STRICTLY_SCOPED_MODELS` de `prisma.js`, mezclando facturas de todos los tenants en la vista de Facturas/Reportes del SuperAdmin; `cancelInvoice` busca `linkedProductId` en `ProductIngredient` en vez de `SaleDetailVariation.variation.linkedProduct` (por lo que no restaura el stock de combos al anular facturas); y `updatePaymentMethod` permite pasar una venta de Consumidor Final (`customerId: null`) a Crédito sin deudor o descontar `sale.finalAmount` completo ignorando abonos previos.
+3. **`[TA-03]` (Alta — Stock Negativo en Ventas y Producción):** `MovementService.processSaleInventoryAndCost` y `ProductionService.createProductionOrder` decrementan `product.stock` e `ingredient.currentStock` sin validar disponibilidad o permitiendo saldos negativos que luego corrompen la fórmula de costo promedio ponderado (`averageCost`) en `PurchaseService.createPurchase`.
+4. **`[TA-04]` a `[TA-08]` (Media / Baja):** Los reportes de utilidad (`SaleService.getUtilityReport`, `ReportService.getSalesAndProfits`) ignoran el costo histórico `SaleDetail.totalCost` y usan un `60%` fijo para productos sin receta; `PurchaseService.cancelPurchase` no recalcula `averageCost`; `upload.middleware.js` no verifica *magic bytes* del binario en disco; `TableService.deleteTable` lanza `P2003` si la mesa tiene órdenes históricas; y a `prisma.js` le falta interceptar `upsert` y `findFirstOrThrow`.
+
+| Severidad (Hallazgos `TA`) | Cantidad | IDs |
+| :--- | :---: | :--- |
+| **Crítica** | **1** | `TA-01` |
+| **Alta** | **2** | `TA-02`, `TA-03` |
+| **Media** | **4** | `TA-04`, `TA-05`, `TA-06`, `TA-07` |
+| **Baja** | **1** | `TA-08` |
+| **Total** | **8** | `TA-01` .. `TA-08` |
+
+---
+
+## 9.2 Tabla Consolidada de Hallazgos — Tercera Auditoría (`TA-01` a `TA-08`)
+
+| ID | Severidad | Categoría | Archivo:línea | Descripción | Evidencia | Impacto | Corrección propuesta |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
+| **TA-01** | **Crítica** | Integridad Financiera e Inventario (Tienda Virtual -> Ventas) | `Backend/src/modules/store/services/store.service.js:682-780`, `Backend/src/modules/inventory/services/movement.service.js:105, 136-148` | `convertOrderToSale` construye `processedDetails` copiando objetos `OrderDetail` (donde el producto está en `d.product` y `d.id` es el ID del detalle) y los envía a `processSaleInventoryAndCost`, que lee `item.trackStock`, `item.ingredients` e `item.id` en la raíz. Además, no crea `SalePayment`, `SaleDetailVariation`, `SaleDetailAddition` ni deuda en `CustomerCredit` / `customer.balance`. | En `store.service.js:735`: `const processedDetails = order.details.map(d => ({ ...d, additionIds: ... }))`. En `movement.service.js:136`: `if (pd.trackStock)` (`undefined` en `OrderDetail`) y `if (pd.ingredients)` (`undefined` en `OrderDetail`). | **Ningún pedido de tienda virtual convertido a venta descuenta jamás el inventario de productos (`trackStock`) ni los insumos de su receta base**, registra costo `\$0`, omite `SalePayment` y no carga la deuda al cliente si es fiado. | Mapear `processedDetails` en `convertOrderToSale` esparciendo `...d.product` (`id: d.product.id`, `trackStock`, `ingredients`, `isCombo`) igual que en `SaleService.createSale:186-195`, incluir `modifiers.options.linkedProduct` en la consulta, y crear `SalePayment`, variaciones/adiciones y `CustomerCredit` si aplica. |
+| **TA-02** | **Alta** | Multi-Tenant e Integridad en Facturación y Combos | `Backend/src/config/prisma.js:32-47`, `Backend/src/modules/invoices/services/invoice.service.js:19, 75-120, 211-283` | 1. `'sale'` y `'configuration'` no están en `STRICTLY_SCOPED_MODELS` (`prisma.js`).<br>2. `cancelInvoice` busca `comp.linkedProductId` en `d.product.ingredients` (`línea 269`), pero en `schema.prisma:324` `linkedProductId` está en `ProductModifierOption` (`saleDetailVariations.variation.linkedProduct`).<br>3. `updatePaymentMethod` (`líneas 75-120`) descuenta `sale.finalAmount` sin restar abonos previos y permite cambiar a Crédito una venta sin cliente (`customerId: null`). | `invoice.service.js:269`: `if (comp.linkedProductId)` sobre `d.product.ingredients`, cuando `ProductIngredient` (`schema.prisma:296-306`) solo tiene `productId`, `ingredientId`, `quantity`. | 1. El SuperAdmin ve facturas de todos los restaurantes mezcladas en su módulo local de Facturas/Reportes.<br>2. Anular una factura de combo no devuelve el stock de los productos del combo.<br>3. Cambiar método de pago distorsiona `customer.balance` o crea ventas a crédito huérfanas. | 1. Añadir `'sale'` y `'configuration'` a `STRICTLY_SCOPED_MODELS` en `prisma.js` y filtrar por `tenantId` en `InvoiceService`.<br>2. En `cancelInvoice`, restaurar combos iterando `d.saleDetailVariations` -> `variation.linkedProduct`.<br>3. En `updatePaymentMethod`, exigir `sale.customerId` para Crédito y ajustar solo la deuda neta (`totalDebt - totalPaid`). |
+| **TA-03** | **Alta** | Integridad de Inventario y Costo Promedio | `Backend/src/modules/inventory/services/movement.service.js:122-125, 136-141, 196-202`, `Backend/src/modules/production/services/production.service.js:61-68`, `Backend/src/modules/purchases/services/purchase.service.js:89-93` | `processSaleInventoryAndCost` y `createProductionOrder` decrementan `stock` y `currentStock` sin validar disponibilidad, dejando saldos negativos. Luego, cuando entra una compra en `PurchaseService.createPurchase` (`línea 89`), la fórmula `(currentStock * currentAvgCost) + (qtyAdded * unitCost)` multiplica un `currentStock` negativo, corrompiendo `averageCost` (o dividiendo por cero si `totalNewStock === 0`). | `production.service.js:65`: `await tx.ingredient.update({ where: { id: item.inputIngredientId }, data: { currentStock: { decrement: consumedQty } } })` sin verificar `item.inputIngredient.currentStock < consumedQty`. En `purchase.service.js:89`: `const totalNewStock = currentStock + qtyAdded; if (totalNewStock > 0) newAvgCost = ((currentStock * currentAvgCost) + (qtyAdded * unitCost)) / totalNewStock`. | Órdenes de producción sin insumos suficientes dejan stock negativo y corrompen el costo promedio ponderado (`averageCost`) de los ingredientes en la siguiente compra. | 1. En `ProductionService.createProductionOrder`, validar que cada `inputIngredient` tenga `currentStock >= consumedQty` antes de producir.<br>2. En `PurchaseService.createPurchase`, usar `const effectiveCurrentStock = Math.max(0, currentStock)` al ponderar `newAvgCost` para que un saldo negativo previo nunca distorsione el nuevo costo promedio. |
+| **TA-04** | **Media** | Precisión Contable en Reportes de Utilidad e Inventario | `Backend/src/modules/sales/services/sale.service.js:623-641`, `Backend/src/modules/reports/services/report.service.js:34-46, 94-110` | `SaleService.getUtilityReport` y `ReportService.getSalesAndProfits` ignoran el costo histórico `sd.totalCost` guardado en `SaleDetail` en el momento de la venta, y estiman `saleRevenue * 0.60` cuando el producto no tiene receta (`trackStock`), ignorando además el costo de adiciones y combos. En `ReportService.getInventory` se usa `i.costPerUnit` sin priorizar `i.averageCost`. | `sale.service.js:633`: `totalEstimatedCost = saleRevenue * 0.60;` y `report.service.js:44`: `itemUnitCost = parseFloat(sd.unitPrice) * 0.60;`. | Los reportes financieros de utilidad bruta y margen muestran costos estimados ficticios (`60%`) en lugar del costo real calculado y persistido en `SaleDetail.totalCost` al vender. | Priorizar `parseFloat(sd.totalCost)` (cuando `Number(sd.totalCost) > 0`) tanto en `SaleService.getUtilityReport` como en `ReportService.getSalesAndProfits`, usando el cálculo por ingredientes/`averageCost` solo como respaldo para ventas antiguas sin `totalCost`. En `getInventory`, usar `parseFloat(i.averageCost || i.costPerUnit || 0)`. |
+| **TA-05** | **Media** | Integridad en Compras (`cancelPurchase` y Fechas) | `Backend/src/modules/purchases/services/purchase.service.js:11, 130-156, 233` | 1. `cancelPurchase` revierte `currentStock` pero deja `averageCost`, `lastCost` y `costPerUnit` con el valor de la compra anulada.<br>2. `createPurchase` (`línea 11`) y `updatePurchaseDate` (`línea 233`) concatenan `${purchaseDate}T12:00:00.000Z` sin validar si `purchaseDate` ya es un ISO completo ni verificar `Number.isNaN(date.getTime())`. | `purchase.service.js:150-153`: `await tx.ingredient.update({ where: { id: item.ingredientId }, data: { currentStock: { decrement: qtyToRemove } } })` sin restaurar `lastCost`/`averageCost`. `línea 233`: `new Date(\`${purchaseDate}T12:00:00.000Z\`)`. | Si un usuario registra una compra con un precio erróneo y la anula, el costo del insumo queda permanentemente inflado. Si envía una fecha ISO completa a `updatePurchaseDate`, Prisma falla con `Invalid Date`. | 1. En `cancelPurchase`, consultar el último `PurchaseDetail` activo anterior del ingrediente y restaurar `lastCost` y `costPerUnit` (y recalcular `averageCost` de forma segura).<br>2. Parsear `purchaseDate` aceptando tanto `YYYY-MM-DD` como ISO 8601 y lanzar HTTP 400 si `isNaN(parsedDate.getTime())`. |
+| **TA-06** | **Media** | Subida de Archivos (Validación de *Magic Bytes*) | `Backend/src/middlewares/upload.middleware.js:14-41`, `Backend/src/modules/inventory/controllers/product.controller.js:68-80`, `Backend/src/modules/store/controllers/store.controller.js:56-120` | `upload.middleware.js` valida `file.mimetype` (cabecera HTTP `Content-Type` controlada por el cliente) y asigna extensión segura (`.jpg`, `.png`, `.webp`, `.gif`), pero no verifica los *magic bytes* reales del archivo escrito en disco. | `upload.middleware.js:34`: `if (Object.prototype.hasOwnProperty.call(SAFE_IMAGE_MIMES, file.mimetype)) cb(null, true);` (se ejecuta antes de disponer de los bytes en disco). | Un atacante autenticado puede subir cualquier archivo arbitrario falsificando `Content-Type: image/png` en la petición multipart. | Añadir una función `verifyUploadedImageSignature(filePath)` en `upload.middleware.js` (que verifique las firmas binarias reales de JPEG `FF D8 FF`, PNG `89 50 4E 47`, GIF `47 49 46 38` y WebP `RIFF....WEBP` y borre el archivo si no coincide) e invocarla en `product.controller.js` y `store.controller.js`. |
+| **TA-07** | **Media** | Integridad Referencial y Multi-Tenant en Mesas (`TableService`) | `Backend/src/modules/tables/services/table.service.js:99-112, 310-327` | 1. `deleteTable(id)` ejecuta `prisma.table.delete({ where: { id } })` sin verificar si la mesa tiene una comanda activa sin cobrar ni manejar órdenes históricas vinculadas (`Order.tableId`), provocando un error `P2003` de Foreign Key cuando la mesa ya fue usada en el pasado.<br>2. `cancelTableOrder(tableId)` no verifica que `tableId` pertenezca al `tenantId` actual. | `table.service.js:109`: `return await prisma.table.delete({ where: { id } });` y `table.service.js:310`: `cancelTableOrder(tableId)` busca `prisma.order.findFirst({ where: { tableId, ... } })` sin validar la mesa contra `getTenantId()`. | No se pueden eliminar mesas que hayan tenido pedidos históricos (falla con error 400/P2003), o se podría intentar borrar una mesa con cuenta abierta. | En `deleteTable`: bloquear con HTTP 400 si la mesa tiene un pedido activo sin cobrar; si tiene órdenes históricas cerradas/canceladas, desactivar la mesa (`isActive: false`) o desvincular `tableId: null` antes de eliminar. En `cancelTableOrder`: filtrar por `tenantId`. |
+| **TA-08** | **Baja** | Endurecimiento de `prisma.js` (`upsert`, `findFirstOrThrow`) y Panel SaaS | `Backend/src/config/prisma.js:70-202`, `Backend/src/modules/saas/services/saas.service.js:368-460` | 1. `prisma.js` no intercepta `upsert` ni `findFirstOrThrow` en `$allModels`.<br>2. `SaasService.updateTenantStatus` no protege `default-tenant-001` contra suspensión accidental, y `updateTenantPlan`/`activateTenantPlan` no validan `billingCycle` ni fechas inválidas en `customEndsAt`. | `prisma.js:70-202` carece de hooks `upsert` y `findFirstOrThrow`. `saas.service.js:372` actualiza `status` sin comprobar `id === 'default-tenant-001'`. | `prisma.configuration.upsert` (`config.service.js:64`) depende únicamente del filtro manual del servicio; un error humano en el panel SaaS podría suspender el tenant principal o guardar `Invalid Date` en `subscriptionEndsAt`. | Añadir hooks `findFirstOrThrow` y `upsert` en `Backend/src/config/prisma.js`; proteger `default-tenant-001` en `updateTenantStatus` y validar `billingCycle` y `customEndsAt` en `saas.service.js`. |
+
+---
+
+## 9.3 Diffs Sugeridos para los Hallazgos Críticos y Altos (`TA-01`, `TA-02`, `TA-03`)
+
+### 1. Diff para `TA-01` — Conversión Completa de Pedido Web a Venta e Inventario (`Backend/src/modules/store/services/store.service.js`)
+```diff
+--- a/Backend/src/modules/store/services/store.service.js
++++ b/Backend/src/modules/store/services/store.service.js
+@@ -681,7 +681,16 @@ class StoreService {
+           details: {
+             include: {
+               product: {
+-                include: { ingredients: { include: { ingredient: true } } }
++                include: {
++                  ingredients: { include: { ingredient: true } },
++                  modifiers: {
++                    include: {
++                      options: {
++                        include: { linkedProduct: { include: { ingredients: true } } }
++                      }
++                    }
++                  },
++                  additions: true
++                }
+               }
+             }
+           },
+@@ -732,20 +741,37 @@ class StoreService {
+       });
+       const invoiceNumber = `FAC-${String(salesCount + 1).padStart(5, '0')}`;
+ 
++      const isCreditSale = paymentMethod.name.toLowerCase().includes('crédito') ||
++                           paymentMethod.name.toLowerCase().includes('credito') ||
++                           paymentMethod.name.toLowerCase().includes('fiao');
++      if (isCreditSale && !order.customerId) {
++        throw Object.assign(new Error('No se puede facturar a crédito un pedido sin cliente registrado vinculado.'), { statusCode: 400 });
++      }
++
+       // 5. Preparar detalles para procesar inventario y costos
+-      const processedDetails = order.details.map(d => ({
+-        ...d,
+-        additionIds: Array.isArray(d.additions)
+-          ? d.additions.map(a => ({ id: a.id || a.additionId, quantity: a.quantity || 1 })).filter(a => a.id)
+-          : [],
+-        variationIds: Array.isArray(d.modifiers)
+-          ? d.modifiers.map(m => m.id || m.optionId).filter(Boolean)
+-          : []
+-      }));
++      const processedDetails = order.details.map(d => {
++        const additionIds = Array.isArray(d.additions)
++          ? d.additions.map(a => ({ id: a.id || a.additionId, quantity: a.quantity || 1, price: parseFloat(a.price || 0) })).filter(a => a.id)
++          : [];
++        const variationIds = Array.isArray(d.modifiers)
++          ? d.modifiers.map(m => m.id || m.optionId || m.variationId).filter(Boolean)
++          : [];
++        return {
++          ...d.product,
++          productId: d.productId,
++          quantity: d.quantity,
++          unitPrice: parseFloat(d.unitPrice),
++          subtotal: parseFloat(d.subtotal),
++          additionIds,
++          variationIds
++        };
++      });
+ 
+       const detailsCosts = await MovementService.processSaleInventoryAndCost(
+         processedDetails,
+@@ -768,7 +794,16 @@ class StoreService {
+               unitPrice: d.unitPrice,
+               subtotal: d.subtotal,
+               unitCost: detailsCosts[index]?.unitCost || 0,
+-              totalCost: detailsCosts[index]?.totalCost || 0
++              totalCost: detailsCosts[index]?.totalCost || 0,
++              saleDetailAdditions: {
++                create: (processedDetails[index]?.additionIds || []).map(add => ({
++                  additionId: add.id,
++                  quantity: add.quantity,
++                  priceAtSale: add.price || 0
++                }))
++              },
++              saleDetailVariations: {
++                create: (processedDetails[index]?.variationIds || []).map(varId => ({ variationId: varId }))
++              }
+             }))
++          },
++          payments: {
++            create: [{
++              paymentMethodId: paymentMethod.id,
++              amount: order.totalAmount
++            }]
+           }
+         }
+       });
+```
+
+### 2. Diff para `TA-02` — Aislamiento de `Sale` y Reversión de Combos / Deuda en `InvoiceService` (`Backend/src/config/prisma.js`, `Backend/src/modules/invoices/services/invoice.service.js`)
+```diff
+--- a/Backend/src/config/prisma.js
++++ b/Backend/src/config/prisma.js
+@@ -43,6 +43,8 @@ const STRICTLY_SCOPED_MODELS = [
+   'inventorymovement',
+   'productionorder',
+   'order',
+-  'cashsession'
++  'cashsession',
++  'sale',
++  'configuration'
+ ];
+```
+```diff
+--- a/Backend/src/modules/invoices/services/invoice.service.js
++++ b/Backend/src/modules/invoices/services/invoice.service.js
+@@ -216,6 +216,13 @@ class InvoiceService {
+                                 ingredients: true
+                             }
+                         },
++                        saleDetailVariations: {
++                            include: {
++                                variation: {
++                                    include: { linkedProduct: { include: { ingredients: true } } }
++                                }
++                            }
++                        },
+                         saleDetailAdditions: {
+                             include: {
+                                 addition: true
+@@ -264,17 +271,22 @@ class InvoiceService {
+                         }
+                     }
+ 
+-                    // 2.2 Si el producto es un combo, revertir también el stock de sus componentes con trackStock
+-                    if (product.isCombo && Array.isArray(product.ingredients)) {
+-                        for (const comp of product.ingredients) {
+-                            if (comp.linkedProductId) {
+-                                const linkedProd = await tx.product.findUnique({ where: { id: comp.linkedProductId } });
+-                                if (linkedProd && linkedProd.trackStock) {
+-                                    const restoreQty = Number(d.quantity) * Number(comp.quantity || 1);
+-                                    await tx.product.update({
+-                                        where: { id: linkedProd.id },
+-                                        data: { stock: { increment: restoreQty } }
+-                                    });
+-                                }
++                    // 2.2 Si el producto es un combo, revertir el stock de los productos vinculados en sus variaciones
++                    if (product.isCombo && Array.isArray(d.saleDetailVariations)) {
++                        for (const sdv of d.saleDetailVariations) {
++                            const linkedProd = sdv.variation?.linkedProduct;
++                            if (linkedProd && linkedProd.trackStock) {
++                                await tx.product.update({
++                                    where: { id: linkedProd.id },
++                                    data: { stock: { increment: Number(d.quantity) } }
++                                });
+                             }
+                         }
+                     }
+```
+
+### 3. Diff para `TA-03` — Validación de Stock en Producción y Protección de Costo Promedio (`Backend/src/modules/production/services/production.service.js`, `Backend/src/modules/purchases/services/purchase.service.js`)
+```diff
+--- a/Backend/src/modules/production/services/production.service.js
++++ b/Backend/src/modules/production/services/production.service.js
+@@ -51,6 +51,14 @@ class ProductionService {
+       for (const item of producedIngredient.recipeIngredients) {
+         const consumedQty = parseFloat(item.quantity) * qtyToProduce;
++        const availableStock = parseFloat(item.inputIngredient.currentStock || 0);
++        if (availableStock < consumedQty) {
++          const error = new Error(
++            `Stock insuficiente del insumo "${item.inputIngredient.name}". Disponible: ${availableStock} ${item.inputIngredient.measureUnit}, requerido: ${consumedQty} ${item.inputIngredient.measureUnit}.`
++          );
++          error.statusCode = 400;
++          throw error;
++        }
+         const unitCost = parseFloat(item.inputIngredient.averageCost || item.inputIngredient.lastCost || 0);
+         const itemTotalCost = consumedQty * unitCost;
+```
+```diff
+--- a/Backend/src/modules/purchases/services/purchase.service.js
++++ b/Backend/src/modules/purchases/services/purchase.service.js
+@@ -86,10 +86,11 @@ class PurchaseService {
+         const currentStock = parseFloat(ingredient.currentStock) || 0;
+         const currentAvgCost = parseFloat(ingredient.averageCost) || 0;
++        const effectiveBaseStock = Math.max(0, currentStock);
+         const totalNewStock = currentStock + qtyAdded;
++        const weightedStockDenominator = effectiveBaseStock + qtyAdded;
+ 
+         let newAvgCost = unitCost;
+-        if (totalNewStock > 0) {
+-          newAvgCost = ((currentStock * currentAvgCost) + (qtyAdded * unitCost)) / totalNewStock;
++        if (weightedStockDenominator > 0) {
++          newAvgCost = ((effectiveBaseStock * currentAvgCost) + (qtyAdded * unitCost)) / weightedStockDenominator;
+         }
+```
+
+---
+
+## 9.4 Plan de Acción Fase 3 (Ordenado por Prioridad)
+
+| Prioridad | IDs | Tarea Técnica | Esfuerzo Estimado |
+| :---: | :--- | :--- | :---: |
+| **P0 (Inmediata)** | `TA-01` | 1. Corregir la estructura de `processedDetails` en `StoreService.convertOrderToSale` (`store.service.js:735`) esparciendo `...d.product` y cargando `modifiers.options.linkedProduct` para que `MovementService.processSaleInventoryAndCost` descuente el stock de productos y recetas.<br>2. Crear `SalePayment`, `SaleDetailVariation`, `SaleDetailAddition` y registrar la deuda en `CustomerCredit` / `customer.balance` cuando el pedido web se facture a crédito. | 1.0 h |
+| **P1 (Alta)** | `TA-02`, `TA-03` | 3. Añadir `'sale'` y `'configuration'` a `STRICTLY_SCOPED_MODELS` en `Backend/src/config/prisma.js`, filtrar por `tenantId` en `InvoiceService`, restaurar el stock de combos desde `saleDetailVariations.variation.linkedProduct` en `cancelInvoice` y validar `customerId` + deuda neta en `updatePaymentMethod`.<br>4. Validar stock suficiente de insumos en `ProductionService.createProductionOrder` y proteger el cálculo de `newAvgCost` frente a stocks previos negativos en `PurchaseService.createPurchase`. | 1.5 h |
+| **P2 (Media)** | `TA-04`, `TA-05`, `TA-06`, `TA-07` | 5. Usar `SaleDetail.totalCost` histórico en `SaleService.getUtilityReport` y `ReportService.getSalesAndProfits`, y `averageCost` en `ReportService.getInventory`.<br>6. Recalcular `lastCost`/`costPerUnit`/`averageCost` en `PurchaseService.cancelPurchase` y validar fechas en `createPurchase` y `updatePurchaseDate`.<br>7. Verificar *magic bytes* de imágenes subidas en `upload.middleware.js` y eliminar archivos inválidos.<br>8. Impedir borrado de mesas con cuenta abierta y evitar error `P2003` en mesas con historial en `TableService.deleteTable`, además de validar `tenantId` en `cancelTableOrder`. | 2.0 h |
+| **P3 (Baja)** | `TA-08` | 9. Añadir hooks `upsert` y `findFirstOrThrow` en `Backend/src/config/prisma.js`, proteger `default-tenant-001` en `SaasService.updateTenantStatus` y validar `billingCycle`/`customEndsAt` en `saas.service.js`. | 0.5 h |
+| **Total** | **`TA-01`..`TA-08`** | **Cierre completo de la Tercera Auditoría (Fase 3)** | **5.0 h** |
+
+---
+
+## 9.5 Bitácora de Commits y Cierre de la Tercera Auditoría (`TA-01` a `TA-08` — 100% Completado)
+
+| # | Commit Hash | Hallazgos Cerrados | Mensaje del Commit | Archivos Modificados |
+| :---: | :---: | :--- | :--- | :--- |
+| **17** | `58b336f` | `TA-01`, `TA-02`, `TA-08` | `fix(store-invoices-tenant): descontar inventario en ventas web, restaurar combos al anular y aislar Sale/upsert [TA-01, TA-02, TA-08]` | `Backend/src/config/prisma.js`, `Backend/src/modules/store/services/store.service.js`, `Backend/src/modules/inventory/services/movement.service.js`, `Backend/src/modules/invoices/services/invoice.service.js`, `Backend/src/modules/saas/services/saas.service.js` |
+| **18** | `7036286` | `TA-03`, `TA-04`, `TA-05`, `TA-06`, `TA-07` | `fix(inventory-reports-uploads): validar stock en produccion, usar totalCost historico, verificar magic bytes y proteger mesas [TA-03..TA-07]` | `Backend/src/modules/production/services/production.service.js`, `Backend/src/modules/purchases/services/purchase.service.js`, `Backend/src/modules/sales/services/sale.service.js`, `Backend/src/modules/reports/services/report.service.js`, `Backend/src/middlewares/upload.middleware.js`, `Backend/src/modules/inventory/controllers/product.controller.js`, `Backend/src/modules/store/controllers/store.controller.js`, `Backend/src/modules/tables/services/table.service.js` |
+
+### Estado Global Consolidado tras las 3 Auditorías
+- **Fase 1 (`NF-01` a `NF-32`):** ✅ **32 / 32 Resueltos** (Orden canónico preservado).
+- **Fase 2 (`RA-01` a `RA-14`):** ✅ **14 / 14 Resueltos**.
+- **Fase 3 (`TA-01` a `TA-08`):** ✅ **8 / 8 Resueltos**.
+- **Verificación de Carga y Compilación:** `BACKEND_LOAD_OK` (`node -e "require('./src/app')"`) y `frontend` (`vite build`) sin errores.
