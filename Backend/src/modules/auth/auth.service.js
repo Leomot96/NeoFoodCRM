@@ -469,8 +469,9 @@ class AuthService {
       throw error;
     }
 
-    // Código válido -> Emitir token criptográfico de verificación temporal
+    // Código válido -> Emitir token criptográfico de verificación temporal (almacenando su hash SHA-256)
     const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = hashTokenOrCode(verificationToken);
     const tokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora para terminar el formulario
 
     await prisma.emailVerification.update({
@@ -478,7 +479,7 @@ class AuthService {
       data: {
         verified: true,
         attempts: 0,
-        token: verificationToken,
+        token: verificationTokenHash,
         expiresAt: tokenExpiresAt
       }
     });
@@ -543,10 +544,11 @@ class AuthService {
       throw error;
     }
 
+    const incomingVerifTokenHash = hashTokenOrCode(verificationToken);
     const verification = await prisma.emailVerification.findFirst({
       where: {
         email: cleanEmail,
-        token: verificationToken,
+        token: { in: [incomingVerifTokenHash, String(verificationToken)] },
         verified: true,
         expiresAt: { gt: new Date() }
       }
@@ -605,6 +607,19 @@ class AuthService {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const result = await prisma.$transaction(async (tx) => {
+      // Consumir atómicamente el registro de verificación para evitar reutilización concurrente
+      const consumedVerif = await tx.emailVerification.deleteMany({
+        where: {
+          email: cleanEmail,
+          verified: true
+        }
+      });
+      if (consumedVerif.count === 0) {
+        const error = new Error('El token de verificación ya fue utilizado o expiró.');
+        error.statusCode = 400;
+        throw error;
+      }
+
       const tenant = await tx.tenant.create({
         data: {
           name: restaurantName.trim(),

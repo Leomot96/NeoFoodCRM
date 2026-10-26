@@ -548,6 +548,9 @@ class SaasService {
 
     // Ejecución transaccional en orden inverso de dependencias de Clave Foránea
     await prisma.$transaction(async (tx) => {
+      // 0. Eliminar todos los créditos/abonos de clientes antes de borrar ventas y sesiones de caja
+      await tx.customerCredit.deleteMany({ where: { customer: { tenantId } } });
+
       // 1. Eliminar relaciones de Ventas y Pagos Divididos (SalePayment)
       const sales = await tx.sale.findMany({ where: { tenantId }, select: { id: true } });
       const saleIds = sales.map(s => s.id);
@@ -583,6 +586,7 @@ class SaasService {
       const cashSessions = await tx.cashSession.findMany({ where: { tenantId }, select: { id: true } });
       const sessionIds = cashSessions.map(cs => cs.id);
       if (sessionIds.length > 0) {
+        await tx.customerCredit.deleteMany({ where: { cashSessionId: { in: sessionIds } } });
         await tx.cashAudit.deleteMany({ where: { cashSessionId: { in: sessionIds } } });
         await tx.cashMovement.deleteMany({ where: { cashSessionId: { in: sessionIds } } });
         await tx.cashSession.deleteMany({ where: { tenantId } });

@@ -176,6 +176,24 @@ class UserService {
       ? (data.tenantId || existingUser.tenantId)
       : existingUser.tenantId;
 
+    // Si se reactiva un usuario inactivo (isActive: false -> true), validar límite maxUsers del plan
+    if (!existingUser.isActive && data.isActive === true && targetTenantForRole) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: targetTenantForRole },
+        include: { plan: true }
+      });
+      if (tenant?.plan && tenant.plan.maxUsers !== -1) {
+        const activeCount = await prisma.user.count({
+          where: { tenantId: targetTenantForRole, isActive: true }
+        });
+        if (activeCount >= tenant.plan.maxUsers) {
+          const error = new Error(`Has alcanzado el límite máximo de ${tenant.plan.maxUsers} usuarios activos permitidos en tu ${tenant.plan.name}.`);
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+    }
+
     let validatedRoleId = undefined;
     if (data.roleId) {
       const targetRole = await prisma.role.findFirst({
@@ -287,6 +305,12 @@ class UserService {
       const cashSessionIds = userCashSessions.map(cs => cs.id);
 
       if (cashSessionIds.length > 0) {
+        await tx.cashAudit.deleteMany({
+          where: { cashSessionId: { in: cashSessionIds } }
+        });
+        await tx.customerCredit.deleteMany({
+          where: { cashSessionId: { in: cashSessionIds } }
+        });
         await tx.cashMovement.deleteMany({
           where: { cashSessionId: { in: cashSessionIds } }
         });
