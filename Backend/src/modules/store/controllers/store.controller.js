@@ -74,6 +74,9 @@ class StoreController {
         return res.status(400).json({ success: false, message: 'No se envió ningún archivo de imagen para el logo' });
       }
 
+      const { verifyUploadedImageSignature } = require('../../../middlewares/upload.middleware');
+      verifyUploadedImageSignature(req.file.path);
+
       const logoUrl = `/uploads/store/${req.file.filename}`;
       const result = await storeService.updateLogo(tenantId, logoUrl);
 
@@ -111,6 +114,9 @@ class StoreController {
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'No se envió ningún archivo de imagen para el banner' });
       }
+
+      const { verifyUploadedImageSignature } = require('../../../middlewares/upload.middleware');
+      verifyUploadedImageSignature(req.file.path);
 
       const bannerUrl = `/uploads/store/${req.file.filename}`;
       const result = await storeService.updateBanner(tenantId, bannerUrl);

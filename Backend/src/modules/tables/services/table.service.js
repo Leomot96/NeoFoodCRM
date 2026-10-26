@@ -98,16 +98,32 @@ class TableService {
 
   async deleteTable(id) {
     const tenantId = getTenantId();
-    if (tenantId) {
-      const exists = await prisma.table.findFirst({
-        where: { id, tenantId }
-      });
-      if (!exists) {
-        throw Object.assign(new Error('Mesa no encontrada en este establecimiento'), { statusCode: 404 });
-      }
+    const exists = await prisma.table.findFirst({
+      where: { id, ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!exists) {
+      throw Object.assign(new Error('Mesa no encontrada en este establecimiento'), { statusCode: 404 });
     }
-    return await prisma.table.delete({
-      where: { id }
+
+    const activeOrder = await prisma.order.findFirst({
+      where: {
+        tableId: id,
+        sale: null,
+        status: { not: 'CANCELLED' }
+      }
+    });
+    if (activeOrder) {
+      throw Object.assign(new Error('No se puede eliminar una mesa que tiene un pedido activo sin cobrar'), { statusCode: 400 });
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      await tx.order.updateMany({
+        where: { tableId: id },
+        data: { tableId: null }
+      });
+      return await tx.table.delete({
+        where: { id }
+      });
     });
   }
 
@@ -308,6 +324,14 @@ class TableService {
 
   // Cancelar / Liberar pedido de mesa sin cobrar
   async cancelTableOrder(tableId) {
+    const tenantId = getTenantId();
+    const table = await prisma.table.findFirst({
+      where: { id: tableId, ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!table) {
+      throw Object.assign(new Error('Mesa no encontrada en este establecimiento'), { statusCode: 404 });
+    }
+
     const activeOrder = await prisma.order.findFirst({
       where: {
         tableId,

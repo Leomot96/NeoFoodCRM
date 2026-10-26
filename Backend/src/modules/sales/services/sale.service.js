@@ -583,19 +583,22 @@ class SaleService {
     let totalRevenue = 0;
     let totalCost = 0;
 
-    // 2. Calcular costo por cada producto vendido
+    // 2. Calcular costo por cada producto vendido (priorizando el costo histórico persistido en SaleDetail)
     sales.forEach(sd => {
       const saleRevenue = parseFloat(sd.subtotal);
+      const historicalTotalCost = parseFloat(sd.totalCost || 0);
       let productCost = 0;
 
-      if (sd.product.trackStock) {
-        productCost = saleRevenue * 0.60; 
-      } else {
+      if (historicalTotalCost > 0) {
+        productCost = historicalTotalCost;
+      } else if (sd.product.ingredients && sd.product.ingredients.length > 0) {
         sd.product.ingredients.forEach(prodIng => {
           const qtyRequired = parseFloat(prodIng.quantity);
-          const ingCost = parseFloat(prodIng.ingredient.costPerUnit);
+          const ingCost = parseFloat(prodIng.ingredient.averageCost || prodIng.ingredient.costPerUnit || prodIng.ingredient.lastCost || 0);
           productCost += (qtyRequired * ingCost) * sd.quantity;
         });
+      } else if (sd.product.trackStock) {
+        productCost = saleRevenue * 0.60; 
       }
 
       totalRevenue += saleRevenue;

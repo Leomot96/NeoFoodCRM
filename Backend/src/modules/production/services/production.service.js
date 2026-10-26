@@ -44,6 +44,13 @@ class ProductionService {
       for (const req of recipe) {
         const qtyRequired = parseFloat(req.quantity) * quantity;
         const rawIngredient = req.inputIngredient;
+        const availableStock = parseFloat(rawIngredient.currentStock || 0);
+        if (availableStock < qtyRequired) {
+          throw Object.assign(
+            new Error(`Stock insuficiente del insumo "${rawIngredient.name}". Disponible: ${availableStock} ${rawIngredient.unit || ''}, requerido: ${qtyRequired} ${rawIngredient.unit || ''}.`),
+            { statusCode: 400 }
+          );
+        }
         
         // Determinar el costo del insumo (CMP > costPerUnit > lastCost)
         let costToUse = parseFloat(rawIngredient.averageCost);

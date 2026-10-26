@@ -34,14 +34,18 @@ class ReportService {
     return sales.map(s => {
       let cost = 0;
       s.details.forEach(d => {
-        if (d.product.trackStock) {
-          // Si es producto directo, asumimos un margen del 60% si no hay costo explícito
-          cost += parseFloat(d.subtotal) * 0.6;
-        } else {
+        const historicalCost = parseFloat(d.totalCost || 0);
+        if (historicalCost > 0) {
+          cost += historicalCost;
+        } else if (d.product?.ingredients && d.product.ingredients.length > 0) {
           // Sumar el costo exacto de los ingredientes de la receta
           d.product.ingredients.forEach(i => {
-            cost += (parseFloat(i.quantity) * parseFloat(i.ingredient.costPerUnit)) * d.quantity;
+            const ingCost = parseFloat(i.ingredient.averageCost || i.ingredient.costPerUnit || i.ingredient.lastCost || 0);
+            cost += (parseFloat(i.quantity) * ingCost) * d.quantity;
           });
+        } else if (d.product?.trackStock) {
+          // Si es producto directo sin costo histórico ni receta, asumimos un margen del 60%
+          cost += parseFloat(d.subtotal) * 0.6;
         }
       });
 
@@ -91,14 +95,17 @@ class ReportService {
       orderBy: { name: 'asc' } 
     });
 
-    const invIngredients = ingredients.map(i => ({
-      name: i.name,
-      type: 'Ingrediente',
-      stock: parseFloat(i.currentStock),
-      unit: i.unit,
-      unitCost: parseFloat(i.costPerUnit),
-      totalValue: parseFloat(i.currentStock) * parseFloat(i.costPerUnit)
-    }));
+    const invIngredients = ingredients.map(i => {
+      const effectiveCost = parseFloat(i.averageCost || i.costPerUnit || i.lastCost || 0);
+      return {
+        name: i.name,
+        type: 'Ingrediente',
+        stock: parseFloat(i.currentStock),
+        unit: i.unit,
+        unitCost: effectiveCost,
+        totalValue: parseFloat(i.currentStock) * effectiveCost
+      };
+    });
 
     const invProducts = products.map(p => ({
       name: p.name,

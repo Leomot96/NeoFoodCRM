@@ -1,6 +1,17 @@
 const prisma = require('../../../config/prisma');
 
 class PurchaseService {
+  _parsePurchaseDate(purchaseDate) {
+    if (!purchaseDate) return undefined;
+    const raw = String(purchaseDate).trim();
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+      ? new Date(`${raw}T12:00:00.000Z`)
+      : new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      throw Object.assign(new Error('Fecha de compra inválida'), { statusCode: 400 });
+    }
+    return parsed;
+  }
   
   // ==========================================
   // CREACIÓN DE COMPRA (Actualiza Inventario)
@@ -8,7 +19,7 @@ class PurchaseService {
   async createPurchase(data, userId) {
     const { supplierId, invoiceNumber, purchaseDate, details } = data;
 
-    const dateToSave = purchaseDate ? new Date(`${purchaseDate}T12:00:00.000Z`) : undefined;
+    const dateToSave = this._parsePurchaseDate(purchaseDate);
 
     if (!details || details.length === 0) {
       throw Object.assign(new Error('La compra debe incluir al menos un detalle (ingrediente)'), { statusCode: 400 });
@@ -147,9 +158,33 @@ class PurchaseService {
           throw Object.assign(new Error(`No se puede anular: El ingrediente ${ingredient.name} quedaría con stock negativo`), { statusCode: 400 });
         }
 
+        const prevPurchaseDetail = await tx.purchaseDetail.findFirst({
+          where: {
+            ingredientId: item.ingredientId,
+            purchaseId: { not: purchaseId },
+            purchase: { status: 'COMPLETED' }
+          },
+          orderBy: { purchase: { createdAt: 'desc' } }
+        });
+
+        const costUpdate = {};
+        if (prevPurchaseDetail) {
+          const prevUnitCost = parseFloat(prevPurchaseDetail.unitCost || 0);
+          costUpdate.lastCost = prevUnitCost;
+          costUpdate.costPerUnit = prevUnitCost;
+          if (newStock <= 0) {
+            costUpdate.averageCost = prevUnitCost;
+          } else {
+            const currentTotalVal = parseFloat(ingredient.currentStock) * parseFloat(ingredient.averageCost || item.unitCost || 0);
+            const removedVal = parseFloat(item.quantity) * parseFloat(item.unitCost || 0);
+            const recalcAvg = (currentTotalVal - removedVal) / newStock;
+            costUpdate.averageCost = recalcAvg > 0 ? recalcAvg : prevUnitCost;
+          }
+        }
+
         await tx.ingredient.update({
           where: { id: item.ingredientId },
-          data: { currentStock: newStock }
+          data: { currentStock: newStock, ...costUpdate }
         });
       }
 
@@ -225,12 +260,13 @@ class PurchaseService {
   }
   async updatePurchaseMetadata(id, data) {
     const { invoiceNumber, purchaseDate } = data;
+    const dateToSave = this._parsePurchaseDate(purchaseDate);
     
     return await prisma.purchase.update({
       where: { id: String(id) },
       data: {
         invoiceNumber: invoiceNumber || undefined,
-        createdAt: purchaseDate ? new Date(`${purchaseDate}T12:00:00.000Z`) : undefined
+        createdAt: dateToSave
       }
     });
   }

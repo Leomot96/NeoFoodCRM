@@ -46,6 +46,9 @@ class ProductController {
         });
       }
 
+      const { verifyUploadedImageSignature } = require('../../../middlewares/upload.middleware');
+      verifyUploadedImageSignature(req.file.path);
+
       // Devolver la ruta relativa servida por el backend
       const imageUrl = `/uploads/products/${req.file.filename}`;
       res.status(200).json({
