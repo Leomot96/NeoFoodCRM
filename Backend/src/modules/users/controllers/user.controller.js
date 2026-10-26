@@ -3,7 +3,10 @@ const userService = require('../services/user.service');
 // Obtener todos los roles
 exports.getRoles = async (req, res, next) => {
   try {
-    const roles = await userService.getRoles();
+    const roleName = req.user?.role?.name || req.user?.role;
+    const isSuper = roleName === 'SuperAdmin' || roleName === 'SUPERADMIN';
+    const targetTenantId = (isSuper && req.query.tenantId) ? req.query.tenantId : (req.tenantId || req.user?.tenantId);
+    const roles = await userService.getRoles(targetTenantId);
     res.status(200).json({ success: true, data: roles });
   } catch (error) {
     next(error);

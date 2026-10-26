@@ -71,8 +71,23 @@ class TableService {
   }
 
   async createTable(name) {
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      throw Object.assign(new Error('El nombre de la mesa es requerido'), { statusCode: 400 });
+    }
+    const trimmedName = name.trim();
     const tenantId = getTenantId();
+
     if (tenantId) {
+      const existing = await prisma.table.findFirst({
+        where: {
+          tenantId,
+          name: { equals: trimmedName, mode: 'insensitive' }
+        }
+      });
+      if (existing) {
+        throw Object.assign(new Error(`Ya existe una mesa con el nombre "${trimmedName}" en este establecimiento`), { statusCode: 409 });
+      }
+
       const tenant = await prisma.tenant.findUnique({
         where: { id: tenantId },
         include: { plan: true }
@@ -92,7 +107,7 @@ class TableService {
     }
 
     return await prisma.table.create({
-      data: { name, isActive: true, ...(tenantId ? { tenantId } : {}) }
+      data: { name: trimmedName, isActive: true, ...(tenantId ? { tenantId } : {}) }
     });
   }
 

@@ -61,6 +61,12 @@ class ProductController {
         }
       });
     } catch (error) {
+      if (req.file?.path) {
+        try {
+          const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+          deleteUploadedFile(req.file.path);
+        } catch (_) {}
+      }
       next(error);
     }
   }

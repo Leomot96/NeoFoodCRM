@@ -456,14 +456,15 @@ class StoreService {
       select: { logoUrl: true }
     });
 
-    if (existing?.logoUrl && existing.logoUrl !== logoUrl) {
-      deleteUploadedFile(existing.logoUrl);
-    }
-
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { logoUrl }
     });
+
+    if (existing?.logoUrl && existing.logoUrl !== logoUrl) {
+      deleteUploadedFile(existing.logoUrl);
+    }
+
     return { logoUrl: updated.logoUrl };
   }
 
@@ -473,14 +474,15 @@ class StoreService {
       select: { logoUrl: true }
     });
 
-    if (existing?.logoUrl) {
-      deleteUploadedFile(existing.logoUrl);
-    }
-
     await prisma.tenant.update({
       where: { id: tenantId },
       data: { logoUrl: null }
     });
+
+    if (existing?.logoUrl) {
+      deleteUploadedFile(existing.logoUrl);
+    }
+
     return { logoUrl: null };
   }
 
@@ -490,14 +492,15 @@ class StoreService {
       select: { bannerUrl: true }
     });
 
-    if (existing?.bannerUrl && existing.bannerUrl !== bannerUrl) {
-      deleteUploadedFile(existing.bannerUrl);
-    }
-
     const updated = await prisma.tenant.update({
       where: { id: tenantId },
       data: { bannerUrl }
     });
+
+    if (existing?.bannerUrl && existing.bannerUrl !== bannerUrl) {
+      deleteUploadedFile(existing.bannerUrl);
+    }
+
     return { bannerUrl: updated.bannerUrl };
   }
 
@@ -507,14 +510,15 @@ class StoreService {
       select: { bannerUrl: true }
     });
 
-    if (existing?.bannerUrl) {
-      deleteUploadedFile(existing.bannerUrl);
-    }
-
     await prisma.tenant.update({
       where: { id: tenantId },
       data: { bannerUrl: null }
     });
+
+    if (existing?.bannerUrl) {
+      deleteUploadedFile(existing.bannerUrl);
+    }
+
     return { bannerUrl: null };
   }
 

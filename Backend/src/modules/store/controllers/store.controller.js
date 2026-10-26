@@ -86,6 +86,12 @@ class StoreController {
         data: result
       });
     } catch (error) {
+      if (req.file?.path) {
+        try {
+          const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+          deleteUploadedFile(req.file.path);
+        } catch (_) {}
+      }
       next(error);
     }
   }
@@ -127,6 +133,12 @@ class StoreController {
         data: result
       });
     } catch (error) {
+      if (req.file?.path) {
+        try {
+          const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+          deleteUploadedFile(req.file.path);
+        } catch (_) {}
+      }
       next(error);
     }
   }

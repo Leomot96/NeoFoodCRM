@@ -29,7 +29,15 @@ class PaymentMethodService {
   }
 
   async updatePaymentMethod(id, data) {
+    const tenantId = getTenantId();
     const parsedId = String(id);
+    const existing = await prisma.paymentMethod.findFirst({
+      where: { id: parsedId, ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!existing) {
+      throw Object.assign(new Error('Método de pago no encontrado en este establecimiento'), { statusCode: 404 });
+    }
+
     const allowedFields = ['name', 'isActive'];
     const safeData = {};
     for (const key of allowedFields) {
@@ -45,14 +53,15 @@ class PaymentMethodService {
 
   // NUEVO: Método para apagar/encender (Toggle)
   async toggleStatus(id) {
+    const tenantId = getTenantId();
     const parsedId = String(id);
     
-    const method = await prisma.paymentMethod.findUnique({ 
-      where: { id: parsedId } 
+    const method = await prisma.paymentMethod.findFirst({ 
+      where: { id: parsedId, ...(tenantId ? { tenantId } : {}) } 
     });
     
     if (!method) {
-      throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
+      throw Object.assign(new Error('Método de pago no encontrado en este establecimiento'), { statusCode: 404 });
     }
 
     return await prisma.paymentMethod.update({
@@ -63,10 +72,11 @@ class PaymentMethodService {
 
   // Eliminar método de pago (si no tiene historial de ventas, pagos divididos o créditos)
   async deletePaymentMethod(id) {
+    const tenantId = getTenantId();
     const parsedId = String(id);
 
-    const method = await prisma.paymentMethod.findUnique({
-      where: { id: parsedId },
+    const method = await prisma.paymentMethod.findFirst({
+      where: { id: parsedId, ...(tenantId ? { tenantId } : {}) },
       include: {
         _count: {
           select: { sales: true, customerCredits: true, payments: true }
@@ -75,7 +85,7 @@ class PaymentMethodService {
     });
 
     if (!method) {
-      throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
+      throw Object.assign(new Error('Método de pago no encontrado en este establecimiento'), { statusCode: 404 });
     }
 
     const totalLinked = (method._count?.sales || 0) + (method._count?.customerCredits || 0) + (method._count?.payments || 0);

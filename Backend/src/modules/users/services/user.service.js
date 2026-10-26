@@ -5,11 +5,14 @@ const { validatePassword } = require('../../../utils/passwordValidator');
 
 class UserService {
   // 1. Obtener todos los roles para el formulario del Frontend
-  async getRoles() {
-    const tenantId = getTenantId();
+  async getRoles(tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     const where = {};
     if (tenantId) {
-      where.tenantId = tenantId;
+      where.OR = [
+        { tenantId },
+        { tenantId: null }
+      ];
     }
     if (!isSuperAdmin()) {
       where.name = { notIn: ['SuperAdmin', 'SUPERADMIN', 'superadmin'] };

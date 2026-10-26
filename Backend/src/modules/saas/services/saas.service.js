@@ -666,6 +666,15 @@ class SaasService {
       await tx.tenant.delete({ where: { id: tenantId } });
     });
 
+    // 12. Purgar archivos físicos de logotipo y banner del tenant en disco
+    try {
+      const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+      if (tenant.logoUrl) deleteUploadedFile(tenant.logoUrl);
+      if (tenant.bannerUrl) deleteUploadedFile(tenant.bannerUrl);
+    } catch (fileErr) {
+      console.warn(`[SAAS] Error al limpiar archivos multimedia físicos del tenant ${tenantId}:`, fileErr.message);
+    }
+
     return {
       success: true,
       message: `El restaurante "${tenant.name}" y todos sus datos asociados fueron eliminados permanentemente.`,
