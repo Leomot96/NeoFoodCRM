@@ -98,6 +98,14 @@ class ProductController {
       const { deleteUploadedFile } = require('../../../utils/fileCleaner');
       deleteUploadedFile(imageUrl);
 
+      await prisma.product.updateMany({
+        where: {
+          imageUrl,
+          ...(req.user?.tenantId ? { tenantId: req.user.tenantId } : {})
+        },
+        data: { imageUrl: null }
+      });
+
       res.status(200).json({
         success: true,
         message: 'Foto de producto eliminada correctamente'

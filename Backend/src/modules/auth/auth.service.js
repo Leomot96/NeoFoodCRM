@@ -260,8 +260,8 @@ class AuthService {
       throw error;
     }
 
-    const requestedRoleName = roleName || ROLES.CAJERO;
-    if (!isSuperAdmin() && (requestedRoleName === 'SuperAdmin' || requestedRoleName === 'SUPERADMIN')) {
+    const requestedRoleName = String(roleName || ROLES.CAJERO).trim();
+    if (!isSuperAdmin() && requestedRoleName.toUpperCase() === 'SUPERADMIN') {
       const error = new Error('No tienes permisos para asignar el rol SuperAdmin');
       error.statusCode = 403;
       throw error;
@@ -274,7 +274,7 @@ class AuthService {
       }
     });
 
-    if (!role) {
+    if (!role || (!isSuperAdmin() && String(role.name).trim().toUpperCase() === 'SUPERADMIN')) {
       const error = new Error('El rol especificado no existe en este establecimiento');
       error.statusCode = 400;
       throw error;
@@ -440,21 +440,30 @@ class AuthService {
       throw error;
     }
 
-    if (verif.attempts >= 5) {
-      const error = new Error('Has superado el límite de intentos permitidos. Por favor solicita un nuevo código.');
+    // Incremento atómico condicionado a attempts < 5 y vigencia para impedir carreras TOCTOU
+    const reservedAttempt = await prisma.emailVerification.updateMany({
+      where: {
+        email: cleanEmail,
+        attempts: { lt: 5 },
+        expiresAt: { gt: new Date() }
+      },
+      data: {
+        attempts: { increment: 1 }
+      }
+    });
+
+    if (reservedAttempt.count === 0) {
+      const error = new Error('Has superado el límite de intentos permitidos o el código expiró. Por favor solicita un nuevo código.');
       error.statusCode = 400;
       throw error;
     }
 
     const incomingHash = hashTokenOrCode(cleanCode);
-    const isCodeValid = safeCompareHex(verif.code, incomingHash) || verif.code === cleanCode;
+    const isCodeValid = safeCompareHex(verif.code, incomingHash);
 
     if (!isCodeValid) {
-      const updatedVerif = await prisma.emailVerification.update({
-        where: { email: cleanEmail },
-        data: { attempts: { increment: 1 } }
-      });
-      const remaining = Math.max(0, 5 - updatedVerif.attempts);
+      const currentAttempts = (verif.attempts || 0) + 1;
+      const remaining = Math.max(0, 5 - currentAttempts);
       const error = new Error(`Código incorrecto. ${remaining > 0 ? `Te quedan ${remaining} intento(s).` : 'Debes solicitar un nuevo código.'}`);
       error.statusCode = 400;
       throw error;
@@ -468,6 +477,7 @@ class AuthService {
       where: { email: cleanEmail },
       data: {
         verified: true,
+        attempts: 0,
         token: verificationToken,
         expiresAt: tokenExpiresAt
       }

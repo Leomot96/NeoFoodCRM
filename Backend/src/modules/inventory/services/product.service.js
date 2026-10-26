@@ -421,6 +421,10 @@ class ProductService {
 
     // No tiene historial de ventas ni pedidos -> Borrado permanente (Hard delete)
     await prisma.product.delete({ where: { id } });
+    if (product.imageUrl && typeof product.imageUrl === 'string' && product.imageUrl.startsWith('/uploads/products/')) {
+      const { deleteUploadedFile } = require('../../../utils/fileCleaner');
+      deleteUploadedFile(product.imageUrl);
+    }
     return {
       action: 'deleted',
       message: `El producto "${product.name}" fue eliminado permanentemente.`

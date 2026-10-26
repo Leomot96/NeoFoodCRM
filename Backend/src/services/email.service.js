@@ -13,7 +13,7 @@ class EmailService {
    * @param {string} code 
    */
   async sendVerificationCode(toEmail, code) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV === 'development' && process.env.LOG_OTP_CODES === 'true') {
       console.log(`\n======================================================`);
       console.log(`📨 [NeoFood Mailer] Código de verificación generado (DEV):`);
       console.log(`   Destinatario: ${toEmail}`);
@@ -22,6 +22,9 @@ class EmailService {
     }
 
     if (!this.client) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Servicio de correo no configurado (RESEND_API_KEY ausente en producción)');
+      }
       console.warn('⚠️ [NeoFood Mailer] RESEND_API_KEY no configurado en .env.');
       return { success: true, simulated: true };
     }

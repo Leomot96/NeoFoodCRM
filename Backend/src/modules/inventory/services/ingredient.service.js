@@ -174,15 +174,17 @@ class IngredientService {
 
   // Alertas de Stock Mínimo
   async getLowStockAlerts() {
-    return await prisma.ingredient.findMany({
+    const tenantId = getTenantId();
+    const activeIngredients = await prisma.ingredient.findMany({
       where: {
         isActive: true,
-        currentStock: {
-          lte: prisma.ingredient.fields.minStock
-        }
+        ...(tenantId ? { tenantId } : {})
       },
       orderBy: { currentStock: 'asc' }
     });
+    return activeIngredients.filter(
+      ing => parseFloat(ing.currentStock || 0) <= parseFloat(ing.minStock || 0)
+    );
   }
 
   // Historial / Kardex de un ingrediente

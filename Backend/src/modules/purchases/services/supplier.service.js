@@ -16,7 +16,7 @@ class SupplierService {
       }
     }
 
-    const allowedFields = ['name', 'nit', 'contactName', 'phone', 'email', 'address'];
+    const allowedFields = ['name', 'nit', 'phone', 'email', 'address'];
     const supplierData = {};
     for (const key of allowedFields) {
       if (data[key] !== undefined) {
@@ -54,7 +54,7 @@ class SupplierService {
 
   async updateSupplier(id, data) {
     await this.getSupplierById(id);
-    const allowedFields = ['name', 'nit', 'contactName', 'phone', 'email', 'address'];
+    const allowedFields = ['name', 'nit', 'phone', 'email', 'address'];
     const safeData = {};
     for (const key of allowedFields) {
       if (data[key] !== undefined) {
