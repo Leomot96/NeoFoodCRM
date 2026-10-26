@@ -2544,3 +2544,187 @@ Tras el cierre verificado de los 32 hallazgos iniciales (`NF-01`..`NF-32`) y de 
 - **Fase 2 (`RA-01` a `RA-14`):** ✅ **14 / 14 Resueltos**.
 - **Fase 3 (`TA-01` a `TA-08`):** ✅ **8 / 8 Resueltos**.
 - **Verificación de Carga y Compilación:** `BACKEND_LOAD_OK` (`node -e "require('./src/app')"`) y `frontend` (`vite build`) sin errores.
+
+---
+
+# 10. Cuarta Auditoría Profunda (Post-Remediación Fase 3 — `HEAD 9918a22`)
+
+**Fecha de auditoría:** 2026-10-26  
+**Commit base auditado:** `9918a22` (`HEAD -> main`, tras completar las fases de remediación 1, 2 y 3)  
+**Metodología:** Auditoría exhaustiva en modo **SOLO LECTURA** de restricciones de clave foránea (`schema.prisma` vs servicios `delete*`), invariantes de cartera y pagos divididos (`SaleService`, `CustomerService`, `InvoiceService`, `PaymentMethodService`), límites de planes SaaS en actualizaciones de estado (`UserService.updateUser`) y transaccionalidad en onboarding (`AuthService.registerTenant`).
+
+---
+
+## 10.1 Resumen Ejecutivo de la Cuarta Auditoría
+
+Tras el cierre de los 54 hallazgos previos (`NF-01`..`NF-32`, `RA-01`..`RA-14` y `TA-01`..`TA-08`), la inspección cruzada contra las definiciones exactas de columnas y relaciones de `Backend/prisma/schema.prisma` permitió identificar **8 hallazgos adicionales (`CA-01` a `CA-08`)**:
+
+1. **`[CA-01]` (Crítica — Nombres y Campos Obligatorios de `SaleDetailAddition` / `SaleDetailVariation` en `StoreService.convertOrderToSale`):** En `store.service.js:784-796`, al crear las variaciones y adiciones de una venta proveniente de tienda virtual, se usa `priceAtSale` en lugar de `price` (en `SaleDetailAddition`, `schema.prisma:623`) y se omite el campo obligatorio `price` (sin `@default` en `SaleDetailVariation`, `schema.prisma:636`), causando `PrismaClientValidationError` cuando el pedido web tiene modificadores o adiciones.
+2. **`[CA-02]` (Alta — Ventas a Crédito Asignadas por Defecto a `"Consumidor final"` en POS y Facturas):** En `SaleService.createSale` (`sale.service.js:190-203`), si no se envía `customerId`, el sistema asigna automáticamente el UUID de `"Consumidor final"` (`document: '222222222222'`), haciendo que la validación de la línea 394 (`if (!effectiveCustomerId)`) nunca falle y permitiendo registrar deudas ("fiados") a nombre del cliente genérico anónimo `"Consumidor final"`.
+3. **`[CA-03]` (Alta — Integridad de Cartera y Error `P2003` en `CustomerService`):** `deleteCustomer` (`customer.service.js:74-90`) permite borrar clientes con deuda activa (`balance > 0`), borrar al `"Consumidor final"` por defecto o falla con `P2003` si el cliente tiene historial en `CustomerCredit`, `Sale` u `Order`. Además, `payCustomerCredit` (`líneas 117-211`) permite abonar montos superiores a la deuda total del cliente (dejando `balance` negativo) y no descuenta `sale.finalAmount` cuando el abono se vincula a una factura específica (`saleId`).
+4. **`[CA-04]` (Alta — Error `P2003` en `deleteTenantPermanently` y `deleteUser` por Abonos Generales Vinculados a `CashSession`):** En `saas.service.js:588` y `user.service.js:324`, se intenta eliminar `CashSession` antes de eliminar los registros de `CustomerCredit` sin `saleId` (`saleId: null`, creados desde el módulo de Cartera con `cashSessionId`), disparando `P2003 (CustomerCredit_cashSessionId_fkey)`.
+5. **`[CA-05]` a `[CA-08]` (Media / Baja):** `PaymentMethodService.deletePaymentMethod` no cuenta `payments` (`SalePayment`), fallando con `P2003` en métodos usados en pagos divididos; `IngredientService.deleteIngredient` no verifica referencias en `ProductAddition`, `ProductModifierOption` ni `IngredientRecipe` (`usedInRecipes`) ni bloquea auto-recetas circulares; `UserService.updateUser` permite superar `tenant.plan.maxUsers` al reactivar usuarios inactivos (`isActive: false -> true`); y `AuthService` guarda `verificationToken` en texto plano en `EmailVerification`.
+
+| Severidad (Hallazgos `CA`) | Cantidad | IDs |
+| :--- | :---: | :--- |
+| **Crítica** | **1** | `CA-01` |
+| **Alta** | **3** | `CA-02`, `CA-03`, `CA-04` |
+| **Media** | **3** | `CA-05`, `CA-06`, `CA-07` |
+| **Baja** | **1** | `CA-08` |
+| **Total** | **8** | `CA-01` .. `CA-08` |
+
+---
+
+## 10.2 Tabla Consolidada de Hallazgos — Cuarta Auditoría (`CA-01` a `CA-08`)
+
+| ID | Severidad | Categoría | Archivo:línea | Descripción | Evidencia | Impacto | Corrección propuesta |
+| :--- | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
+| **CA-01** | **Crítica** | Bug Bloqueante Prisma (Tienda Virtual -> Ventas) | `Backend/src/modules/store/services/store.service.js:784-796`, `Backend/prisma/schema.prisma:617-642` | En `convertOrderToSale`, `validAdditions` usa la propiedad inexistente `priceAtSale` en vez de `price` (`schema.prisma:623`), y `validVariations` omite la columna obligatoria `price` (`Decimal` sin `@default` en `schema.prisma:636`). | `store.service.js:787`: `priceAtSale: parseFloat(a.price || 0)` y `línea 793`: `{ variationId: m.variationId || m.optionId || m.id }` (sin `price` ni `name`). | Facturar o marcar como `DELIVERED` cualquier pedido de tienda virtual que contenga modificadores o adiciones falla con `PrismaClientValidationError` (HTTP 400). | En `store.service.js:784-796`, mapear `validAdditions` con `{ additionId, name: a.name || 'Adición', quantity, price: parseFloat(a.price || 0) }` y `validVariations` con `{ variationId, name: m.optionName || m.name || 'Variedad', price: parseFloat(m.priceExtra || m.price || 0) }`. |
+| **CA-02** | **Alta** | Integridad Financiera / Cartera (Crédito a Consumidor Final) | `Backend/src/modules/sales/services/sale.service.js:180-203, 393-411`, `Backend/src/modules/invoices/services/invoice.service.js:72-76` | `SaleService.createSale` asigna automáticamente el cliente `"Consumidor final"` (`document: '222222222222'`) cuando `customerId` es nulo (`líneas 190-203`). Como resultado, `effectiveCustomerId` nunca es nulo en la línea 394 y permite registrar ventas a crédito ("fiados") a nombre de `"Consumidor final"`. Lo mismo ocurre en `InvoiceService.updatePaymentMethod` si la venta pertenece a `"Consumidor final"`. | `sale.service.js:201`: `effectiveCustomerId = defaultCustomer.id;` seguido en `línea 394` de `if (!effectiveCustomerId) throw ...`. | Un cajero puede registrar ventas a crédito sin seleccionar un cliente real, acumulando deuda incobrable en el registro genérico `"Consumidor final"`. | Verificar explícitamente en `SaleService.createSale` (`totalCredit > 0`) y en `InvoiceService.updatePaymentMethod` (`isNewCredit`) que el cliente asociado exista y **no** sea el cliente genérico `"Consumidor final"` (`document === '222222222222'` o `name.toLowerCase() === 'consumidor final'`), e incluir `paymentMethodId` al crear `CustomerCredit` en `sale.service.js:401`. |
+| **CA-03** | **Alta** | Integridad Financiera y Referencial en Clientes (`CustomerService`) | `Backend/src/modules/customers/services/customer.service.js:74-90, 117-211` | 1. `deleteCustomer(id)` no impide borrar al `"Consumidor final"`, no bloquea el borrado si el cliente tiene deuda pendiente (`balance > 0`), ni desvincula `Order`/`Sale`/`CustomerCredit`, causando error `P2003`.<br>2. `payCustomerCredit` no verifica que `parsedAmount <= parseFloat(customer.balance)` ni actualiza `sale.finalAmount` cuando se abona a un `saleId` específico. | `customer.service.js:87`: `return await prisma.customer.delete({ where: { id } })`. `líneas 191-195`: decrementa `customer.balance` sin comprobar `parsedAmount > parseFloat(customer.balance)` ni actualizar `linkedSale.finalAmount`. | 1. Error `P2003` al intentar borrar clientes con compras previas o pérdida de trazabilidad de deuda si `balance > 0`.<br>2. Abonos superiores a la deuda dejan `customer.balance` en negativo y desincronizan `Sale.finalAmount` respecto a Cartera. | 1. En `deleteCustomer`: prohibir borrar `"Consumidor final"` o clientes con `balance > 0`; si `balance <= 0`, desvincular `orders`/`sales` (`customerId: null`) y limpiar `customerCredits` en transacción antes de borrar.<br>2. En `payCustomerCredit`: validar `parsedAmount <= currentBalance + 0.01` y, si viene `saleId`, actualizar `linkedSale.finalAmount` igual que en `InvoiceService.addAbono`. |
+| **CA-04** | **Alta** | Integridad Referencial (`P2003` en `deleteTenantPermanently` y `deleteUser`) | `Backend/src/modules/saas/services/saas.service.js:570, 588, 648`, `Backend/src/modules/users/services/user.service.js:238-366` | En `deleteTenantPermanently` (`saas.service.js:588`) y `deleteUser` (`user.service.js:324`), se intenta borrar `CashSession` antes de haber eliminado los registros de `CustomerCredit` que apuntan a `cashSessionId` con `saleId: null` (abonos de cartera). Además, `deleteUser` no limpia `CashAudit` por `cashSessionId` ni impide que un usuario elimine su propia cuenta activa en sesión. | `saas.service.js:588`: `await tx.cashSession.deleteMany({ where: { tenantId } })` se ejecuta en el Paso 3, mientras que `await tx.customerCredit.deleteMany({ where: { customer: { tenantId } } })` recién se ejecuta en el Paso 8 (`línea 648`). | Eliminar un restaurante o un cajero que haya recibido abonos de cartera (`saleId: null`) falla con `P2003 (Foreign key constraint failed on CustomerCredit_cashSessionId_fkey)`. | En `deleteTenantPermanently` y `deleteUser`, eliminar `tx.customerCredit.deleteMany` (tanto por `saleId` como por `cashSessionId` / `customer: { tenantId }`) y `tx.cashAudit.deleteMany({ where: { cashSessionId: { in: cashSessionIds } } })` **antes** de `tx.cashSession.deleteMany`. |
+| **CA-05** | **Media** | Integridad Referencial en Métodos de Pago (`PaymentMethodService`) | `Backend/src/modules/sales/services/payment-method.service.js:32, 48, 65-92`, `Backend/prisma/schema.prisma:532-541` | `deletePaymentMethod` solo verifica `_count.sales` y `_count.customerCredits`, omitiendo `_count.payments` (`SalePayment`). Además, `updatePaymentMethod`, `toggleStatus` y `deletePaymentMethod` aplican `isNaN(id) ? id : parseInt(id)` sobre un `id` que es un `String` UUID (`schema.prisma:533`). | `payment-method.service.js:72`: `select: { sales: true, customerCredits: true }` (falta `payments: true`). | Si un método de pago fue usado como segundo medio en un pago dividido (`SalePayment`), intentar eliminarlo lanza error `P2003` en vez del mensaje controlado de desactivación. | Incluir `payments: true` en `_count.select` dentro de `deletePaymentMethod` y usar `String(id)` en lugar de `isNaN(id) ? id : parseInt(id)`. |
+| **CA-06** | **Media** | Integridad Referencial y Ciclos en Insumos (`IngredientService`) | `Backend/src/modules/inventory/services/ingredient.service.js:5-20, 106-173`, `Backend/prisma/schema.prisma:308, 344` | 1. `deleteIngredient` (`líneas 142-154`) no cuenta referencias en `ProductAddition` (`ingredientId`), `ProductModifierOption` (`ingredientId`) ni `IngredientRecipe` (`inputIngredientId`). Si el insumo no tiene compras pero está asociado a una adición, opción o sub-receta, `prisma.ingredient.delete` lanza `P2003`.<br>2. `updateIngredient` no impide que un insumo elaborado se agregue a sí mismo (`inputIngredientId === id`) en `recipeIngredients`. | `ingredient.service.js:147-152` solo cuenta `purchaseDetail`, `inventoryMovement`, `productionOrder` y `productionConsumption`. | Error `P2003` al borrar un insumo sin movimientos que esté asignado a una receta/adición, y posibilidad de crear referencias circulares `A -> A` en sub-recetas. | 1. En `deleteIngredient`, incluir conteos de `productIngredient`, `productAddition`, `productModifierOption` e `ingredientRecipe`: si está en uso o tiene historial, desactivarlo (`isActive: false`) o limpiar vínculos.<br>2. En `_validateRecipeInputs(recipeIngredients, tenantId, selfId)`, rechazar `inputIngredientId === selfId`. |
+| **CA-07** | **Media** | Lógica de Negocio / Bypass de `maxUsers` (`UserService.updateUser`) | `Backend/src/modules/users/services/user.service.js:146-235` | `updateUser` permite cambiar un usuario inactivo (`existingUser.isActive === false`) a activo (`data.isActive === true`) sin verificar el límite `tenant.plan.maxUsers`. | `user.service.js:205`: `isActive: data.isActive` sin comprobar `maxUsers` cuando `!existingUser.isActive && data.isActive === true`. | Un restaurante puede evadir el límite de usuarios de su plan desactivando temporalmente a un usuario, creando otro nuevo y reactivando al anterior. | En `UserService.updateUser`, si `!existingUser.isActive && data.isActive === true` y `targetTenantForRole` tiene un plan con `maxUsers !== -1`, verificar que el conteo actual de usuarios activos sea `< tenant.plan.maxUsers`. |
+| **CA-08** | **Baja** | Criptografía y Atomicidad en Onboarding (`AuthService.registerTenant`) | `Backend/src/modules/auth/auth.service.js:473-484, 546-559, 798-800` | `verifyCode` guarda `verificationToken` en texto plano en la columna `EmailVerification.token` (`línea 481`) y `registerTenant` lo elimina fuera de `prisma.$transaction` (`línea 798`). | `auth.service.js:481`: `token: verificationToken` (sin `hashTokenOrCode`). `línea 798`: `await prisma.emailVerification.deleteMany(...)` después de `prisma.$transaction`. | Exposición innecesaria del token de verificación en BD y ventana de carrera si se envían dos peticiones `registerTenant` simultáneas. | Almacenar `hashTokenOrCode(verificationToken)` en `EmailVerification.token`, comparar el hash en `registerTenant` y eliminar el registro `emailVerification` dentro de `prisma.$transaction`. |
+
+---
+
+## 10.3 Diffs Sugeridos para los Hallazgos Críticos y Altos (`CA-01` a `CA-04`)
+
+### 1. Diff para `CA-01` (`Backend/src/modules/store/services/store.service.js`)
+```diff
+--- a/Backend/src/modules/store/services/store.service.js
++++ b/Backend/src/modules/store/services/store.service.js
+@@ -782,15 +782,18 @@ class StoreService {
+               const validAdditions = adds
+                 .map(a => ({
+                   additionId: a.additionId || a.id,
++                  name: a.name || 'Adición',
+                   quantity: parseInt(a.quantity || 1, 10),
+-                  priceAtSale: parseFloat(a.price || 0)
++                  price: parseFloat(a.price || 0)
+                 }))
+                 .filter(a => Boolean(a.additionId));
+ 
+               const validVariations = mods
+                 .map(m => ({
+-                  variationId: m.variationId || m.optionId || m.id
++                  variationId: m.variationId || m.optionId || m.id,
++                  name: m.optionName || m.name || 'Variedad',
++                  price: parseFloat(m.priceExtra ?? m.price ?? 0)
+                 }))
+                 .filter(m => Boolean(m.variationId));
+```
+
+### 2. Diff para `CA-02` (`Backend/src/modules/sales/services/sale.service.js` e `invoice.service.js`)
+```diff
+--- a/Backend/src/modules/sales/services/sale.service.js
++++ b/Backend/src/modules/sales/services/sale.service.js
+@@ -180,15 +180,18 @@ class SaleService {
+       // Si no se especifica cliente, asociar automáticamente al "Consumidor final" del establecimiento
+       let effectiveCustomerId = customerId || null;
++      let selectedCustomerDoc = null;
++      let selectedCustomerName = '';
+       if (effectiveCustomerId && effectiveTenantId) {
+         const checkCust = await tx.customer.findFirst({
+           where: { id: effectiveCustomerId, tenantId: effectiveTenantId }
+         });
+         if (!checkCust) {
+           throw Object.assign(new Error('El cliente seleccionado no pertenece a este establecimiento'), { statusCode: 400 });
+         }
++        selectedCustomerDoc = checkCust.document;
++        selectedCustomerName = checkCust.name || '';
+       }
+@@ -392,7 +395,12 @@ class SaleService {
+       const totalCredit = creditPayments.reduce((acc, p) => acc + p.amount, 0);
+       if (totalCredit > 0) {
+-        if (!effectiveCustomerId) throw Object.assign(new Error('Cliente obligatorio para ventas a crédito o cuenta dividida con crédito'), { statusCode: 400 });
++        const isGenericFinalConsumer = !customerId ||
++          selectedCustomerDoc === '222222222222' ||
++          selectedCustomerName.trim().toLowerCase() === 'consumidor final';
++        if (!effectiveCustomerId || isGenericFinalConsumer) {
++          throw Object.assign(new Error('Debes seleccionar un cliente real (distinto a Consumidor Final) para registrar ventas a crédito'), { statusCode: 400 });
++        }
+```
+
+### 3. Diff para `CA-03` (`Backend/src/modules/customers/services/customer.service.js`)
+```diff
+--- a/Backend/src/modules/customers/services/customer.service.js
++++ b/Backend/src/modules/customers/services/customer.service.js
+@@ -74,17 +74,34 @@ class CustomerService {
+   async deleteCustomer(id) {
+     const tenantId = getTenantId();
+-    if (tenantId) {
+-      const existing = await prisma.customer.findFirst({
+-        where: { id, tenantId }
+-      });
+-      if (!existing) {
+-        const error = new Error('Cliente no encontrado o no pertenece a este establecimiento');
+-        error.statusCode = 404;
+-        throw error;
+-      }
++    const existing = await prisma.customer.findFirst({
++      where: { id, ...(tenantId ? { tenantId } : {}) }
++    });
++    if (!existing) {
++      throw Object.assign(new Error('Cliente no encontrado o no pertenece a este establecimiento'), { statusCode: 404 });
++    }
++    if (existing.document === '222222222222' || existing.name.trim().toLowerCase() === 'consumidor final') {
++      throw Object.assign(new Error('El cliente predeterminado "Consumidor final" no puede ser eliminado'), { statusCode: 400 });
++    }
++    if (parseFloat(existing.balance || 0) > 0) {
++      throw Object.assign(new Error('No se puede eliminar un cliente que tiene saldo o deuda pendiente en cartera'), { statusCode: 400 });
+     }
+ 
+-    return await prisma.customer.delete({
+-      where: { id }
++    return await prisma.$transaction(async (tx) => {
++      await tx.customerCredit.deleteMany({ where: { customerId: id } });
++      await tx.sale.updateMany({ where: { customerId: id }, data: { customerId: null } });
++      await tx.order.updateMany({ where: { customerId: id }, data: { customerId: null } });
++      return await tx.customer.delete({ where: { id } });
+     });
+   }
+```
+
+### 4. Diff para `CA-04` (`Backend/src/modules/saas/services/saas.service.js` y `user.service.js`)
+```diff
+--- a/Backend/src/modules/saas/services/saas.service.js
++++ b/Backend/src/modules/saas/services/saas.service.js
+@@ -550,6 +550,9 @@ class SaasService {
+     // Ejecución transaccional en orden inverso de dependencias de Clave Foránea
+     await prisma.$transaction(async (tx) => {
++      // 0. Eliminar todos los registros de cartera (CustomerCredit) antes de borrar ventas y sesiones de caja
++      await tx.customerCredit.deleteMany({ where: { customer: { tenantId } } });
++
+       // 1. Eliminar relaciones de Ventas y Pagos Divididos (SalePayment)
+```
+
+---
+
+## 10.4 Plan de Acción Fase 4 (Ordenado por Prioridad)
+
+| Prioridad | IDs | Tarea Técnica | Esfuerzo Estimado |
+| :---: | :--- | :--- | :---: |
+| **P0 (Inmediata)** | `CA-01` | 1. Corregir `priceAtSale` -> `price` en `saleDetailAdditions` y añadir `name` y `price` obligatorio en `saleDetailVariations` dentro de `StoreService.convertOrderToSale` (`store.service.js:784-796`). | 0.5 h |
+| **P1 (Alta)** | `CA-02`, `CA-03`, `CA-04` | 2. Prohibir ventas o cambios de método de pago a Crédito cuando el cliente sea `"Consumidor final"` (`222222222222`) en `SaleService.createSale`, `InvoiceService.updatePaymentMethod` y `StoreService.convertOrderToSale`.<br>3. Proteger `CustomerService.deleteCustomer` (bloquear `"Consumidor final"` y deudores con `balance > 0`, y desvincular `sales`/`orders`/`customerCredits` en transacción) y validar en `payCustomerCredit` que el abono no supere `customer.balance` ni desincronice `sale.finalAmount`.<br>4. Borrar `CustomerCredit` y `CashAudit` vinculados a `cashSessionIds` antes de eliminar `CashSession` en `SaasService.deleteTenantPermanently` y `UserService.deleteUser`. | 1.5 h |
+| **P2 (Media)** | `CA-05`, `CA-06`, `CA-07` | 5. Incluir `payments: true` (`SalePayment`) en el conteo de `PaymentMethodService.deletePaymentMethod` y limpiar `parseInt(id)`.<br>6. Verificar uso en `ProductIngredient`, `ProductAddition`, `ProductModifierOption` e `IngredientRecipe` antes de borrar en `IngredientService.deleteIngredient` (desactivando el insumo si está referenciado) y bloquear auto-recetas circulares (`inputIngredientId === id`).<br>7. Validar el cupo `tenant.plan.maxUsers` al reactivar un usuario inactivo (`isActive: false -> true`) en `UserService.updateUser`. | 1.0 h |
+| **P3 (Baja)** | `CA-08` | 8. Hashear `verificationToken` con SHA-256 (`hashTokenOrCode`) en `EmailVerification` y consumirlo dentro de `prisma.$transaction` en `AuthService.registerTenant`. | 0.5 h |
+| **Total** | **`CA-01`..`CA-08`** | **Cierre completo de la Cuarta Auditoría (Fase 4)** | **3.5 h** |
+
+---
+
+## 10.5 Bitácora de Commits y Cierre de la Cuarta Auditoría (`CA-01` a `CA-08` — 100% Completado)
+
+| # | Commit Hash | Hallazgos Cerrados | Mensaje del Commit | Archivos Modificados |
+| :---: | :---: | :--- | :--- | :--- |
+| **19** | `8b69fed` | `CA-01`, `CA-02`, `CA-03`, `CA-05` | `fix(store-sales-customers): corregir schema en detalles web, bloquear credito a Consumidor Final y proteger cartera/pagos [CA-01, CA-02, CA-03, CA-05]` | `Backend/src/modules/store/services/store.service.js`, `Backend/src/modules/sales/services/sale.service.js`, `Backend/src/modules/invoices/services/invoice.service.js`, `Backend/src/modules/customers/services/customer.service.js`, `Backend/src/modules/sales/services/payment-method.service.js` |
+| **20** | `0c2ebe8` | `CA-04`, `CA-06`, `CA-07`, `CA-08` | `fix(saas-users-inventory-auth): limpiar CustomerCredit antes de CashSession, validar maxUsers al reactivar y hashear verificationToken [CA-04, CA-06, CA-07, CA-08]` | `Backend/src/modules/saas/services/saas.service.js`, `Backend/src/modules/users/services/user.service.js`, `Backend/src/modules/inventory/services/ingredient.service.js`, `Backend/src/modules/auth/auth.service.js` |
+
+### Balance Global Final tras las 4 Auditorías
+- **Fase 1 (`NF-01` a `NF-32`):** ✅ **32 / 32 Resueltos** (Orden canónico preservado).
+- **Fase 2 (`RA-01` a `RA-14`):** ✅ **14 / 14 Resueltos**.
+- **Fase 3 (`TA-01` a `TA-08`):** ✅ **8 / 8 Resueltos**.
+- **Fase 4 (`CA-01` a `CA-08`):** ✅ **8 / 8 Resueltos**.
+- **Total de Hallazgos Auditados y Cerrados:** **62 / 62 (100%)**.
