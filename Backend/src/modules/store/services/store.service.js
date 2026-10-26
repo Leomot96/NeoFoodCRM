@@ -622,7 +622,7 @@ class StoreService {
     };
   }
 
-  async updateOrderStatus(tenantId, orderId, status) {
+  async updateOrderStatus(tenantId, orderId, status, userId = null) {
     const validStatuses = ['PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
       throw Object.assign(new Error(`Estado no válido: ${status}`), { statusCode: 400 });
@@ -644,9 +644,13 @@ class StoreService {
 
     if (status === 'DELIVERED' && !order.sale) {
       try {
-        await this.convertOrderToSale(tenantId, orderId, null);
+        await this.convertOrderToSale(tenantId, orderId, userId);
       } catch (saleErr) {
         console.warn(`[STORE] Aviso: No se pudo auto-facturar el pedido #${order.orderNumber}: ${saleErr.message}`);
+        return {
+          ...updated,
+          invoicingWarning: `El pedido fue entregado, pero no se pudo facturar automáticamente en caja: ${saleErr.message}. Realiza la facturación manualmente.`
+        };
       }
     }
 

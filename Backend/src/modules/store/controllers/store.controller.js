@@ -180,7 +180,7 @@ class StoreController {
       const tenantId = req.tenantId || req.user?.tenantId;
       const { id } = req.params;
       const { status } = req.body;
-      const updated = await storeService.updateOrderStatus(tenantId, id, status);
+      const updated = await storeService.updateOrderStatus(tenantId, id, status, req.user?.id);
       res.status(200).json({
         success: true,
         message: `Estado de la orden actualizado a ${status}`,

@@ -106,7 +106,7 @@ class KitchenService {
     });
   }
 
-  async updateOrderStatus(tenantId, orderId, status) {
+  async updateOrderStatus(tenantId, orderId, status, userId = null) {
     const validStatuses = ['PENDING', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'];
     if (!validStatuses.includes(status)) {
       throw Object.assign(new Error(`Estado no válido. Debe ser uno de: ${validStatuses.join(', ')}`), { statusCode: 400 });
@@ -130,9 +130,13 @@ class KitchenService {
     if (status === 'DELIVERED' && order.isOnlineStore && !order.sale) {
       try {
         const storeService = require('../../store/services/store.service');
-        await storeService.convertOrderToSale(tenantId, orderId, null);
+        await storeService.convertOrderToSale(tenantId, orderId, userId);
       } catch (saleErr) {
         console.warn(`[KITCHEN] Advertencia al convertir comanda de tienda #${order.orderNumber} a venta:`, saleErr.message);
+        return {
+          ...updated,
+          invoicingWarning: `El pedido fue entregado, pero no se pudo auto-facturar en caja: ${saleErr.message}`
+        };
       }
     }
 

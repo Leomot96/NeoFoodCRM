@@ -14,9 +14,9 @@ class ProductionService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 1. Validar el ingrediente a producir
-      const manufacturedIngredient = await tx.ingredient.findUnique({
-        where: { id: ingredientId },
+      // 1. Validar el ingrediente a producir dentro del tenant
+      const manufacturedIngredient = await tx.ingredient.findFirst({
+        where: { id: ingredientId, ...(tenantId ? { tenantId } : {}) },
         include: {
           recipeIngredients: {
             include: { inputIngredient: true }
@@ -25,7 +25,7 @@ class ProductionService {
       });
 
       if (!manufacturedIngredient) {
-        throw Object.assign(new Error('El ingrediente elaborado no existe'), { statusCode: 404 });
+        throw Object.assign(new Error('El ingrediente elaborado no existe en este establecimiento'), { statusCode: 404 });
       }
 
       if (!manufacturedIngredient.isManufactured) {
@@ -200,8 +200,8 @@ class ProductionService {
         throw Object.assign(new Error('Orden de producción no encontrada'), { statusCode: 404 });
       }
       
-      if (tenantId && order.tenantId && order.tenantId !== tenantId) {
-        throw Object.assign(new Error('Acceso no autorizado a esta orden'), { statusCode: 403 });
+      if (tenantId && order.tenantId !== tenantId) {
+        throw Object.assign(new Error('Acceso no autorizado a esta orden de producción'), { statusCode: 403 });
       }
 
       if (order.status === 'CANCELLED') {

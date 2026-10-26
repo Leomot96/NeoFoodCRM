@@ -32,7 +32,7 @@ class KitchenController {
         return res.status(400).json({ success: false, message: 'El estado es requerido' });
       }
 
-      const updated = await kitchenService.updateOrderStatus(tenantId, id, status);
+      const updated = await kitchenService.updateOrderStatus(tenantId, id, status, req.user?.id);
       res.status(200).json({
         success: true,
         message: 'Estado del pedido actualizado',
