@@ -113,9 +113,18 @@ class CustomerService {
       throw error;
     }
 
+    const [salesCount, creditsCount] = await Promise.all([
+      prisma.sale.count({ where: { customerId: id } }),
+      prisma.customerCredit.count({ where: { customerId: id } })
+    ]);
+
+    if (salesCount > 0 || creditsCount > 0) {
+      const error = new Error('No es posible eliminar el cliente porque tiene facturas, créditos o abonos registrados en el historial contable. Manténgalo en el sistema para preservar la integridad de los arqueos de caja y reportes.');
+      error.statusCode = 400;
+      throw error;
+    }
+
     return await prisma.$transaction(async (tx) => {
-      await tx.customerCredit.deleteMany({ where: { customerId: id } });
-      await tx.sale.updateMany({ where: { customerId: id }, data: { customerId: null } });
       await tx.order.updateMany({ where: { customerId: id }, data: { customerId: null } });
       return await tx.customer.delete({ where: { id } });
     });

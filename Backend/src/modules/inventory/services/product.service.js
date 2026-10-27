@@ -150,13 +150,36 @@ class ProductService {
       additions,
     } = data;
 
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      throw Object.assign(new Error('El nombre del producto es obligatorio'), { statusCode: 400 });
+    }
+    const normalizedName = name.trim();
+
+    const parsedPrice = parseFloat(price);
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      throw Object.assign(new Error('El precio del producto debe ser un número mayor o igual a 0'), { statusCode: 400 });
+    }
+
+    // Verificar si ya existe un producto activo con el mismo nombre y categoría en este establecimiento
+    const activeDuplicate = await prisma.product.findFirst({
+      where: {
+        name: { equals: normalizedName, mode: 'insensitive' },
+        categoryId: categoryId || null,
+        isAvailable: true,
+        ...(tenantId ? { tenantId } : {})
+      }
+    });
+    if (activeDuplicate) {
+      throw Object.assign(new Error(`Ya existe un producto activo llamado "${normalizedName}" en esta categoría`), { statusCode: 400 });
+    }
+
     // Si ya existía un producto inactivo con el mismo nombre y categoría en este restaurante, lo reactivamos
     const whereInactive = {
-      name: { equals: name },
-      categoryId: categoryId,
-      isAvailable: false
+      name: { equals: normalizedName, mode: 'insensitive' },
+      categoryId: categoryId || null,
+      isAvailable: false,
+      ...(tenantId ? { tenantId } : {})
     };
-    if (tenantId) whereInactive.tenantId = tenantId;
 
     const existingInactive = await prisma.product.findFirst({
       where: whereInactive
@@ -165,6 +188,8 @@ class ProductService {
     if (existingInactive) {
       return await this.updateProduct(existingInactive.id, {
         ...data,
+        name: normalizedName,
+        price: parsedPrice,
         isAvailable: true
       });
     }
@@ -172,9 +197,9 @@ class ProductService {
     return await prisma.product.create({
       data: {
         ...(tenantId ? { tenantId } : {}),
-        name,
+        name: normalizedName,
         description,
-        price,
+        price: parsedPrice,
         imageUrl: imageUrl || null,
         categoryId,
         showInStore: showInStore !== undefined ? Boolean(showInStore) : true,
@@ -264,7 +289,7 @@ class ProductService {
   async updateProduct(id, data) {
     const tenantId = getTenantId();
     // Verificar pertenencia al tenant antes de eliminar sub-relaciones
-    await this.getProductById(id);
+    const existing = await this.getProductById(id);
     await this._validateTenantReferences(tenantId, data);
 
     const {
@@ -282,6 +307,35 @@ class ProductService {
       modifiers,
       additions,
     } = data;
+
+    let normalizedName = undefined;
+    if (name !== undefined) {
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        throw Object.assign(new Error('El nombre del producto no puede estar vacío'), { statusCode: 400 });
+      }
+      normalizedName = name.trim();
+      const targetCategory = categoryId !== undefined ? categoryId : existing.categoryId;
+      const duplicate = await prisma.product.findFirst({
+        where: {
+          name: { equals: normalizedName, mode: 'insensitive' },
+          categoryId: targetCategory || null,
+          id: { not: id },
+          isAvailable: true,
+          ...(tenantId ? { tenantId } : {})
+        }
+      });
+      if (duplicate) {
+        throw Object.assign(new Error(`Ya existe otro producto activo llamado "${normalizedName}" en esta categoría`), { statusCode: 400 });
+      }
+    }
+
+    let parsedPrice = undefined;
+    if (price !== undefined) {
+      parsedPrice = parseFloat(price);
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        throw Object.assign(new Error('El precio del producto debe ser un número mayor o igual a 0'), { statusCode: 400 });
+      }
+    }
 
     // Si viene imageUrl y es distinto al actual, eliminamos la imagen física previa
     if (imageUrl !== undefined) {
@@ -304,9 +358,9 @@ class ProductService {
       return await tx.product.update({
         where: { id },
         data: {
-          name,
+          name: normalizedName !== undefined ? normalizedName : undefined,
           description,
-          price,
+          price: parsedPrice !== undefined ? parsedPrice : undefined,
           imageUrl: imageUrl !== undefined ? (imageUrl || null) : undefined,
           categoryId,
           showInStore: showInStore !== undefined ? Boolean(showInStore) : undefined,

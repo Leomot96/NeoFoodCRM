@@ -64,22 +64,24 @@ class ConfigService {
       { key: 'printer_show_tax', value: String(Boolean(data.showTax)) }
     ];
 
-    for (const item of keysToSave) {
-      await prisma.configuration.upsert({
-        where: {
-          tenantId_key: {
+    await prisma.$transaction(async (tx) => {
+      for (const item of keysToSave) {
+        await tx.configuration.upsert({
+          where: {
+            tenantId_key: {
+              tenantId,
+              key: item.key
+            }
+          },
+          update: { value: item.value },
+          create: {
             tenantId,
-            key: item.key
+            key: item.key,
+            value: item.value
           }
-        },
-        update: { value: item.value },
-        create: {
-          tenantId,
-          key: item.key,
-          value: item.value
-        }
-      });
-    }
+        });
+      }
+    });
 
     return await this.getPrinterConfig(tenantId);
   }

@@ -21,6 +21,10 @@ class PurchaseService {
     const { supplierId, invoiceNumber, purchaseDate, details } = data;
     const tenantId = tenantIdParam || getTenantId();
 
+    if (!supplierId || typeof supplierId !== 'string' || !supplierId.trim()) {
+      throw Object.assign(new Error('El proveedor es obligatorio para registrar la compra'), { statusCode: 400 });
+    }
+
     const dateToSave = this._parsePurchaseDate(purchaseDate);
 
     if (!details || details.length === 0) {
@@ -28,13 +32,11 @@ class PurchaseService {
     }
 
     return await prisma.$transaction(async (tx) => {
-      if (supplierId) {
-        const supplier = await tx.supplier.findFirst({
-          where: { id: supplierId, ...(tenantId ? { tenantId } : {}) }
-        });
-        if (!supplier) {
-          throw Object.assign(new Error('El proveedor seleccionado no pertenece a este establecimiento'), { statusCode: 404 });
-        }
+      const supplier = await tx.supplier.findFirst({
+        where: { id: supplierId.trim(), ...(tenantId ? { tenantId } : {}) }
+      });
+      if (!supplier) {
+        throw Object.assign(new Error('El proveedor seleccionado no pertenece a este establecimiento'), { statusCode: 404 });
       }
 
       // 1. Calcular el costo total de la compra verificando los detalles

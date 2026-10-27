@@ -55,12 +55,13 @@ class ProductionService {
         }
         
         // Determinar el costo del insumo (CMP > costPerUnit > lastCost)
-        let costToUse = parseFloat(rawIngredient.averageCost);
-        if (costToUse === 0) {
+        let costToUse = parseFloat(rawIngredient.averageCost || 0);
+        if (!Number.isFinite(costToUse) || costToUse <= 0) {
           costToUse = parseFloat(rawIngredient.costPerUnit || rawIngredient.lastCost || 0);
+          if (!Number.isFinite(costToUse) || costToUse < 0) costToUse = 0;
         }
 
-        const totalCostForRaw = costToUse * qtyRequired;
+        const totalCostForRaw = Math.round(costToUse * qtyRequired * 100) / 100;
         totalProductionCost += totalCostForRaw;
 
         consumptions.push({
@@ -89,7 +90,8 @@ class ProductionService {
         });
       }
 
-      const unitCostProduced = totalProductionCost / quantity;
+      const unitCostProduced = quantity > 0 ? (totalProductionCost / quantity) : 0;
+      const safeUnitCostProduced = Number.isFinite(unitCostProduced) ? Math.round(unitCostProduced * 100) / 100 : 0;
 
       // 3. Crear Orden de Producción
       const productionOrder = await tx.productionOrder.create({
@@ -98,7 +100,7 @@ class ProductionService {
           ingredientId: manufacturedIngredient.id,
           quantityProduced: quantity,
           totalCost: totalProductionCost,
-          unitCost: unitCostProduced,
+          unitCost: safeUnitCostProduced,
           status: 'COMPLETED',
           consumptions: {
             create: consumptions
@@ -109,25 +111,27 @@ class ProductionService {
 
       // 4. Ingresar Inventario del producto elaborado
       const oldStock = parseFloat(manufacturedIngredient.currentStock || 0);
-      const oldAvgCost = parseFloat(manufacturedIngredient.averageCost || manufacturedIngredient.costPerUnit || manufacturedIngredient.lastCost || 0);
-      
+      const rawOldAvgCost = parseFloat(manufacturedIngredient.averageCost || manufacturedIngredient.costPerUnit || manufacturedIngredient.lastCost || 0);
+      const oldAvgCost = Number.isFinite(rawOldAvgCost) ? rawOldAvgCost : 0;
+
       const newStock = oldStock + quantity;
-      let newAvgCost = unitCostProduced;
-      
+      let newAvgCost = safeUnitCostProduced;
+
       if (newStock > 0) {
-          if (oldStock <= 0) {
-              newAvgCost = unitCostProduced;
-          } else {
-              newAvgCost = ((oldStock * oldAvgCost) + (totalProductionCost)) / newStock;
-          }
+        if (oldStock <= 0) {
+          newAvgCost = safeUnitCostProduced;
+        } else {
+          newAvgCost = ((oldStock * oldAvgCost) + totalProductionCost) / newStock;
+        }
       }
+      const safeNewAvgCost = Number.isFinite(newAvgCost) ? Math.round(newAvgCost * 100) / 100 : safeUnitCostProduced;
 
       await tx.ingredient.update({
         where: { id: manufacturedIngredient.id },
         data: {
           currentStock: { increment: quantity },
-          lastCost: unitCostProduced,
-          averageCost: newAvgCost
+          lastCost: safeUnitCostProduced,
+          averageCost: safeNewAvgCost
         }
       });
 

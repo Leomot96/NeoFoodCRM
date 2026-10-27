@@ -45,9 +45,10 @@ const isDisposableEmail = (email) => {
 class AuthService {
   async loginUser(credentials) {
     const { email, password } = credentials;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: {
         role: true,
         tenant: {
@@ -227,6 +228,12 @@ class AuthService {
   // Método auxiliar para crear usuarios (valida límite maxUsers y prohibe escalada a SuperAdmin)
   async registerUser(userData) {
     const { email, password, name, phone, roleName } = userData;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
+      const error = new Error('El correo electrónico es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
     const tenantId = getTenantId();
 
     const passwordValidation = validatePassword(password);
@@ -253,7 +260,7 @@ class AuthService {
       }
     }
 
-    const userExists = await prisma.user.findUnique({ where: { email } });
+    const userExists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (userExists) {
       const error = new Error('El correo ya está registrado');
       error.statusCode = 400;
@@ -285,9 +292,9 @@ class AuthService {
 
     const newUser = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
-        name,
+        name: typeof name === 'string' ? name.trim() : name,
         phone: phone ? phone.trim() : null,
         roleId: role.id,
         tenantId: tenantId || null

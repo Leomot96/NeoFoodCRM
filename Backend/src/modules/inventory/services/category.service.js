@@ -6,10 +6,20 @@ class CategoryService {
 
   async createCategory(data) {
     const tenantId = getTenantId();
-    const whereExisting = { name: data.name };
+
+    if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+      const error = new Error('El nombre de la categoría es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+    const normalizedName = data.name.trim();
+
+    const whereExisting = {
+      name: { equals: normalizedName, mode: 'insensitive' }
+    };
     if (tenantId) whereExisting.tenantId = tenantId;
 
-    // 1. Buscamos si ya existe alguna en la base de datos con ese nombre exacto para este restaurante
+    // 1. Buscamos si ya existe alguna en la base de datos con ese nombre para este restaurante
     const existing = await prisma.category.findFirst({
       where: whereExisting
     });
@@ -20,6 +30,7 @@ class CategoryService {
         return await prisma.category.update({
           where: { id: existing.id },
           data: {
+            name: normalizedName,
             isActive: true, // La volvemos a mostrar
             description: data.description || existing.description // Actualizamos su descripción
           }
@@ -35,8 +46,8 @@ class CategoryService {
     // 4. Si no existía para nada, la creamos normal
     return await prisma.category.create({
       data: {
-        name: data.name,
-        description: data.description,
+        name: normalizedName,
+        description: data.description ? String(data.description).trim() : null,
         ...(tenantId ? { tenantId } : {})
       }
     });
@@ -74,7 +85,9 @@ class CategoryService {
   }
 
   async updateCategory(id, data) {
-    await this.getCategoryById(id); // Verifica si existe en el tenant actual
+    const existing = await this.getCategoryById(id); // Verifica si existe en el tenant actual
+    const tenantId = getTenantId() || existing.tenantId;
+
     const allowedFields = ['name', 'description', 'isActive'];
     const safeData = {};
     for (const key of allowedFields) {
@@ -82,6 +95,33 @@ class CategoryService {
         safeData[key] = data[key];
       }
     }
+
+    if (safeData.name !== undefined) {
+      if (!safeData.name || typeof safeData.name !== 'string' || !safeData.name.trim()) {
+        const error = new Error('El nombre de la categoría no puede estar vacío');
+        error.statusCode = 400;
+        throw error;
+      }
+      safeData.name = safeData.name.trim();
+      const duplicate = await prisma.category.findFirst({
+        where: {
+          name: { equals: safeData.name, mode: 'insensitive' },
+          id: { not: id },
+          isActive: true,
+          ...(tenantId ? { tenantId } : {})
+        }
+      });
+      if (duplicate) {
+        const error = new Error('Ya existe otra categoría activa con este nombre');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    if (safeData.description !== undefined && typeof safeData.description === 'string') {
+      safeData.description = safeData.description.trim();
+    }
+
     return await prisma.category.update({
       where: { id },
       data: safeData,

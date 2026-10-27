@@ -774,10 +774,17 @@ class StoreService {
       }
     }
 
-    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
-    const invoiceNumber = `FE-WEB-${order.orderNumber}-${randomSuffix.toString().slice(0, 2)}`;
-
     return await prisma.$transaction(async (tx) => {
+      // Re-verificar comanda ya facturada dentro de la transacción atómica para prevenir race conditions
+      const existingSale = await tx.sale.findUnique({
+        where: { orderId: order.id }
+      });
+      if (existingSale) {
+        return existingSale;
+      }
+
+      const invoiceNumber = `FE-WEB-${Date.now().toString().slice(-6)}-${order.orderNumber}`;
+
       const processedDetails = order.details.map(d => {
         const parsedModifiers = typeof d.modifiers === 'string' ? JSON.parse(d.modifiers) : (d.modifiers || []);
         const parsedAdditions = typeof d.additions === 'string' ? JSON.parse(d.additions) : (d.additions || []);
