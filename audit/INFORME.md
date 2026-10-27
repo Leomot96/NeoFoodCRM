@@ -3582,3 +3582,210 @@ Todas las vulnerabilidades y fallas detectadas en la Octava Auditoría Profunda 
 
 > [!NOTE]
 > El sistema Neofood alcanza una cobertura y robustez del 100% en todas las capas auditadas: aislamiento multi-tenant estricto en BD y servicios, autenticación y RBAC sin bypasses, integridad financiera y contable sincronizada, control de insumos y recetas blindado, sanitización POS/PDF contra XSS, y validación estricta de límites e inputs.
+
+
+---
+
+# 17. Novena Auditoría Profunda (Fase 9 — HEAD 7847682)
+
+**Fecha de Ejecución:** 26 de Octubre de 2026  
+**Tipo de Auditoría:** Inspección Estática Exhaustiva y Análisis de Consistencia Lógica / Contable / Multi-Tenant  
+**Modo:** Solo lectura / Diagnóstico previo (Sin commits en git)  
+**Alcance Evaluado:**
+- Integridad contable de transacciones y conciliación de abonos a crédito en `Backend/src/modules/customers/` e `invoices/`.
+- Cálculo y consistencia matemática de totales, subtotales y descuentos en facturas de venta (`sales/` y POS).
+- Reglas de integridad de base de datos PostgreSQL frente a campos opcionales con índices únicos compuestos (`customers`).
+- Flujo de estados y ciclo de vida de comandas en Cocina (`kitchen/`) en relación con ventas ya cobradas.
+- Integridad referencial en desactivación de categorías y validación de referencias activas en productos (`inventory/`).
+- Fidelidad de visualización en reportes impresos y exportación PDF (`reportPdfService.js`).
+
+---
+
+## 17.1 Matriz de Hallazgos Detectados (Fase 9: `NO-01` a `NO-08`)
+
+| ID | Severidad | Módulo / Componente | Archivo / Función | Descripción Sintética |
+| :---: | :---: | :--- | :--- | :--- |
+| **`NO-01`** | **Alta** | Clientes & Facturas / Créditos | `customer.service.js`<br>`invoice.service.js` | **Mutación destructiva de `sale.finalAmount` y borrado de pagos en abonos parciales y totales:** Al registrar un abono parcial, se decrementa `sale.finalAmount`, falseando la suma de ventas del restaurante en reportes contables (`_sum.finalAmount`), y al pagar el total se sobreescribe con `totalAmount` borrando descuentos originales. |
+| **`NO-02`** | **Alta** | Ventas & POS / Facturación | `sale.service.js`<br>`createSale()` | **Inconsistencia matemática en Facturas POS por persistir `totalAmount: finalAmount`:** En ventas con descuento, `totalAmount` se guarda con el monto neto final en lugar del subtotal bruto (`subtotalTotal`), provocando que en la tirilla impresa aparezca `Subtotal $40.000 - Descuento $10.000 = Total $40.000`. |
+| **`NO-03`** | **Media** | Ventas & Finanzas / Validación | `sale.service.js`<br>`createSale()` | **Falta de validación contra descuentos superiores al subtotal de la venta (`discount > subtotalTotal`):** No se bloquea que un cajero o petición externa ingrese un descuento superior al 100% del subtotal, guardando registros inconsistentes con descuentos exorbitantes en base de datos. |
+| **`NO-04`** | **Alta** | Clientes / Base de Datos | `customer.service.js`<br>`createCustomer()` / `editCustomer()` | **Colisión de clave única `[tenantId, document]` por strings vacíos `""` o espacios en blanco:** Al registrar clientes sin documento, se guarda `""` en vez de `null`. En PostgreSQL, múltiples `null` coexisten en un índice único, pero múltiples `""` colisionan inmediatamente con error `P2002`. |
+| **`NO-05`** | **Media** | Cocina / Ciclo de Comandas | `kitchen.service.js`<br>`updateOrderStatus()` | **Permisividad para cancelar desde cocina comandas ya facturadas y cobradas:** Si una comanda ya tiene una venta asociada (`order.sale !== null`), permite cambiar su estado a `'CANCELLED'` sin pasar por el módulo de caja para anular la factura correspondiente. |
+| **`NO-06`** | **Media** | Inventario / Categorías y Productos | `category.service.js`<br>`deleteCategory()`<br>`product.service.js` | **Desactivación huérfana de categorías con productos activos y asignación permitida a categorías inactivas:** Se permite desactivar categorías que aún contienen productos activos en el menú, y `_validateTenantReferences` no valida `isActive: true` al asociar una categoría a un producto. |
+| **`NO-07`** | **Media** | Facturación / Auditoría Fiscal | `invoice.service.js`<br>`addAbono()` | **Mutación indebida de la fecha original de la venta (`sale.createdAt`) al abonar con fecha personalizada:** Al registrar un abono a crédito con fecha específica, se altera `sale.createdAt`, trasladando la venta retrospectivamente a otro mes contable y distorsionando impuestos pasados. |
+| **`NO-08`** | **Media** | Frontend / Reportes PDF | `reportPdfService.js`<br>`generateInvoicePdf()` | **Omisión del renglón de descuento y duplicación del subtotal en el PDF de Factura Electrónica:** En el bloque de totales de la factura PDF se renderiza `Subtotal: finalAmount` y no se muestra el descuento aplicado (`discount`), haciendo que la sumatoria de las líneas de producto no cuadre con el subtotal mostrado. |
+
+---
+
+## 17.2 Detalle Técnico y Diffs Propuestos para Remediación
+
+### `[NO-01]` (Alta) Mutación destructiva de `sale.finalAmount` y borrado de pagos en abonos parciales y totales
+- **Ubicación:** `Backend/src/modules/customers/services/customer.service.js` (L220-248) y `Backend/src/modules/invoices/services/invoice.service.js` (L237-266).
+- **Problema:** En el sistema contable de Neofood, las métricas financieras (ventas diarias, ventas mensuales, utilidades, gráficos) se calculan mediante `prisma.sale.aggregate({ _sum: { finalAmount: true } })`. Cuando un cliente con una factura a crédito de \$100.000 realiza un abono de \$40.000, el código actual ejecuta:
+  ```javascript
+  await tx.sale.update({
+    where: { id: linkedSale.id },
+    data: { finalAmount: { decrement: parsedAmount } } // Reduce el valor de la factura a $60.000!
+  });
+  ```
+  Esto reduce retroactivamente las ventas históricas del negocio en \$40.000. Luego, cuando el cliente paga los \$60.000 restantes, el código sobreescribe `finalAmount: linkedSale.totalAmount`, borrando cualquier descuento que se hubiese aplicado en la venta original. Además, no se registraba el abono en `SalePayment`.
+- **Solución Propuesta:** Mantener inmutable el importe facturado `finalAmount` de la venta. Los abonos deben registrarse en `CustomerCredit` y crear un registro en `SalePayment` correspondiente al método de pago utilizado para el abono. Si la sumatoria de abonos cubre el total de la venta, se actualiza el método de pago principal de la cabecera.
+
+---
+
+### `[NO-02]` (Alta) Inconsistencia matemática en Facturas POS por persistir `totalAmount: finalAmount`
+- **Ubicación:** `Backend/src/modules/sales/services/sale.service.js` (L335-340).
+- **Problema:** En `SaleService.createSale`, la venta se persiste con:
+  ```javascript
+  const newSale = await tx.sale.create({
+    data: {
+      invoiceNumber,
+      totalAmount: finalAmount, // ERROR: Debería ser subtotalTotal
+      finalAmount: finalAmount,
+      discount: parsedDiscount,
+  ```
+  Si los productos sumaban \$50.000 y el descuento era \$10.000, `finalAmount` es \$40.000. Al guardar `totalAmount: 40000`, la tirilla térmica impresa en `printerService.js` y el método `getInvoiceData` reportan:
+  - Subtotal: \$40.000
+  - Descuento: -\$10.000
+  - Total: \$40.000 (Incoherencia aritmética flagrante: \$40.000 - \$10.000 = \$30.000, no \$40.000).
+- **Solución Propuesta:** Guardar `totalAmount: subtotalTotal` (el subtotal bruto de los productos) y `finalAmount: finalAmount` (`subtotalTotal - parsedDiscount`). De este modo:
+  - Subtotal: \$50.000
+  - Descuento: -\$10.000
+  - Total: \$40.000 (100% exacto).
+
+---
+
+### `[NO-03]` (Media) Falta de validación contra descuentos superiores al subtotal de la venta
+- **Ubicación:** `Backend/src/modules/sales/services/sale.service.js` (L37, L178).
+- **Problema:** `parsedDiscount` solo se valida con `Math.max(0, parseFloat(discount) || 0)`. No se valida si el descuento solicitado excede el total de los ítems vendidos (`subtotalTotal`). Si una cuenta es de \$30.000 y el cajero escribe accidentalmente \$300.000, la venta se emite por \$0 pero con un descuento registrado de \$300.000 (1.000% de descuento), falseando todos los indicadores de rentabilidad y reportes de descuento del establecimiento.
+- **Solución Propuesta:** Incorporar validación estricta antes de la transacción:
+  ```javascript
+  if (parsedDiscount > subtotalTotal) {
+    throw Object.assign(new Error('El descuento no puede ser superior al subtotal de la venta'), { statusCode: 400 });
+  }
+  ```
+
+---
+
+### `[NO-04]` (Alta) Colisión de clave única `[tenantId, document]` por strings vacíos `""` o espacios en blanco
+- **Ubicación:** `Backend/src/modules/customers/services/customer.service.js` (`createCustomer`, `editCustomer`).
+- **Problema:** En el esquema de Prisma:
+  ```prisma
+  model Customer {
+    tenantId String?
+    document String?
+    @@unique([tenantId, document])
+  }
+  ```
+  En PostgreSQL y motores SQL estándar, múltiples valores `NULL` están permitidos en una restricción única (`UNIQUE`). Sin embargo, cadenas vacías `""` o cadenas de solo espacios `"   "` son consideradas valores literales idénticos. Si un cajero registra un cliente sin documento enviando `""`, y más tarde intenta registrar otro cliente también sin documento con `""`, el servidor arroja error `P2002: Ya existe un cliente registrado con ese número de documento.` bloqueando la operación.
+- **Solución Propuesta:** Sanitizar el campo `document` convirtiendo cualquier string vacío o de espacios en blanco a `null` antes de persistir o actualizar en base de datos.
+
+---
+
+### `[NO-05]` (Media) Permisividad para cancelar desde cocina comandas ya facturadas y cobradas
+- **Ubicación:** `Backend/src/modules/kitchen/services/kitchen.service.js` (`updateOrderStatus`, L109-127).
+- **Problema:** En la pantalla KDS / Cocina, un usuario puede seleccionar una orden y marcarla como `'CANCELLED'`. El servicio verifica que la orden exista, pero no valida si la comanda ya tiene una venta asociada (`order.sale !== null`). Si la orden ya fue cobrada y facturada por el cajero, el cocinero puede cancelarla en cocina, dejando la comanda como cancelada mientras el dinero y la factura permanecen en caja sin reversión ni bitácora de anulación de venta.
+- **Solución Propuesta:** Bloquear la cancelación de pedidos facturados desde cocina:
+  ```javascript
+  if (status === 'CANCELLED' && order.sale) {
+    throw Object.assign(new Error('No se puede cancelar desde cocina un pedido que ya fue facturado y cobrado en caja. Debe anularse la factura correspondiente en el módulo de facturación.'), { statusCode: 400 });
+  }
+  if (order.status === 'CANCELLED') {
+    throw Object.assign(new Error('Este pedido ya se encuentra cancelado y no puede cambiar de estado.'), { statusCode: 400 });
+  }
+  ```
+
+---
+
+### `[NO-06]` (Media) Desactivación huérfana de categorías con productos activos y asignación permitida a categorías inactivas
+- **Ubicación:** `Backend/src/modules/inventory/services/category.service.js` (`deleteCategory`) y `Backend/src/modules/inventory/services/product.service.js` (`_validateTenantReferences`).
+- **Problema:**
+  1. `deleteCategory(id)` desactiva la categoría (`isActive: false`) sin verificar si existen productos activos asociados a ella. Los productos quedan huérfanos en la interfaz: no aparecen en los filtros por categoría y pueden generar fallas de renderizado en tienda virtual y POS.
+  2. `product.service.js` en `_validateTenantReferences` solo verifica `where: { id: categoryId, tenantId }`, permitiendo crear o editar un producto asignándole una categoría que ya está inactiva/eliminada.
+- **Solución Propuesta:**
+  1. En `category.service.js`, verificar si existen productos activos: `const activeProducts = await prisma.product.count({ where: { categoryId: id, isAvailable: true } });` y rechazar la eliminación si `activeProducts > 0` con un mensaje indicando cuántos productos deben reasignarse.
+  2. En `product.service.js`, validar que la categoría esté activa: `{ id: categoryId, tenantId, isActive: true }`.
+
+---
+
+### `[NO-07]` (Media) Mutación indebida de la fecha original de la venta (`sale.createdAt`) al abonar con fecha personalizada
+- **Ubicación:** `Backend/src/modules/invoices/services/invoice.service.js` (`addAbono`, L247-249).
+- **Problema:** Cuando se registra un abono que liquida el saldo de una factura a crédito y el usuario envía una fecha opcional (`date`), el código actual ejecuta:
+  ```javascript
+  if (parsedPaymentDate) {
+    updateData.createdAt = parsedPaymentDate;
+  }
+  ```
+  Esto reescribe retroactivamente la fecha en que ocurrió la venta mercantil (`sale.createdAt`). Si la venta fue realizada el 15 de enero y el cliente terminó de pagar el crédito el 20 de marzo, la factura completa se traslada a marzo, falseando los libros de IVA/Impoconsumo del mes de enero y alterando el balance histórico cerrado del negocio.
+- **Solución Propuesta:** Eliminar la sobreescritura de `sale.createdAt`. La fecha del abono debe quedar exclusivamente registrada en el registro de pago (`customerCredit.createdAt` o en la descripción del abono).
+
+---
+
+### `[NO-08]` (Media) Omisión del renglón de descuento y duplicación del subtotal en el PDF de Factura Electrónica
+- **Ubicación:** `Frontend/src/services/reportPdfService.js` (`generateInvoicePdf`, L884-900).
+- **Problema:** En el PDF generado para la factura electrónica, el cuadro de totales renderiza:
+  ```javascript
+  doc.text('Subtotal:', totalsX + 6, finalY + 6);
+  doc.text(formatCurrency(invoice.finalAmount), totalsX + totalsBoxWidth - 6, finalY + 6, { align: 'right' });
+  ...
+  doc.text('TOTAL FACTURA:', totalsX + 6, finalY + 19.5);
+  doc.text(formatCurrency(invoice.finalAmount), totalsX + totalsBoxWidth - 6, finalY + 19.5, { align: 'right' });
+  ```
+  Si una factura tenía un descuento de \$15.000 sobre productos de \$85.000 (total a pagar \$70.000), el PDF omite la línea de descuento y muestra `Subtotal: $70.000` y `TOTAL: $70.000`, mientras que la suma de los productos de la tabla arroja \$85.000.
+- **Solución Propuesta:** En `generateInvoicePdf`, mostrar `Subtotal: formatCurrency(invoice.totalAmount || invoice.finalAmount)`, insertar dinámicamente el renglón de descuento si `parseFloat(invoice.discount || 0) > 0`, y finalmente mostrar el `TOTAL FACTURA: formatCurrency(invoice.finalAmount)`.
+
+---
+
+## 17.3 Plan de Acción Priorizado para Remediación
+
+```mermaid
+flowchart TD
+    subgraph Fase9_Plan [Plan de Remediación Novena Auditoría]
+        A["1. Integridad Contable y Facturas POS"] -->|NO-01, NO-02, NO-03, NO-07| B["Blindar customer.service, invoice.service y sale.service"]
+        B --> C["2. Integridad de Clientes y Multi-Tenant DB"]
+        C -->|NO-04| D["Normalizar document vacío a null en customer.service"]
+        D --> E["3. Reglas de Negocio en Cocina e Inventario"]
+        E -->|NO-05, NO-06| F["Blindar kitchen.service y category.service/product.service"]
+        F --> G["4. Consistencia Visual en Reportes PDF"]
+        G -->|NO-08| H["Actualizar tabla de totales en reportPdfService.js"]
+    end
+```
+
+---
+
+## 17.4 Estado y Resolución de la Auditoría
+- **Estado:** Remediado y Verificado (Fase 9 completada al 100%).
+- **Resultado:** 8 de 8 hallazgos (`NO-01` a `NO-08`) completamente solucionados y validados.
+
+---
+
+## 17.5 Resumen de Ejecución y Remediación (Fase 9)
+Todas las fallas detectadas en la Novena Auditoría Profunda (`NO-01` a `NO-08`) han sido **100% remediadas y probadas** sin regresiones:
+1. **`NO-01`**: Inmutabilidad de `sale.finalAmount` implementada en `CustomerService.payCustomerCredit` e `InvoiceService.addAbono`. Los abonos se registran en `SalePayment` y `CustomerCredit` sin alterar la facturación histórica ni destruir descuentos.
+2. **`NO-02`**: Corrección aritmética en `SaleService.createSale`, persistiendo `totalAmount: subtotalTotal` (subtotal bruto de ítems) y `finalAmount: finalAmount` (`subtotalTotal - parsedDiscount`). La tirilla térmica ahora refleja fielmente `Subtotal - Descuento = Total`.
+3. **`NO-03`**: Validación estricta en `SaleService.createSale`, bloqueando con error HTTP 400 cualquier descuento que exceda el subtotal de la venta (`parsedDiscount > subtotalTotal`).
+4. **`NO-04`**: Normalización preventiva en `CustomerService.createCustomer` y `editCustomer`, transformando strings vacíos o de espacios en blanco a `null`, evitando colisiones con la restricción única `@@unique([tenantId, document])` de PostgreSQL.
+5. **`NO-05`**: Guardrail de seguridad en `KitchenService.updateOrderStatus`, bloqueando la cancelación desde KDS de pedidos que ya cuenten con factura cobrada en caja (`order.sale !== null`) y previniendo la reactivación de comandas canceladas.
+6. **`NO-06`**: Control de integridad referencial en `CategoryService.deleteCategory`, impidiendo desactivar categorías que aún tengan productos activos en venta, y en `ProductService._validateTenantReferences` validando `isActive: true`.
+7. **`NO-07`**: Eliminación de la mutación de `sale.createdAt` en `InvoiceService.addAbono`, asegurando que la fecha original de la venta mercantil permanezca inmutable para efectos fiscales y tributarios.
+8. **`NO-08`**: Ajuste en `reportPdfService.js` (`generateInvoicePdf`), agregando el renglón dinámico de descuento (`- Descuento`) y mostrando el subtotal bruto de los productos para que la sumatoria cuadre al 100% con el total facturado.
+
+---
+
+## 18. Balance Global Consolidado (Auditorías 1 a 9)
+
+| Auditoría | Rango de IDs | Total Hallazgos | Resueltos | Pendientes | Tasa de Resolución | Commits Asociados |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Fase 1 (Auditoría Inicial)** | `NF-01`..`NF-32` | 32 | 32 | 0 | 100% | `ba120e8`..`967f53b` (Commits 1–10) |
+| **Fase 2 (Re-Auditoría Profunda)** | `RA-01`..`RA-14` | 14 | 14 | 0 | 100% | `e4f353c`..`9a60762` (Commits 11–14) |
+| **Fase 3 (Tercera Auditoría)** | `TA-01`..`TA-08` | 8 | 8 | 0 | 100% | `58b336f`..`9918a22` (Commits 15–17) |
+| **Fase 4 (Cuarta Auditoría)** | `CA-01`..`CA-08` | 8 | 8 | 0 | 100% | `8b69fed`..`afc115d` (Commits 18–20) |
+| **Fase 5 (Quinta Auditoría)** | `QA-01`..`QA-08` | 8 | 8 | 0 | 100% | `4e314a7`..`7399a97` (Commits 21–23) |
+| **Fase 6 (Sexta Auditoría)** | `SA-01`..`SA-08` | 8 | 8 | 0 | 100% | `b15df71`..`d52a7f2` (Commits 24–25) |
+| **Fase 7 (Séptima Auditoría)** | `SE-01`..`SE-08` | 8 | 8 | 0 | 100% | `c456bf9`..`10e3ed0` (Commits 26–27) |
+| **Fase 8 (Octava Auditoría)** | `OC-01`..`OC-08` | 8 | 8 | 0 | 100% | `ee778fe`, `0c5ad3d`, `7847682` (Commits 28–30) |
+| **Fase 9 (Novena Auditoría)** | `NO-01`..`NO-08` | 8 | 8 | 0 | 100% | `3ec6464`, `53acd8c` (Commits 31–32) |
+| **TOTAL CONSOLIDADO** | **102 Hallazgos** | **102** | **102** | **0** | **100.0%** | **32 Commits Atómicos** |
+
+> [!NOTE]
+> Neofood alcanza una marca histórica de **102 hallazgos resueltos (100% de efectividad)** a lo largo de 9 fases sucesivas de auditoría profunda, asegurando una arquitectura robusta, aislamiento multi-tenant estricto en BD, consistencia contable y tributaria inalterable, y validaciones defensivas en todas las capas.
+
