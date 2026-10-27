@@ -309,8 +309,8 @@ const InvoicesManager = () => {
                       {isCredit ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.1rem' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>{formatCurrency(invoice.totalAmount)}</span>
-                          <span style={{ fontWeight: 900, color: parseFloat(invoice.finalAmount) <= 0 ? '#16a34a' : '#dc2626' }}>
-                            {parseFloat(invoice.finalAmount) <= 0 ? '✓ Pagada' : formatCurrency(invoice.finalAmount)}
+                          <span style={{ fontWeight: 900, color: (invoice.pendingBalance !== undefined ? parseFloat(invoice.pendingBalance) : parseFloat(invoice.finalAmount)) <= 0 ? '#16a34a' : '#dc2626' }}>
+                            {(invoice.pendingBalance !== undefined ? parseFloat(invoice.pendingBalance) : parseFloat(invoice.finalAmount)) <= 0 ? '✓ Pagada' : formatCurrency(invoice.pendingBalance !== undefined ? invoice.pendingBalance : invoice.finalAmount)}
                           </span>
                         </div>
                       ) : (
@@ -549,9 +549,9 @@ const InvoicesManager = () => {
       {/* ------------------------------------------------ */}
       {isEditModalOpen && selectedInvoice && (() => {
         // Calcular deuda original y saldo pendiente
-        const originalDebt = parseFloat(selectedInvoice.totalAmount);
-        const currentBalance = parseFloat(selectedInvoice.finalAmount);
-        const totalPaid = originalDebt - currentBalance;
+        const originalDebt = parseFloat(selectedInvoice.finalAmount || selectedInvoice.totalAmount);
+        const currentBalance = selectedInvoice.pendingBalance !== undefined ? parseFloat(selectedInvoice.pendingBalance) : parseFloat(selectedInvoice.finalAmount);
+        const totalPaid = Math.max(0, originalDebt - currentBalance);
         const paidPercent = originalDebt > 0 ? Math.min((totalPaid / originalDebt) * 100, 100) : 0;
 
         // Historial de abonos ya realizados

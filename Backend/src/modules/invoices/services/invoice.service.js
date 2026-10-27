@@ -21,7 +21,7 @@ class InvoiceService {
             }
         }
 
-        return await prisma.sale.findMany({ 
+        const sales = await prisma.sale.findMany({ 
             where,
             include: {
                 customer: { select: { name: true, document: true } },
@@ -45,6 +45,20 @@ class InvoiceService {
             },
             orderBy: { createdAt: 'desc' },
             take: 100
+        });
+
+        return sales.map(s => {
+            const abonos = (s.customerCredits || [])
+                .filter(c => c.type === 'PAYMENT')
+                .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+            const mName = (s.paymentMethod?.name || '').toLowerCase();
+            const isCredit = mName.includes('crédito') || mName.includes('credito') || mName.includes('fiao');
+            const pendingBalance = isCredit ? Math.max(0, parseFloat(s.finalAmount || 0) - abonos) : 0;
+            return {
+                ...s,
+                pendingBalance,
+                totalPaidAbonos: abonos
+            };
         });
     }
 
@@ -110,11 +124,10 @@ class InvoiceService {
                     });
                 }
 
-                // Eliminamos los registros de crédito asociados a esa venta y restauramos finalAmount al totalAmount
+                // Eliminamos los registros de crédito asociados a esa venta sin alterar finalAmount
                 await tx.customerCredit.deleteMany({
                     where: { saleId: sale.id }
                 });
-                dataToUpdate.finalAmount = sale.totalAmount;
                 
                 // Asignar el dinero a la CAJA ACTUAL si el usuario tiene una abierta
                 if (userId) {
@@ -190,13 +203,23 @@ class InvoiceService {
         return await prisma.$transaction(async (tx) => {
             const sale = await tx.sale.findFirst({
                 where: { id: saleId, ...(tenantId ? { tenantId } : {}) },
-                include: { paymentMethod: true, customer: true }
+                include: { paymentMethod: true, customer: true, customerCredits: true }
             });
 
             if (!sale) throw Object.assign(new Error('Venta no encontrada'), { statusCode: 404 });
             if (!sale.customerId) throw Object.assign(new Error('La venta no está asociada a un cliente'), { statusCode: 400 });
-            if (numericAmount > parseFloat(sale.finalAmount)) {
-                throw Object.assign(new Error('Monto de abono inválido o superior al saldo pendiente de la factura'), { statusCode: 400 });
+
+            // Calcular saldo pendiente real de la factura a partir de abonos ya aplicados
+            const totalAbonado = (sale.customerCredits || [])
+                .filter(c => c.type === 'PAYMENT')
+                .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+            const currentPending = Math.max(0, parseFloat(sale.finalAmount || 0) - totalAbonado);
+
+            if (numericAmount > currentPending + 0.01) {
+                throw Object.assign(
+                    new Error(`El monto del abono ($${Math.round(numericAmount).toLocaleString('es-CO')}) supera el saldo pendiente de la factura ($${Math.round(currentPending).toLocaleString('es-CO')})`),
+                    { statusCode: 400 }
+                );
             }
 
             // Encontrar la sesión activa del usuario
@@ -212,7 +235,7 @@ class InvoiceService {
                 where: { id: paymentMethodId, ...(tenantId ? { tenantId } : {}) }
             });
             if (!paymentMethod) {
-                throw Object.assign(new Error('Método de pago no encontrado'), { statusCode: 404 });
+                throw Object.assign(new Error('Método de pago no encontrado o no pertenece a este establecimiento'), { statusCode: 404 });
             }
 
             // 1. Reducir deuda del cliente
@@ -234,40 +257,43 @@ class InvoiceService {
                 }
             });
 
-            // 4. Modificar el valor de la factura
-            let updateData;
-
-            // Si es un pago TOTAL: restaurar finalAmount al valor original (totalAmount)
-            // para que la factura quede como una factura normal completamente pagada
-            if (Math.abs(numericAmount - parseFloat(sale.finalAmount)) < 0.01) {
-                updateData = {
-                    finalAmount: sale.totalAmount,  // Restaurar al monto original
-                    paymentMethodId: paymentMethodId // Cambiar método de crédito al real
-                };
-                if (parsedPaymentDate) {
-                    updateData.createdAt = parsedPaymentDate;
+            // 3. Registrar el pago en SalePayment sin alterar el finalAmount facturado
+            const isFullPayment = Math.abs(numericAmount - currentPending) < 0.01;
+            await tx.salePayment.create({
+                data: {
+                    saleId: sale.id,
+                    paymentMethodId,
+                    amount: numericAmount,
+                    notes: isFullPayment ? 'Pago total de crédito vía abono' : 'Abono parcial a crédito'
                 }
-                // Sincronizar SalePayment para que la factura refleje el medio de pago real
-                await tx.salePayment.deleteMany({
-                    where: { saleId: sale.id }
+            });
+
+            // 4. Si liquida la totalidad de la deuda, actualizar el método de pago principal si correspondía a crédito
+            let updatedSale = sale;
+            if (isFullPayment) {
+                updatedSale = await tx.sale.update({
+                    where: { id: saleId },
+                    data: { paymentMethodId }
                 });
-                await tx.salePayment.create({
-                    data: {
-                        saleId: sale.id,
-                        paymentMethodId,
-                        amount: sale.totalAmount,
-                        notes: 'Pago total de crédito vía abono'
-                    }
-                });
-            } else {
-                // Abono PARCIAL: simplemente descontar del saldo pendiente
-                updateData = { finalAmount: { decrement: numericAmount } };
             }
 
-            return await tx.sale.update({
-                where: { id: saleId },
-                data: updateData
-            });
+            // 5. Si pagaron en efectivo, registrar ingreso físico en la caja
+            const isCash = paymentMethod.name.toLowerCase().includes('efectivo') || paymentMethod.name.toLowerCase().includes('cash');
+            if (isCash) {
+                await tx.cashMovement.create({
+                    data: {
+                        cashSessionId: activeSession.id,
+                        type: 'IN',
+                        amount: numericAmount,
+                        description: `Abono Factura #${sale.invoiceNumber || saleId} (${paymentMethod.name})`
+                    }
+                });
+            }
+
+            return {
+                ...updatedSale,
+                pendingBalance: Math.max(0, currentPending - numericAmount)
+            };
         });
     }
 

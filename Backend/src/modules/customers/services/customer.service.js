@@ -15,14 +15,21 @@ class CustomerService {
   }
 
   async createCustomer(data) {
+    if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+      const error = new Error('El nombre del cliente es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+
     try {
       const tenantId = getTenantId();
+      const normalizedDoc = (data.document && String(data.document).trim()) ? String(data.document).trim() : null;
       const customerData = {
-        name: data.name,
-        document: data.document,
-        phone: data.phone || null,
-        email: data.email || null,
-        address: data.address || null,
+        name: data.name.trim(),
+        document: normalizedDoc,
+        phone: data.phone ? String(data.phone).trim() : null,
+        email: data.email ? String(data.email).trim() : null,
+        address: data.address ? String(data.address).trim() : null,
         ...(tenantId ? { tenantId } : {})
       };
       return await prisma.customer.create({ data: customerData });
@@ -51,11 +58,20 @@ class CustomerService {
       }
 
       const allowedData = {};
-      if (data.name !== undefined) allowedData.name = data.name;
-      if (data.document !== undefined) allowedData.document = data.document;
-      if (data.phone !== undefined) allowedData.phone = data.phone;
-      if (data.email !== undefined) allowedData.email = data.email;
-      if (data.address !== undefined) allowedData.address = data.address;
+      if (data.name !== undefined) {
+        if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+          const error = new Error('El nombre del cliente no puede estar vacío');
+          error.statusCode = 400;
+          throw error;
+        }
+        allowedData.name = data.name.trim();
+      }
+      if (data.document !== undefined) {
+        allowedData.document = (data.document && String(data.document).trim()) ? String(data.document).trim() : null;
+      }
+      if (data.phone !== undefined) allowedData.phone = data.phone ? String(data.phone).trim() : null;
+      if (data.email !== undefined) allowedData.email = data.email ? String(data.email).trim() : null;
+      if (data.address !== undefined) allowedData.address = data.address ? String(data.address).trim() : null;
 
       return await prisma.customer.update({
         where: { id },
@@ -182,23 +198,31 @@ class CustomerService {
 
       const isCash = paymentMethod.name.toLowerCase().includes('efectivo') || paymentMethod.name.toLowerCase().includes('cash');
 
-      // 2.5 Si se especifica saleId, verificar que la factura pertenezca al mismo cliente y tenant y actualizar su saldo
+      // 2.5 Si se especifica saleId, verificar que la factura pertenezca al mismo cliente y tenant y validar saldo pendiente
       let linkedSale = null;
+      let currentPendingBalance = 0;
       if (saleId) {
         linkedSale = await tx.sale.findFirst({
           where: {
             id: saleId,
             customerId,
             ...(tenantId ? { tenantId } : {})
-          }
+          },
+          include: { customerCredits: true }
         });
         if (!linkedSale) {
           const error = new Error('La factura indicada no existe o no pertenece a este cliente');
           error.statusCode = 400;
           throw error;
         }
-        if (parsedAmount > parseFloat(linkedSale.finalAmount || 0) + 0.01) {
-          const error = new Error('El abono supera el saldo pendiente de la factura seleccionada');
+
+        const previousAbonos = (linkedSale.customerCredits || [])
+          .filter(c => c.type === 'PAYMENT')
+          .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+        currentPendingBalance = Math.max(0, parseFloat(linkedSale.finalAmount || 0) - previousAbonos);
+
+        if (parsedAmount > currentPendingBalance + 0.01) {
+          const error = new Error(`El abono ($${Math.round(parsedAmount).toLocaleString('es-CO')}) supera el saldo pendiente de la factura ($${Math.round(currentPendingBalance).toLocaleString('es-CO')})`);
           error.statusCode = 400;
           throw error;
         }
@@ -223,26 +247,21 @@ class CustomerService {
         data: { balance: { decrement: parsedAmount } }
       });
 
-      // 4.1 Si el abono fue asociado a una factura específica, sincronizar el saldo pendiente de la factura
+      // 4.1 Si el abono fue asociado a una factura específica, registrar el pago sin alterar el valor facturado finalAmount
       if (linkedSale) {
-        const isFullPayment = Math.abs(parsedAmount - parseFloat(linkedSale.finalAmount || 0)) < 0.01;
-        await tx.sale.update({
-          where: { id: linkedSale.id },
-          data: isFullPayment
-            ? { finalAmount: linkedSale.totalAmount, paymentMethodId }
-            : { finalAmount: { decrement: parsedAmount } }
+        const isFullPayment = Math.abs(parsedAmount - currentPendingBalance) < 0.01;
+        await tx.salePayment.create({
+          data: {
+            saleId: linkedSale.id,
+            paymentMethodId,
+            amount: parsedAmount,
+            notes: isFullPayment ? 'Pago total de crédito vía abono de cliente' : 'Abono parcial a crédito de cliente'
+          }
         });
         if (isFullPayment) {
-          await tx.salePayment.deleteMany({
-            where: { saleId: linkedSale.id }
-          });
-          await tx.salePayment.create({
-            data: {
-              saleId: linkedSale.id,
-              paymentMethodId,
-              amount: linkedSale.totalAmount,
-              notes: 'Pago total de crédito vía abono de cliente'
-            }
+          await tx.sale.update({
+            where: { id: linkedSale.id },
+            data: { paymentMethodId }
           });
         }
       }

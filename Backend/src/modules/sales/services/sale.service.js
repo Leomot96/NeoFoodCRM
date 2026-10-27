@@ -175,6 +175,13 @@ class SaleService {
         });
       }
 
+      if (parsedDiscount > subtotalTotal) {
+        throw Object.assign(
+          new Error(`El descuento ($${Math.round(parsedDiscount).toLocaleString('es-CO')}) no puede ser superior al subtotal de la venta ($${Math.round(subtotalTotal).toLocaleString('es-CO')})`),
+          { statusCode: 400 }
+        );
+      }
+
       const finalAmount = Math.max(0, subtotalTotal - parsedDiscount);
 
       // Si no se especifica cliente, asociar automáticamente al "Consumidor final" del establecimiento
@@ -335,7 +342,7 @@ class SaleService {
       const newSale = await tx.sale.create({
         data: {
           invoiceNumber,
-          totalAmount: finalAmount,
+          totalAmount: subtotalTotal,
           finalAmount: finalAmount,
           discount: parsedDiscount,
           tenantId: effectiveTenantId,
