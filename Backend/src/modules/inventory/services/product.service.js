@@ -10,9 +10,9 @@ class ProductService {
     const { categoryId, ingredients, modifiers, additions } = data;
 
     if (categoryId) {
-      const cat = await prisma.category.findFirst({ where: { id: categoryId, tenantId } });
+      const cat = await prisma.category.findFirst({ where: { id: categoryId, tenantId, isActive: true } });
       if (!cat) {
-        throw Object.assign(new Error('La categoría seleccionada no pertenece a este establecimiento'), { statusCode: 400 });
+        throw Object.assign(new Error('La categoría seleccionada no existe, no está activa o no pertenece a este establecimiento'), { statusCode: 400 });
       }
     }
 

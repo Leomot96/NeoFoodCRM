@@ -873,31 +873,49 @@ export const generateInvoicePdf = async (invoice) => {
   const totalsBoxWidth = 84;
   const totalsX = pageWidth - 14 - totalsBoxWidth;
 
+  const discountVal = Math.max(0, parseFloat(invoice.discount || 0));
+  const hasDiscount = discountVal > 0;
+  const subtotalVal = parseFloat(invoice.totalAmount || (parseFloat(invoice.finalAmount || 0) + discountVal));
+  const totalsBoxHeight = hasDiscount ? 30 : 24;
+
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.4);
-  doc.roundedRect(totalsX, finalY, totalsBoxWidth, 24, 2, 2, 'FD');
+  doc.roundedRect(totalsX, finalY, totalsBoxWidth, totalsBoxHeight, 2, 2, 'FD');
 
+  let currentTotalsY = finalY + 6;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('Subtotal:', totalsX + 6, finalY + 6);
-  doc.text(formatCurrency(invoice.finalAmount), totalsX + totalsBoxWidth - 6, finalY + 6, { align: 'right' });
+  doc.text('Subtotal:', totalsX + 6, currentTotalsY);
+  doc.text(formatCurrency(subtotalVal), totalsX + totalsBoxWidth - 6, currentTotalsY, { align: 'right' });
 
+  if (hasDiscount) {
+    currentTotalsY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(220, 38, 38);
+    doc.text('Descuento:', totalsX + 6, currentTotalsY);
+    doc.text(`- ${formatCurrency(discountVal)}`, totalsX + totalsBoxWidth - 6, currentTotalsY, { align: 'right' });
+  }
+
+  currentTotalsY += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Impuesto / IVA:', totalsX + 6, finalY + 11);
-  doc.text('$ 0', totalsX + totalsBoxWidth - 6, finalY + 11, { align: 'right' });
+  doc.setTextColor(71, 85, 105);
+  doc.text('Impuesto / IVA:', totalsX + 6, currentTotalsY);
+  doc.text('$ 0', totalsX + totalsBoxWidth - 6, currentTotalsY, { align: 'right' });
 
   // Franja Total a Pagar destacada
+  const bannerY = currentTotalsY + 3;
   doc.setFillColor(238, 242, 255); // Índigo suave
-  doc.roundedRect(totalsX + 2, finalY + 14, totalsBoxWidth - 4, 8, 1, 1, 'F');
+  doc.roundedRect(totalsX + 2, bannerY, totalsBoxWidth - 4, 8, 1, 1, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(79, 70, 229);
-  doc.text('TOTAL FACTURA:', totalsX + 6, finalY + 19.5);
-  doc.text(formatCurrency(invoice.finalAmount), totalsX + totalsBoxWidth - 6, finalY + 19.5, { align: 'right' });
+  doc.text('TOTAL FACTURA:', totalsX + 6, bannerY + 5.5);
+  doc.text(formatCurrency(invoice.finalAmount), totalsX + totalsBoxWidth - 6, bannerY + 5.5, { align: 'right' });
 
   // Mensaje de Agradecimiento a la izquierda
   doc.setFont('helvetica', 'bold');

@@ -89,7 +89,24 @@ class CategoryService {
   }
 
   async deleteCategory(id) {
-    await this.getCategoryById(id);
+    const category = await this.getCategoryById(id);
+    const tenantId = getTenantId();
+
+    const activeProductsCount = await prisma.product.count({
+      where: {
+        categoryId: id,
+        isAvailable: true,
+        ...(tenantId ? { tenantId } : {})
+      }
+    });
+
+    if (activeProductsCount > 0) {
+      throw Object.assign(
+        new Error(`No se puede eliminar la categoría "${category.name}" porque contiene ${activeProductsCount} producto(s) activo(s). Reasigna o desactiva los productos antes de eliminarla.`),
+        { statusCode: 400 }
+      );
+    }
+
     // Soft delete (Desactivación) para mantener el historial
     return await prisma.category.update({
       where: { id },

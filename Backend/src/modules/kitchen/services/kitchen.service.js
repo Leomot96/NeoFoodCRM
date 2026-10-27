@@ -121,6 +121,17 @@ class KitchenService {
       throw Object.assign(new Error('Pedido no encontrado en este restaurante'), { statusCode: 404 });
     }
 
+    if (order.status === 'CANCELLED') {
+      throw Object.assign(new Error('Este pedido ya se encuentra cancelado y no puede cambiar de estado'), { statusCode: 400 });
+    }
+
+    if (status === 'CANCELLED' && order.sale) {
+      throw Object.assign(
+        new Error('No se puede cancelar desde cocina un pedido que ya fue facturado y cobrado en caja. Debe anularse la factura correspondiente en el módulo de facturación.'),
+        { statusCode: 400 }
+      );
+    }
+
     const updated = await prisma.order.update({
       where: { id: orderId },
       data: { status }
