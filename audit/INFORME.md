@@ -3948,3 +3948,133 @@ Todas las fallas identificadas en la Décima Auditoría Exhaustiva de Cierre (`D
 
 > [!NOTE]
 > Neofood alcanza una marca definitiva y récord de **110 hallazgos resueltos (100% de efectividad)** a lo largo de 10 auditorías profundas sucesivas. El sistema cuenta con aislamiento multi-tenant absoluto, inmutabilidad contable y fiscal irreprochable, concurrencia transaccional blindada y validaciones defensivas completas en todas sus capas.
+
+
+---
+
+# 21. Undécima Auditoría Definitiva de Cierre (Fase 11 — HEAD 3fbecdd)
+
+## 21.1 Alcance y Metodología Definitiva
+En esta undécima sesión de auditoría final de inspección profunda y exhaustiva, se examinaron los módulos periféricos, pasarelas de pedidos públicos, autenticación e integridad contable para detectar cualquier riesgo remanente:
+- **Tienda Virtual y Pedidos Online (`store.service.js`):** Concurrencia transaccional en la conversión de pedidos a ventas (`convertOrderToSale`) y entropía en la generación de números de factura (`invoiceNumber`).
+- **Producción y Lotes de Transformación (`production.service.js`):** Propagación de valores `NaN` en el cálculo del Costo Medio Ponderado (CMP) y costos unitarios de insumos elaborados.
+- **Módulo de Compras (`purchase.service.js`):** Validación defensiva de campos obligatorios (`supplierId`) antes de interactuar con la base de datos PostgreSQL.
+- **Historial de Clientes y Trazabilidad Contable (`customer.service.js`):** Protección contra el borrado de clientes que cuenten con historial de ventas o abonos (`customerCredit`), salvaguardando los arqueos de caja.
+- **Autenticación e Identidad (`auth.service.js`):** Normalización de correos electrónicos (`trim().toLowerCase()`) en inicio de sesión y registro para evitar rechazos por mayúsculas.
+- **Catálogo de Productos y Precios (`product.service.js`):** Validación de nombres no vacíos, precios no negativos y detección de productos activos duplicados por categoría.
+- **Categorías de Menú (`category.service.js`):** Búsqueda case-insensitive y validación contra nombres duplicados en actualización.
+- **Configuraciones de Impresora POS (`config.service.js`):** Atomicidad transaccional en el guardado de configuraciones de impresión de tickets.
+
+---
+
+## 21.2 Matriz de Hallazgos de la Undécima Auditoría (UN-01 a UN-08)
+
+| ID | Severidad | Módulo / Componente | Archivo Afectado | Descripción Resumida |
+| :---: | :---: | :---: | :---: | :--- |
+| **`UN-01`** | **Media** | Tienda Virtual / Pedidos | `Backend/src/modules/store/services/store.service.js` | En `convertOrderToSale`, la validación de comanda ya facturada se ejecuta fuera de la transacción, arrojando error 500 P2002 ante clics concurrentes; además, el sufijo de 2 dígitos en `invoiceNumber` genera riesgo de colisión en `@@unique([tenantId, invoiceNumber])`. |
+| **`UN-02`** | **Media** | Producción / Insumos | `Backend/src/modules/production/services/production.service.js` | En `createProductionOrder`, si `rawIngredient.averageCost` es `null`, `parseFloat` produce `NaN`, el cual no es detectado por `costToUse === 0`, propagando `NaN` a `totalProductionCost` y provocando fallo en Prisma. |
+| **`UN-03`** | **Media** | Compras / Facturación | `Backend/src/modules/purchases/services/purchase.service.js` | En `createPurchase`, `supplierId` es obligatorio en el esquema pero no se valida antes de crear la compra, disparando una excepción 500 no controlada de Prisma cuando falta en la petición. |
+| **`UN-04`** | **Alta** | Clientes / Arqueos de Caja | `Backend/src/modules/customers/services/customer.service.js` | En `deleteCustomer`, eliminar un cliente con saldo cero pero con historial previo borra físicamente todos sus registros en `customerCredit`, destruyendo la trazabilidad de los abonos en los arqueos de caja históricos. |
+| **`UN-05`** | **Media** | Auth / Inicio de Sesión | `Backend/src/modules/auth/auth.service.js` | En `loginUser` y `registerUser`, `prisma.user.findUnique({ where: { email } })` busca el correo sin normalizar (`toLowerCase()`), provocando rechazo de credenciales si el usuario escribe su correo con mayúsculas. |
+| **`UN-06`** | **Media** | Productos / Carta | `Backend/src/modules/inventory/services/product.service.js` | En `createProduct` y `updateProduct`, falta validación de nombre no vacío, sanitización de precio no negativo (`price >= 0`) y prevención de productos activos duplicados dentro de la misma categoría. |
+| **`UN-07`** | **Media** | Categorías / Menú | `Backend/src/modules/inventory/services/category.service.js` | En `createCategory` y `updateCategory`, falta validación de nombre no vacío, comparación case-insensitive y verificación de duplicados de nombre en la actualización. |
+| **`UN-08`** | **Baja** | Configuración / Impresión | `Backend/src/modules/config/services/config.service.js` | En `updatePrinterConfig`, el bucle de 9 upserts de configuración de impresora POS se ejecuta sin envolver en `prisma.$transaction`, permitiendo estados corruptos ante fallos transitorios. |
+
+---
+
+## 21.3 Detalle Técnico y Diffs Propuestos de Remediación
+
+### `[UN-01]` Concurrencia y entropía en facturación de pedidos online
+- **Ruta:** [`Backend/src/modules/store/services/store.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/store/services/store.service.js)
+- **Problema:** En `convertOrderToSale`, la comprobación `if (order.sale) return order.sale;` se evalúa antes de `prisma.$transaction`. Si dos cajeros facturan el mismo pedido web simultáneamente, la segunda transacción falla con colisión de clave única en `orderId`. Además, el número de factura usa `randomSuffix.toString().slice(0, 2)`, lo que limita la entropía a 90 números posibles.
+- **Propuesta:** Re-verificar `tx.sale.findUnique({ where: { orderId: order.id } })` dentro de la transacción y generar el consecutivo con `FE-WEB-${Date.now().toString().slice(-6)}-${order.orderNumber}`.
+
+### `[UN-02]` Prevención de `NaN` en costo de producción de insumos
+- **Ruta:** [`Backend/src/modules/production/services/production.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/production/services/production.service.js)
+- **Problema:** En `createProductionOrder`:
+  ```javascript
+  let costToUse = parseFloat(rawIngredient.averageCost);
+  if (costToUse === 0) costToUse = parseFloat(rawIngredient.costPerUnit || rawIngredient.lastCost || 0);
+  ```
+  Si `averageCost` es `null`, `parseFloat(null)` retorna `NaN`. La condición `costToUse === 0` es falsa, propagando `NaN` a los detalles de consumo y orden de producción.
+- **Propuesta:** Validar con `Number.isFinite(parseFloat(rawIngredient.averageCost))` y usar `0` por defecto si no es un número válido.
+
+### `[UN-03]` Validación temprana de proveedor obligatorio en compras
+- **Ruta:** [`Backend/src/modules/purchases/services/purchase.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/purchases/services/purchase.service.js)
+- **Problema:** Si `supplierId` no es enviado en el payload, la verificación `if (supplierId)` se omite y la llamada a `tx.purchase.create` lanza una excepción fatal no controlada de Prisma.
+- **Propuesta:** Validar al inicio: `if (!supplierId || typeof supplierId !== 'string' || !supplierId.trim()) throw Object.assign(new Error('El proveedor es obligatorio para registrar la compra'), { statusCode: 400 });`.
+
+### `[UN-04]` Preservación de trazabilidad de créditos y facturas de clientes
+- **Ruta:** [`Backend/src/modules/customers/services/customer.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/customers/services/customer.service.js)
+- **Problema:** `deleteCustomer` comprueba el balance pendiente, pero si el balance es cero y el cliente tiene historial de compras o pagos, ejecuta `tx.customerCredit.deleteMany`, eliminando los comprobantes de abono que justifican los ingresos en los arqueos de caja (`cashAudit`).
+- **Propuesta:** Comprobar si el cliente tiene historial: `const historyCount = await prisma.sale.count({ where: { customerId: id } }); const creditsCount = await prisma.customerCredit.count({ where: { customerId: id } }); if (historyCount > 0 || creditsCount > 0) throw error 400`.
+
+### `[UN-05]` Normalización case-insensitive de correos en autenticación
+- **Ruta:** [`Backend/src/modules/auth/auth.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/auth/auth.service.js)
+- **Problema:** En `loginUser` y `registerUser`, `prisma.user.findUnique({ where: { email } })` realiza coincidencia exacta de caracteres. Un usuario registrado como `admin@neofood.com` no puede iniciar sesión si su teclado auto-capitaliza a `Admin@neofood.com`.
+- **Propuesta:** Normalizar siempre con `String(email || '').trim().toLowerCase()` antes de consultar o guardar en base de datos.
+
+### `[UN-06]` Validación defensiva de productos y anti-duplicados por categoría
+- **Ruta:** [`Backend/src/modules/inventory/services/product.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/inventory/services/product.service.js)
+- **Problema:** No se valida nombre obligatorio ni precio no negativo (`price >= 0`), y se permite crear múltiples productos activos con nombres idénticos dentro de la misma categoría.
+- **Propuesta:** Validar nombre con `trim()`, forzar `price = Math.max(0, parseFloat(price) || 0)` y comprobar no existencia de producto activo duplicado en la misma categoría y tenant.
+
+### `[UN-07]` Control de duplicados en categorías de menú
+- **Ruta:** [`Backend/src/modules/inventory/services/category.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/inventory/services/category.service.js)
+- **Problema:** En `createCategory` y `updateCategory`, no se valida nombre no vacío y no se comprueba si al actualizar se le asigna el nombre de otra categoría ya existente en el establecimiento.
+- **Propuesta:** Validar nombre no vacío, normalizar espacios y en `updateCategory` validar colisión con `id: { not: id }`.
+
+### `[UN-08]` Transaccionalidad en configuración de impresora POS
+- **Ruta:** [`Backend/src/modules/config/services/config.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/config/services/config.service.js)
+- **Problema:** `updatePrinterConfig` ejecuta 9 llamadas asíncronas secuenciales a `prisma.configuration.upsert` sin una transacción `prisma.$transaction`.
+- **Propuesta:** Envolver los 9 upserts en `await prisma.$transaction(...)` para garantizar atomicidad en los parámetros de la tirilla POS.
+
+---
+
+## 21.4 Plan de Acción de Cierre
+```mermaid
+flowchart TD
+    subgraph Fase11_Plan [Plan de Remediación Undécima Auditoría Definitiva]
+        A["1. Tienda Virtual y Concurrencia"] -->|UN-01| B["store.service.js: Re-verificar venta en tx y consecutivo FE-WEB con timestamp"]
+        B --> C["2. Costos de Producción y Compras"]
+        C -->|UN-02, UN-03| D["production.service.js & purchase.service.js: Prevenir NaN en CMP y validar supplierId"]
+        D --> E["3. Integridad de Clientes y Arqueos"]
+        E -->|UN-04| F["customer.service.js: Proteger historial de créditos y arqueos contra borrado"]
+        F --> G["4. Autenticación y Catálogo"]
+        G -->|UN-05, UN-06, UN-07| H["auth, product & category: Normalizar emails, validar precios y anti-duplicados"]
+        H --> I["5. Configuración Transaccional"]
+        I -->|UN-08| J["config.service.js: Envolver configuración POS en prisma.$transaction"]
+    end
+```
+
+---
+
+## 21.5 Estado y Resolución de la Auditoría
+- **Estado:** Remediado y Verificado (Fase 11 completada al 100%).
+- **Resultado:** 8 de 8 hallazgos (`UN-01` a `UN-08`) completamente solucionados y validados.
+
+---
+
+## 21.6 Resumen de Ejecución y Remediación (Fase 11)
+Todas las fallas detectadas en la Undécima Auditoría Definitiva (`UN-01` a `UN-08`) han sido **100% remediadas y probadas** sin regresiones:
+1. **`UN-01`**: Control de concurrencia y unicidad en `StoreService.convertOrderToSale`. Se re-verifica la existencia de `order.sale` dentro de `prisma.$transaction` para retornar la venta existente sin colisión de `orderId`, y se genera el consecutivo de factura con alta entropía mediante `FE-WEB-${Date.now().toString().slice(-6)}-${order.orderNumber}`.
+2. **`UN-02`**: Blindaje numérico contra valores `NaN` en `ProductionService.createProductionOrder`. Se verifica `Number.isFinite(parseFloat(rawIngredient.averageCost))` con fallback a `costPerUnit` o `lastCost`, previniendo errores de Prisma en campos Decimales.
+3. **`UN-03`**: Validación temprana en `PurchaseService.createPurchase`, exigiendo `supplierId` obligatorio con HTTP 400 antes de interactuar con la base de datos PostgreSQL.
+4. **`UN-04`**: Protección contra pérdida de auditoría fiscal en `CustomerService.deleteCustomer`. Se prohíbe el borrado de clientes que cuenten con facturas (`sale`) o créditos/abonos (`customerCredit`) registrados en el historial contable, preservando los cierres de caja (`cashAudit`).
+5. **`UN-05`**: Normalización case-insensitive de correos electrónicos (`trim().toLowerCase()`) en `AuthService.loginUser` y `registerUser`, permitiendo inicio de sesión exitoso sin importar mayúsculas o espacios.
+6. **`UN-06`**: Sanitización rigurosa en `ProductService.createProduct` y `updateProduct`, forzando nombre no vacío con `trim()`, precio no negativo (`price >= 0`) y verificando la no existencia de otro producto activo con el mismo nombre dentro de la misma categoría.
+7. **`UN-07`**: Control de integridad en `CategoryService.createCategory` y `updateCategory`, exigiendo nombre no vacío, búsqueda case-insensitive (`mode: 'insensitive'`) y validando colisión de nombres duplicados en la actualización (`id: { not: id }`).
+8. **`UN-08`**: Transaccionalidad atómica en `ConfigService.updatePrinterConfig`, envolviendo los 9 upserts de configuración de la impresora de comandas y facturas en `prisma.$transaction`.
+
+---
+
+## 22. Balance Global Consolidado Definitivo (Auditorías 1 a 11)
+
+| Auditoría | Rango de IDs | Total Hallazgos | Resueltos | Pendientes | Tasa de Resolución | Commits Asociados |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Fases 1 a 10** | `NF-01`..`DE-08` | 110 | 110 | 0 | 100% | Commits 1 al 34 |
+| **Fase 11 (Undécima Auditoría Definitiva)** | `UN-01`..`UN-08` | 8 | 8 | 0 | 100% | `5efe2ed` (Commit 35) |
+| **TOTAL DEFINITIVO ABSOLUTO** | **118 Hallazgos** | **118** | **118** | **0** | **100.0%** | **Auditorías 1 a 11 Completadas** |
+
+> [!NOTE]
+> Neofood culmina su proceso de auditorías profundas con **118 hallazgos identificados y 118 resueltos (100.0% de efectividad)** a través de 11 fases rigurosas. La plataforma se encuentra blindada a nivel multi-tenant, tributario, contable, concurrente y de catálogo.
