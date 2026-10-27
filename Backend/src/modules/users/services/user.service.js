@@ -96,7 +96,14 @@ class UserService {
       }
     }
 
-    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    const normalizedEmail = String(data.email || '').trim().toLowerCase();
+    if (!normalizedEmail) {
+      const error = new Error('El correo electrónico es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       const error = new Error('El correo o usuario ya está registrado');
       error.statusCode = 400;
@@ -133,7 +140,7 @@ class UserService {
     const user = await prisma.user.create({
       data: {
         name: data.name,
-        email: data.email,
+        email: normalizedEmail,
         phone: data.phone ? data.phone.trim() : null,
         password: hashedPassword,
         roleId: targetRole.id,
@@ -257,9 +264,32 @@ class UserService {
       }
     }
 
+    let normalizedEmail = undefined;
+    if (data.email !== undefined && data.email !== null) {
+      normalizedEmail = String(data.email).trim().toLowerCase();
+      if (!normalizedEmail) {
+        const error = new Error('El correo electrónico no puede estar vacío');
+        error.statusCode = 400;
+        throw error;
+      }
+      if (normalizedEmail !== existingUser.email.toLowerCase()) {
+        const emailExists = await prisma.user.findFirst({
+          where: {
+            email: normalizedEmail,
+            id: { not: id }
+          }
+        });
+        if (emailExists) {
+          const error = new Error('El correo electrónico ya está registrado por otro usuario');
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+    }
+
     const updateData = {
-      name: data.name,
-      email: data.email,
+      name: data.name !== undefined ? (typeof data.name === 'string' ? data.name.trim() : data.name) : undefined,
+      ...(normalizedEmail !== undefined ? { email: normalizedEmail } : {}),
       phone: data.phone !== undefined ? (data.phone ? data.phone.trim() : null) : undefined,
       ...(validatedRoleId ? { roleId: validatedRoleId } : {}),
       isActive: data.isActive
@@ -340,107 +370,28 @@ class UserService {
       }
     }
 
+    // Verificar si el usuario posee actividad histórica comercial, contable o fiscal para PROHIBIR su eliminación física
+    const [cashSessionsCount, ordersCount, expensesCount, auditsCount] = await Promise.all([
+      prisma.cashSession.count({ where: { userId: id } }),
+      prisma.order.count({ where: { userId: id } }),
+      prisma.expense.count({ where: { userId: id } }),
+      prisma.cashAudit.count({ where: { OR: [{ auditorId: id }, { cashierId: id }] } })
+    ]);
+
+    if (cashSessionsCount > 0 || ordersCount > 0 || expensesCount > 0 || auditsCount > 0) {
+      const error = new Error('No es posible eliminar el usuario porque tiene turnos de caja, ventas, pedidos o registros contables asociados. Por integridad tributaria y fiscal, desactive la cuenta en su lugar.');
+      error.statusCode = 400;
+      throw error;
+    }
+
     return await prisma.$transaction(async (tx) => {
       // 1. Logs de auditoría
       await tx.auditLog.deleteMany({ where: { userId: id } });
 
-      // 2. Auditorías de caja
-      await tx.cashAudit.deleteMany({
-        where: {
-          OR: [{ auditorId: id }, { cashierId: id }]
-        }
-      });
-
-      // 3. Gastos
-      await tx.expense.deleteMany({ where: { userId: id } });
-
-      // 4. Movimientos de inventario
+      // 2. Movimientos de inventario registrados por el usuario
       await tx.inventoryMovement.deleteMany({ where: { userId: id } });
 
-      // 5. Sesiones de caja
-      const userCashSessions = await tx.cashSession.findMany({
-        where: { userId: id },
-        select: { id: true }
-      });
-      const cashSessionIds = userCashSessions.map(cs => cs.id);
-
-      if (cashSessionIds.length > 0) {
-        await tx.cashAudit.deleteMany({
-          where: { cashSessionId: { in: cashSessionIds } }
-        });
-        await tx.customerCredit.deleteMany({
-          where: { cashSessionId: { in: cashSessionIds } }
-        });
-        await tx.cashMovement.deleteMany({
-          where: { cashSessionId: { in: cashSessionIds } }
-        });
-
-        const sales = await tx.sale.findMany({
-          where: { cashSessionId: { in: cashSessionIds } },
-          select: { id: true, orderId: true }
-        });
-        const saleIds = sales.map(s => s.id);
-        const orderIds = sales.map(s => s.orderId).filter(Boolean);
-
-        if (saleIds.length > 0) {
-          const saleDetails = await tx.saleDetail.findMany({
-            where: { saleId: { in: saleIds } },
-            select: { id: true }
-          });
-          const detailIds = saleDetails.map(sd => sd.id);
-
-          if (detailIds.length > 0) {
-            await tx.saleDetailAddition.deleteMany({ where: { saleDetailId: { in: detailIds } } });
-            await tx.saleDetailVariation.deleteMany({ where: { saleDetailId: { in: detailIds } } });
-            await tx.saleDetail.deleteMany({ where: { id: { in: detailIds } } });
-          }
-
-          await tx.salePayment.deleteMany({ where: { saleId: { in: saleIds } } });
-          await tx.customerCredit.deleteMany({ where: { saleId: { in: saleIds } } });
-          await tx.sale.deleteMany({ where: { id: { in: saleIds } } });
-        }
-
-        if (orderIds.length > 0) {
-          await tx.orderDetail.deleteMany({ where: { orderId: { in: orderIds } } });
-          await tx.order.deleteMany({ where: { id: { in: orderIds } } });
-        }
-
-        await tx.cashSession.deleteMany({ where: { id: { in: cashSessionIds } } });
-      }
-
-      // 6. Órdenes tomadas por este usuario
-      const userOrders = await tx.order.findMany({
-        where: { userId: id },
-        select: { id: true }
-      });
-      const userOrderIds = userOrders.map(o => o.id);
-      if (userOrderIds.length > 0) {
-        const linkedSales = await tx.sale.findMany({
-          where: { orderId: { in: userOrderIds } },
-          select: { id: true }
-        });
-        const linkedSaleIds = linkedSales.map(s => s.id);
-        if (linkedSaleIds.length > 0) {
-          const details = await tx.saleDetail.findMany({
-            where: { saleId: { in: linkedSaleIds } },
-            select: { id: true }
-          });
-          const detailIds = details.map(d => d.id);
-          if (detailIds.length > 0) {
-            await tx.saleDetailAddition.deleteMany({ where: { saleDetailId: { in: detailIds } } });
-            await tx.saleDetailVariation.deleteMany({ where: { saleDetailId: { in: detailIds } } });
-            await tx.saleDetail.deleteMany({ where: { id: { in: detailIds } } });
-          }
-          await tx.salePayment.deleteMany({ where: { saleId: { in: linkedSaleIds } } });
-          await tx.customerCredit.deleteMany({ where: { saleId: { in: linkedSaleIds } } });
-          await tx.sale.deleteMany({ where: { id: { in: linkedSaleIds } } });
-        }
-
-        await tx.orderDetail.deleteMany({ where: { orderId: { in: userOrderIds } } });
-        await tx.order.deleteMany({ where: { id: { in: userOrderIds } } });
-      }
-
-      // 7. Borrar usuario
+      // 3. Borrar usuario
       const deletedUser = await tx.user.delete({
         where: { id }
       });

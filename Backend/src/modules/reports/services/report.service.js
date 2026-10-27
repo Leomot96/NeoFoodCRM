@@ -46,6 +46,12 @@ class ReportService {
     });
 
     return sales.map(s => {
+      const totalAmountNum = parseFloat(s.totalAmount || 0);
+      const finalAmountNum = parseFloat(s.finalAmount || 0);
+      const discountRatio = (totalAmountNum > 0 && finalAmountNum < totalAmountNum)
+        ? (finalAmountNum / totalAmountNum)
+        : 1;
+
       let cost = 0;
       s.details.forEach(d => {
         const historicalCost = parseFloat(d.totalCost || 0);
@@ -58,12 +64,15 @@ class ReportService {
             cost += (parseFloat(i.quantity) * ingCost) * d.quantity;
           });
         } else if (d.product?.trackStock) {
-          // Si es producto directo sin costo histórico ni receta, asumimos un margen del 60%
-          cost += parseFloat(d.subtotal) * 0.6;
+          // Si es producto directo sin costo histórico ni receta, ponderamos por el ratio de descuento aplicado
+          cost += (parseFloat(d.subtotal || 0) * discountRatio) * 0.6;
         }
       });
 
-      const amount = parseFloat(s.finalAmount);
+      const amount = Math.round(finalAmountNum * 100) / 100;
+      const roundedCost = Math.round(cost * 100) / 100;
+      const profit = Math.round((amount - roundedCost) * 100) / 100;
+
       let methodDisplay = s.paymentMethod?.name || 'Efectivo';
       if (s.payments && s.payments.length > 1) {
         methodDisplay = `Dividido (${s.payments.map(p => `${p.paymentMethod?.name || 'Medio'}: $${Math.round(parseFloat(p.amount)).toLocaleString('es-CO')}`).join(', ')})`;
@@ -74,9 +83,9 @@ class ReportService {
         date: s.createdAt,
         customer: s.customer ? s.customer.name : 'Consumidor Final',
         method: methodDisplay,
-        cost: cost,
+        cost: roundedCost,
         amount: amount,
-        profit: amount - cost
+        profit: profit
       };
     });
   }

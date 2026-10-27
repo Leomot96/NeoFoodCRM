@@ -88,7 +88,7 @@ class SaasService {
       where.plan = { code: query.planCode.trim() };
     }
 
-    const [total, tenants, salesByTenant] = await Promise.all([
+    const [total, tenants] = await Promise.all([
       prisma.tenant.count({ where }),
       prisma.tenant.findMany({
         where,
@@ -128,12 +128,17 @@ class SaasService {
             }
           }
         }
-      }),
-      prisma.sale.groupBy({
-        by: ['tenantId'],
-        _sum: { finalAmount: true }
       })
     ]);
+
+    const tenantIds = tenants.map(t => t.id).filter(Boolean);
+    const salesByTenant = tenantIds.length > 0
+      ? await prisma.sale.groupBy({
+          by: ['tenantId'],
+          where: { tenantId: { in: tenantIds } },
+          _sum: { finalAmount: true }
+        })
+      : [];
 
     const salesMap = {};
     salesByTenant.forEach(s => {

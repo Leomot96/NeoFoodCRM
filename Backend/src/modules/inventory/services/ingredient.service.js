@@ -26,7 +26,17 @@ class IngredientService {
 
   async createIngredient(data) {
     const tenantId = getTenantId();
-    const whereExisting = { name: { equals: data.name } };
+
+    if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+      const error = new Error('El nombre del insumo es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const normalizedName = data.name.trim();
+    const whereExisting = {
+      name: { equals: normalizedName, mode: 'insensitive' }
+    };
     if (tenantId) whereExisting.tenantId = tenantId;
 
     const existing = await prisma.ingredient.findFirst({
@@ -36,22 +46,26 @@ class IngredientService {
       if (!existing.isActive) {
         return await this.updateIngredient(existing.id, {
           ...data,
+          name: normalizedName,
           isActive: true
         });
       }
-      const error = new Error(`Ya existe un ingrediente activo llamado "${data.name}"`);
+      const error = new Error(`Ya existe un ingrediente activo llamado "${normalizedName}"`);
       error.statusCode = 400;
       throw error;
     }
 
     await this._validateRecipeInputs(data.recipeIngredients, tenantId);
 
+    const parsedMinStock = data.minStock !== undefined ? parseFloat(data.minStock) : 0;
+    const sanitizedMinStock = Math.max(0, Number.isFinite(parsedMinStock) ? parsedMinStock : 0);
+
     return await prisma.ingredient.create({
       data: {
         tenantId: tenantId || data.tenantId || 'default-tenant-001',
-        name: data.name,
+        name: normalizedName,
         unit: data.unit || 'Unidad',
-        minStock: data.minStock ? parseFloat(data.minStock) : 0,
+        minStock: sanitizedMinStock,
         currentStock: 0,
         costPerUnit: 0,
         isManufactured: Boolean(data.isManufactured),
@@ -112,13 +126,37 @@ class IngredientService {
   }
 
   async updateIngredient(id, data) {
-    await this.getIngredientById(id);
-    const tenantId = getTenantId();
+    const existing = await this.getIngredientById(id);
+    const tenantId = getTenantId() || existing.tenantId;
 
     const updateData = {};
-    if (data.name !== undefined) updateData.name = data.name;
+    if (data.name !== undefined) {
+      if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+        const error = new Error('El nombre del insumo no puede estar vacío');
+        error.statusCode = 400;
+        throw error;
+      }
+      const normalizedName = data.name.trim();
+      const duplicate = await prisma.ingredient.findFirst({
+        where: {
+          name: { equals: normalizedName, mode: 'insensitive' },
+          id: { not: id },
+          isActive: true,
+          ...(tenantId ? { tenantId } : {})
+        }
+      });
+      if (duplicate) {
+        const error = new Error(`Ya existe otro ingrediente activo llamado "${normalizedName}"`);
+        error.statusCode = 400;
+        throw error;
+      }
+      updateData.name = normalizedName;
+    }
     if (data.unit !== undefined) updateData.unit = data.unit;
-    if (data.minStock !== undefined) updateData.minStock = parseFloat(data.minStock) || 0;
+    if (data.minStock !== undefined) {
+      const parsed = parseFloat(data.minStock);
+      updateData.minStock = Math.max(0, Number.isFinite(parsed) ? parsed : 0);
+    }
     if (data.isManufactured !== undefined) updateData.isManufactured = Boolean(data.isManufactured);
     if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
 

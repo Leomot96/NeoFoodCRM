@@ -4,9 +4,18 @@ const { getTenantId } = require('../../../context/tenantContext');
 class SupplierService {
   async createSupplier(data) {
     const tenantId = getTenantId();
+
+    if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+      const error = new Error('El nombre del proveedor es obligatorio');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const normalizedNit = typeof data.nit === 'string' && data.nit.trim() !== '' ? data.nit.trim() : null;
+
     // Verificamos si el NIT ya existe dentro del mismo establecimiento
-    if (data.nit) {
-      const whereNit = { nit: data.nit };
+    if (normalizedNit) {
+      const whereNit = { nit: normalizedNit };
       if (tenantId) whereNit.tenantId = tenantId;
       const existing = await prisma.supplier.findFirst({ where: whereNit });
       if (existing) {
@@ -23,6 +32,12 @@ class SupplierService {
         supplierData[key] = data[key];
       }
     }
+    supplierData.name = data.name.trim();
+    supplierData.nit = normalizedNit;
+    if (supplierData.phone && typeof supplierData.phone === 'string') supplierData.phone = supplierData.phone.trim();
+    if (supplierData.email && typeof supplierData.email === 'string') supplierData.email = supplierData.email.trim();
+    if (supplierData.address && typeof supplierData.address === 'string') supplierData.address = supplierData.address.trim();
+
     if (tenantId) {
       supplierData.tenantId = tenantId;
     }
@@ -53,7 +68,17 @@ class SupplierService {
   }
 
   async updateSupplier(id, data) {
-    await this.getSupplierById(id);
+    const existingSupplier = await this.getSupplierById(id);
+    const tenantId = getTenantId();
+
+    if (data.name !== undefined) {
+      if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+        const error = new Error('El nombre del proveedor es obligatorio');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     const allowedFields = ['name', 'nit', 'phone', 'email', 'address'];
     const safeData = {};
     for (const key of allowedFields) {
@@ -61,6 +86,33 @@ class SupplierService {
         safeData[key] = data[key];
       }
     }
+
+    if (safeData.name && typeof safeData.name === 'string') {
+      safeData.name = safeData.name.trim();
+    }
+
+    if (safeData.nit !== undefined) {
+      safeData.nit = typeof safeData.nit === 'string' && safeData.nit.trim() !== '' ? safeData.nit.trim() : null;
+      if (safeData.nit) {
+        const whereNit = {
+          nit: safeData.nit,
+          id: { not: id }
+        };
+        const effectiveTenantId = existingSupplier.tenantId || tenantId;
+        if (effectiveTenantId) whereNit.tenantId = effectiveTenantId;
+        const duplicate = await prisma.supplier.findFirst({ where: whereNit });
+        if (duplicate) {
+          const error = new Error('Ya existe otro proveedor con este NIT');
+          error.statusCode = 400;
+          throw error;
+        }
+      }
+    }
+
+    if (safeData.phone && typeof safeData.phone === 'string') safeData.phone = safeData.phone.trim();
+    if (safeData.email && typeof safeData.email === 'string') safeData.email = safeData.email.trim();
+    if (safeData.address && typeof safeData.address === 'string') safeData.address = safeData.address.trim();
+
     return await prisma.supplier.update({
       where: { id },
       data: safeData,

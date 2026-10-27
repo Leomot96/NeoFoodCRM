@@ -167,16 +167,6 @@ class TableService {
       }
     }
 
-    // Buscar si ya existe una orden abierta para esta mesa
-    const existingOrder = await prisma.order.findFirst({
-      where: {
-        tableId,
-        sale: null,
-        status: { not: 'CANCELLED' }
-      },
-      include: { details: true }
-    });
-
     let totalAmount = 0;
     const processedDetails = [];
 
@@ -275,15 +265,25 @@ class TableService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      // Re-verificar comanda abierta dentro de la transacción atómica para prevenir race conditions
+      const activeOrder = await tx.order.findFirst({
+        where: {
+          tableId,
+          sale: null,
+          status: { not: 'CANCELLED' }
+        },
+        include: { details: true }
+      });
+
       let order;
-      if (existingOrder && (data.append === true || data.mode === 'append')) {
+      if (activeOrder && (data.append === true || data.mode === 'append')) {
         // Modo anexar: agrega platos nuevos a la comanda existente sin eliminar los anteriores
-        const updatedTotal = parseFloat(existingOrder.totalAmount || 0) + totalAmount;
+        const updatedTotal = parseFloat(activeOrder.totalAmount || 0) + totalAmount;
         order = await tx.order.update({
-          where: { id: existingOrder.id },
+          where: { id: activeOrder.id },
           data: {
-            customerId: customerId || existingOrder.customerId,
-            notes: notes ? (existingOrder.notes ? `${existingOrder.notes} | ${notes}` : notes) : existingOrder.notes,
+            customerId: customerId || activeOrder.customerId,
+            notes: notes ? (activeOrder.notes ? `${activeOrder.notes} | ${notes}` : notes) : activeOrder.notes,
             totalAmount: updatedTotal,
             status: 'PENDING', // Vuelve a poner en PENDING para que cocina vea los nuevos platos añadidos
             details: {
@@ -295,11 +295,11 @@ class TableService {
             customer: true
           }
         });
-      } else if (existingOrder) {
+      } else if (activeOrder) {
         // Reemplazo con la lista completa de ítems
-        await tx.orderDetail.deleteMany({ where: { orderId: existingOrder.id } });
+        await tx.orderDetail.deleteMany({ where: { orderId: activeOrder.id } });
         order = await tx.order.update({
-          where: { id: existingOrder.id },
+          where: { id: activeOrder.id },
           data: {
             customerId: customerId || null,
             notes: notes || null,

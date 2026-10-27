@@ -22,6 +22,12 @@ function iterateSalePayments(sales, callback) {
   });
 }
 
+// Helper para detectar movimientos de caja correspondientes a cobro/abono de facturas o créditos
+function isAbonoOrInvoicePaymentMovement(description) {
+  if (!description || typeof description !== 'string') return false;
+  return /^(abono\s*(a\s*)?factura|pago\s*factura|abono\s*de\s*cliente)/i.test(description.trim());
+}
+
 class CashService {
   
   async openSession(userId, openingAmount, tenantId = null) {
@@ -156,7 +162,7 @@ class CashService {
       expectedCash += cashSales;
 
       const movementsIn = session.cashMovements
-        .filter(m => m.type === 'IN' && !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente'))
+        .filter(m => m.type === 'IN' && !isAbonoOrInvoicePaymentMovement(m.description))
         .reduce((sum, m) => sum + parseFloat(m.amount), 0);
       const movementsOut = session.cashMovements
         .filter(m => m.type === 'OUT')
@@ -220,7 +226,7 @@ class CashService {
       
       // Ignorar movimientos automáticos antiguos para no duplicar sumas
       const movIn = session.cashMovements
-        .filter(m => m.type === 'IN' && !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente'))
+        .filter(m => m.type === 'IN' && !isAbonoOrInvoicePaymentMovement(m.description))
         .reduce((acc, m) => acc + parseFloat(m.amount), 0);
       const movOut = session.cashMovements.filter(m => m.type === 'OUT').reduce((acc, m) => acc + parseFloat(m.amount), 0);
       
@@ -343,7 +349,7 @@ class CashService {
       totalSales += sessionTotalSales;
 
       const inc = session.cashMovements
-        ?.filter(m => m.type === 'IN' && !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente'))
+        ?.filter(m => m.type === 'IN' && !isAbonoOrInvoicePaymentMovement(m.description))
         .reduce((acc, m) => acc + parseFloat(m.amount || 0), 0) || 0;
       const exp = session.cashMovements
         ?.filter(m => m.type === 'OUT')
@@ -463,7 +469,7 @@ class CashService {
       totalSales += sessionTotalSales;
 
       const inc = session.cashMovements
-        ?.filter(m => m.type === 'IN' && !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente'))
+        ?.filter(m => m.type === 'IN' && !isAbonoOrInvoicePaymentMovement(m.description))
         .reduce((acc, m) => acc + parseFloat(m.amount || 0), 0) || 0;
       const exp = session.cashMovements
         ?.filter(m => m.type === 'OUT')
