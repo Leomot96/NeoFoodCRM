@@ -1,4 +1,5 @@
 const prisma = require('../../../config/prisma');
+const { getTenantId } = require('../../../context/tenantContext');
 
 class ProductionService {
   
@@ -6,7 +7,8 @@ class ProductionService {
   // 1. CREACIÓN DE LOTE DE PRODUCCIÓN
   // ==========================================
   async createProductionOrder(data, userId) {
-    const { ingredientId, quantityProduced, notes, tenantId } = data;
+    const tenantId = data.tenantId || getTenantId();
+    const { ingredientId, quantityProduced, notes } = data;
     
     const quantity = parseFloat(quantityProduced);
     if (isNaN(quantity) || quantity <= 0) {
@@ -148,7 +150,8 @@ class ProductionService {
   // 2. LISTAR ORDENES DE PRODUCCIÓN
   // ==========================================
   async getProductionOrders(filters = {}) {
-    const { tenantId, startDate, endDate, status, ingredientId } = filters;
+    const tenantId = filters.tenantId || getTenantId();
+    const { startDate, endDate, status, ingredientId } = filters;
     const where = {};
 
     if (tenantId) where.tenantId = tenantId;
@@ -189,19 +192,16 @@ class ProductionService {
   // ==========================================
   // 3. ANULACIÓN DE LOTE (Reversión)
   // ==========================================
-  async cancelProductionOrder(orderId, userId, tenantId) {
+  async cancelProductionOrder(orderId, userId, tenantIdParam = null) {
+    const tenantId = tenantIdParam || getTenantId();
     return await prisma.$transaction(async (tx) => {
-      const order = await tx.productionOrder.findUnique({
-        where: { id: orderId },
+      const order = await tx.productionOrder.findFirst({
+        where: { id: orderId, ...(tenantId ? { tenantId } : {}) },
         include: { consumptions: true, ingredient: true }
       });
 
       if (!order) {
-        throw Object.assign(new Error('Orden de producción no encontrada'), { statusCode: 404 });
-      }
-      
-      if (tenantId && order.tenantId !== tenantId) {
-        throw Object.assign(new Error('Acceso no autorizado a esta orden de producción'), { statusCode: 403 });
+        throw Object.assign(new Error('Orden de producción no encontrada en este establecimiento'), { statusCode: 404 });
       }
 
       if (order.status === 'CANCELLED') {

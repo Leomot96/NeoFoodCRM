@@ -6,6 +6,7 @@ class ProductionController {
   async createProductionOrder(req, res, next) {
     try {
       const { ingredientId, quantityProduced, notes } = req.body;
+      const tenantId = req.tenantId || req.user?.tenantId;
       
       if (!ingredientId || !quantityProduced) {
         const error = new Error('Faltan datos obligatorios (ingredientId, quantityProduced)');
@@ -17,7 +18,7 @@ class ProductionController {
         ingredientId,
         quantityProduced,
         notes,
-        tenantId: req.user.tenantId
+        tenantId
       };
 
       const order = await productionService.createProductionOrder(data, req.user.id);
@@ -36,9 +37,10 @@ class ProductionController {
   // GET /api/production
   async getProductionOrders(req, res, next) {
     try {
+      const tenantId = req.tenantId || req.user?.tenantId;
       const filters = {
         ...req.query,
-        tenantId: req.user.tenantId
+        ...(tenantId ? { tenantId } : {})
       };
 
       const orders = await productionService.getProductionOrders(filters);
@@ -59,8 +61,9 @@ class ProductionController {
   async cancelProductionOrder(req, res, next) {
     try {
       const { id } = req.params;
+      const tenantId = req.tenantId || req.user?.tenantId;
 
-      const result = await productionService.cancelProductionOrder(id, req.user.id, req.user.tenantId);
+      const result = await productionService.cancelProductionOrder(id, req.user.id, tenantId);
 
       res.status(200).json({
         status: 'success',

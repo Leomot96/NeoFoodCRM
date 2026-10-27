@@ -52,6 +52,14 @@ class PurchaseController {
       res.status(200).json({ success: true, data: report });
     } catch (error) { next(error); }
   }
+
+  async updateMetadata(req, res, next) {
+    try {
+      const tenantId = req.tenantId || req.user?.tenantId;
+      const data = await purchaseService.updatePurchaseMetadata(req.params.id, req.body, tenantId);
+      res.status(200).json({ success: true, data });
+    } catch (error) { next(error); }
+  }
 }
 
 module.exports = new PurchaseController();

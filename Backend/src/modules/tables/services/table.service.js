@@ -150,10 +150,13 @@ class TableService {
       throw Object.assign(new Error('El pedido debe incluir al menos un producto'), { statusCode: 400 });
     }
 
-    const table = await prisma.table.findUnique({ where: { id: tableId } });
-    if (!table) throw Object.assign(new Error('Mesa no encontrada'), { statusCode: 404 });
+    const tenantId = getTenantId();
+    const table = await prisma.table.findFirst({
+      where: { id: tableId, ...(tenantId ? { tenantId } : {}) }
+    });
+    if (!table) throw Object.assign(new Error('Mesa no encontrada en este establecimiento'), { statusCode: 404 });
 
-    const effectiveTenantId = table.tenantId || getTenantId();
+    const effectiveTenantId = table.tenantId || tenantId;
 
     if (customerId) {
       const customer = await prisma.customer.findFirst({

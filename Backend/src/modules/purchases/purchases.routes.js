@@ -31,10 +31,6 @@ router.get('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), purchaseCo
 router.post('/', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), purchaseController.create);
 router.put('/:id/cancel', restrictTo(ROLES.ADMINISTRADOR), purchaseController.cancel);
 
-router.put('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), async (req, res, next) => {
-  try { 
-    res.json({ success: true, data: await purchaseService.updatePurchaseMetadata(req.params.id, req.body) }); 
-  } catch (e) { next(e); }
-});
+router.put('/:id', restrictTo(ROLES.ADMINISTRADOR, ROLES.SUPERVISOR), purchaseController.updateMetadata);
 
 module.exports = router;

@@ -394,9 +394,12 @@ class ProductService {
   // ELIMINAR / DESACTIVAR PRODUCTO
   // =====================================
   async deleteProduct(id) {
-    const product = await prisma.product.findUnique({ where: { id } });
+    const tenantId = getTenantId();
+    const product = await prisma.product.findFirst({
+      where: { id, ...(tenantId ? { tenantId } : {}) }
+    });
     if (!product) {
-      const error = new Error('Producto no encontrado');
+      const error = new Error('Producto no encontrado en este establecimiento');
       error.statusCode = 404;
       throw error;
     }
