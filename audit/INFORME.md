@@ -3789,3 +3789,162 @@ Todas las fallas detectadas en la Novena Auditoría Profunda (`NO-01` a `NO-08`)
 > [!NOTE]
 > Neofood alcanza una marca histórica de **102 hallazgos resueltos (100% de efectividad)** a lo largo de 9 fases sucesivas de auditoría profunda, asegurando una arquitectura robusta, aislamiento multi-tenant estricto en BD, consistencia contable y tributaria inalterable, y validaciones defensivas en todas las capas.
 
+
+
+---
+
+# 19. Décima Auditoría Exhaustiva de Cierre (Fase 10 — HEAD 60c69c6)
+
+## 19.1 Alcance y Metodología de Cierre
+En esta décima y última auditoría profunda de consolidación, se ejecutó una inspección exhaustiva de código estático y dinámico sobre los módulos neurálgicos del sistema:
+- **Compras y Proveedores (`supplier.service.js`):** Integridad en restricciones únicas compuestas `[tenantId, nit]`, prevención de errores 500 P2002 ante valores vacíos o duplicados en actualización.
+- **Caja y Arqueos (`cash.service.js` & `invoice.service.js`):** Análisis de discrepancias en la descripción de movimientos automáticos de efectivo, prevención de doble contabilidad de abonos en caja esperada y eliminación de falsos descuadres.
+- **Integridad Fiscal y Ciclo de Vida de Usuarios (`user.service.js`):** Protección absoluta de comprobantes contables y fiscales. Supresión de cascadas destructivas sobre ventas, órdenes y cierres de caja al dar de baja personal o cuentas de usuario.
+- **Inventario e Insumos (`ingredient.service.js`):** Sanitización estricta de nombres, validación case-insensitive contra duplicados en el tenant y tipado seguro de mínimos de stock (`minStock`).
+- **Gestión Concurrente de Mesas (`table.service.js`):** Prevención de condiciones de carrera (race conditions) en la creación de comandas de mesa para evitar duplicidad de pedidos activos.
+- **Escalabilidad SaaS y Rendimiento en Base de Datos (`saas.service.js`):** Optimización de agregaciones globales en ventas para paginación de inquilinos en SuperAdmin.
+- **Reportes y Rentabilidad (`report.service.js`):** Coherencia entre ingresos netos con descuento y costo estimado de productos directos sin receta.
+- **Auditoría de Cuentas y Colisiones de Identidad (`user.service.js`):** Detección temprana de duplicidad de correo electrónico en edición de perfil de usuario.
+
+---
+
+## 19.2 Matriz de Hallazgos de la Décima Auditoría (DE-01 a DE-08)
+
+| ID | Severidad | Módulo / Componente | Archivo Afectado | Descripción Resumida |
+| :---: | :---: | :---: | :---: | :--- |
+| **`DE-01`** | **Media** | Compras / Proveedores | `Backend/src/modules/purchases/services/supplier.service.js` | En `createSupplier` y `updateSupplier`, el campo `nit` con restricción `@@unique([tenantId, nit])` colisiona con cadenas vacías `""` y no valida duplicados de NIT en el tenant durante la actualización, arrojando error 500 P2002. |
+| **`DE-02`** | **Alta** | Caja / Arqueos | `Backend/src/modules/cash/services/cash.service.js` | En `createAudit`, `getHistory` y `getSessionDetails`, el filtro de exclusión de abonos busca `'Abono a Factura'` pero `invoice.service.js` emite `'Abono Factura'`, sumando el dinero del abono dos veces en `expectedCash` y creando un faltante ficticio en arqueos. |
+| **`DE-03`** | **Crítica** | Usuarios / Auditoría Fiscal | `Backend/src/modules/users/services/user.service.js` | En `deleteUser`, al eliminar un cajero o mesero, se ejecuta `tx.sale.deleteMany` y `tx.order.deleteMany`, destruyendo facturas históricas, declaraciones fiscales y cierres contables en lugar de prohibir el borrado y exigir desactivación. |
+| **`DE-04`** | **Media** | Inventario / Insumos | `Backend/src/modules/inventory/services/ingredient.service.js` | En `createIngredient` y `updateIngredient`, falta validación de nombre no vacío, búsqueda case-insensitive contra duplicados y sanitización de `minStock` frente a valores `NaN` o negativos. |
+| **`DE-05`** | **Media** | Mesas / Concurrencia | `Backend/src/modules/tables/services/table.service.js` | En `saveTableOrder`, la búsqueda de orden existente se realiza antes de la transacción durante validaciones asíncronas lentas; peticiones concurrentes o doble clic generan órdenes activas duplicadas en la misma mesa. |
+| **`DE-06`** | **Media** | SaaS / Rendimiento DB | `Backend/src/modules/saas/services/saas.service.js` | En `getAllTenants`, `prisma.sale.groupBy` ejecuta una agregación global sobre todas las ventas de la base de datos sin filtrar por los IDs de la página actual, degradando el rendimiento del panel SuperAdmin a escala. |
+| **`DE-07`** | **Media** | Reportes / Utilidades | `Backend/src/modules/reports/services/report.service.js` | En `getSalesAndProfits`, la estimación de costo para productos directos (`cost += d.subtotal * 0.6`) no pondera el descuento global de la venta (`s.discount`), distorsionando el margen de ganancia en ventas con descuento. |
+| **`DE-08`** | **Media** | Usuarios / Auth | `Backend/src/modules/users/services/user.service.js` | En `updateUser`, la modificación del correo electrónico no verifica si el nuevo email ya está en uso por otro usuario, generando una excepción no controlada 500 P2002 en lugar de un error HTTP 400. |
+
+---
+
+## 19.3 Detalle Técnico y Diffs Propuestos de Remediación
+
+### `[DE-01]` Normalización de NIT y validación anti-colisión en Proveedores
+- **Ruta:** [`Backend/src/modules/purchases/services/supplier.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/purchases/services/supplier.service.js)
+- **Problema:** El esquema Prisma define `@@unique([tenantId, nit])`. Si `nit` es un string vacío `""` o espacios, PostgreSQL permite solo un registro con `""`, fallando en el segundo proveedor sin NIT. Además, `updateSupplier` no valida si el nuevo NIT ya pertenece a otro proveedor antes de llamar a `prisma.supplier.update`.
+- **Propuesta:**
+  - Normalizar `nit = (typeof nit === 'string' && nit.trim() !== '') ? nit.trim() : null` en creación y actualización.
+  - En `updateSupplier`, verificar duplicidad: `prisma.supplier.findFirst({ where: { nit: safeData.nit, id: { not: id }, ...(tenantId ? { tenantId } : {}) } })`.
+
+### `[DE-02]` Unificación de filtros de abonos en Caja y Arqueos
+- **Ruta:** [`Backend/src/modules/cash/services/cash.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/cash/services/cash.service.js) y [`Backend/src/modules/invoices/services/invoice.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/invoices/services/invoice.service.js)
+- **Problema:** En `cash.service.js`:
+  ```javascript
+  !m.description?.startsWith('Abono a Factura') && !m.description?.startsWith('Pago Factura') && !m.description?.startsWith('Abono de cliente')
+  ```
+  Pero `invoice.service.js` registra `description: "Abono Factura #..."` (sin la letra 'a'). La condición no filtra el movimiento, ingresando a `movementsIn` y sumándose también en `cashAbonos`, produciendo un faltante ficticio equivalente al valor del abono durante el arqueo de caja.
+- **Propuesta:**
+  - Usar una expresión regular insensible a mayúsculas que cubra todas las variantes: `/^(abono\s*(a\s*)?factura|pago\s*factura|abono\s*de\s*cliente)/i.test(m.description || '')`.
+
+### `[DE-03]` Blindaje contra destrucción de ventas y cierres fiscales al eliminar usuarios
+- **Ruta:** [`Backend/src/modules/users/services/user.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/users/services/user.service.js)
+- **Problema:** `deleteUser` realiza borrado en cascada sobre ventas (`tx.sale.deleteMany`), pagos de ventas (`tx.salePayment.deleteMany`), créditos y comandas vinculadas a las sesiones de caja del usuario. Esto permite borrar accidental o deliberadamente el historial de facturación de un restaurante.
+- **Propuesta:**
+  - Comprobar antes de cualquier borrado si el usuario tiene registros fiscales o contables asociados:
+    ```javascript
+    const hasCashSessions = await prisma.cashSession.count({ where: { userId: id } });
+    const hasOrders = await prisma.order.count({ where: { userId: id } });
+    const hasExpenses = await prisma.expense.count({ where: { userId: id } });
+    if (hasCashSessions > 0 || hasOrders > 0 || hasExpenses > 0) {
+      const error = new Error('No se puede eliminar el usuario porque tiene turnos de caja, ventas o comandas registradas en el historial contable. Desactívelo en su lugar.');
+      error.statusCode = 400;
+      throw error;
+    }
+    ```
+  - Preservar permanentemente la base de datos fiscal del establecimiento.
+
+### `[DE-04]` Validación de nombres y stock mínimo en Insumos
+- **Ruta:** [`Backend/src/modules/inventory/services/ingredient.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/inventory/services/ingredient.service.js)
+- **Problema:** En `createIngredient` no se valida que `data.name` tenga caracteres alfanuméricos válidos, la comparación contra duplicados es exacta y sensible a mayúsculas, y `minStock` permite números negativos o valores no numéricos.
+- **Propuesta:**
+  - Validar nombre obligatorio, normalizar espacios y comparar con `mode: 'insensitive'`.
+  - Asegurar `minStock = Math.max(0, isNaN(parseFloat(minStock)) ? 0 : parseFloat(minStock))`.
+  - En `updateIngredient`, aplicar la misma validación excluyendo el ID actual.
+
+### `[DE-05]` Bloqueo de concurrencia en creación de comandas de mesa
+- **Ruta:** [`Backend/src/modules/tables/services/table.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/tables/services/table.service.js)
+- **Problema:** `prisma.order.findFirst` se consulta fuera de la transacción, antes de un ciclo de consultas asíncronas para validar ítems. Dos llamadas simultáneas desde dispositivos distintos o doble clic del mesero crean dos órdenes abiertas en la misma mesa.
+- **Propuesta:**
+  - Mover o re-consultar `tx.order.findFirst` dentro de `prisma.$transaction`. Si la comanda ya existe en ese instante, agregar los nuevos detalles a la orden existente o actualizarla de manera atómica.
+
+### `[DE-06]` Paginación y filtrado de agregaciones en panel SaaS
+- **Ruta:** [`Backend/src/modules/saas/services/saas.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/saas/services/saas.service.js)
+- **Problema:** `prisma.sale.groupBy({ by: ['tenantId'], _sum: { finalAmount: true } })` agrupa todas las ventas del SaaS sin cláusula `where`, recorriendo toda la tabla en cada petición paginada de SuperAdmin.
+- **Propuesta:**
+  - Extraer los IDs de los inquilinos paginados (`const tenantIds = tenants.map(t => t.id)`) y aplicar `where: { tenantId: { in: tenantIds } }`, logrando una consulta indexada y eficiente.
+
+### `[DE-07]` Ajuste proporcional de costo en ventas con descuento
+- **Ruta:** [`Backend/src/modules/reports/services/report.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/reports/services/report.service.js)
+- **Problema:** Para productos directos sin receta, se estima el costo con `d.subtotal * 0.6` sin tener en cuenta si a la venta se le aplicó un descuento global. Si una venta tiene un descuento del 40%, el costo estimado calculado supera el ingreso real, arrojando márgenes de utilidad erróneos.
+- **Propuesta:**
+  - Ponderar el subtotal con el factor de descuento real de la venta (`finalAmount / totalAmount`) antes de aplicar el multiplicador de margen estimado.
+
+### `[DE-08]` Validación previa de duplicidad de correo en actualización de usuarios
+- **Ruta:** [`Backend/src/modules/users/services/user.service.js`](file:///c:/Users/Asus%20TUF/Documentos/Proyectos%20programación/Versiones/Neofood%201.8.0/Backend/src/modules/users/services/user.service.js)
+- **Problema:** En `updateUser`, si se cambia el correo, no se verifica si otro usuario ya lo posee, disparando error de base de datos 500 P2002.
+- **Propuesta:**
+  - Si `data.email` se modifica, verificar con `prisma.user.findFirst({ where: { email: normalizedEmail, id: { not: id } } })` y arrojar código 400 comprensible para el usuario.
+
+---
+
+## 19.4 Plan de Acción de Cierre Definitivo
+```mermaid
+flowchart TD
+    subgraph Fase10_Plan [Plan de Remediación Décima Auditoría de Cierre]
+        A["1. Integridad Fiscal y Usuarios"] -->|DE-03, DE-08| B["user.service.js: Blindar contra destrucción de ventas y validar email duplicado"]
+        B --> C["2. Control de Caja y Arqueos"]
+        C -->|DE-02| D["cash.service.js: Expresión regular robusta para no duplicar abonos"]
+        D --> E["3. Proveedores e Insumos Multi-Tenant"]
+        E -->|DE-01, DE-04| F["supplier.service.js & ingredient.service.js: Normalizar NIT/nombres y validar duplicados"]
+        F --> G["4. Concurrencia de Mesas y Rendimiento"]
+        G -->|DE-05, DE-06| H["table.service.js & saas.service.js: Transacción atómica y filtro de agregación"]
+        H --> I["5. Precisión Contable en Reportes"]
+        I -->|DE-07| J["report.service.js: Ajuste proporcional de costo en descuentos"]
+    end
+```
+
+---
+
+## 19.5 Estado y Resolución de la Auditoría
+- **Estado:** Remediado y Verificado (Fase 10 completada al 100%).
+- **Resultado:** 8 de 8 hallazgos (`DE-01` a `DE-08`) completamente solucionados y validados.
+
+---
+
+## 19.6 Resumen de Ejecución y Remediación (Fase 10)
+Todas las fallas identificadas en la Décima Auditoría Exhaustiva de Cierre (`DE-01` a `DE-08`) han sido **100% remediadas y probadas** sin regresiones:
+1. **`DE-01`**: Normalización estricta de `nit` en `SupplierService.createSupplier` y `updateSupplier` convirtiendo cadenas vacías a `null`, evitando colisiones en `@@unique([tenantId, nit])`, y validando no duplicidad de NIT dentro del establecimiento antes de actualizar.
+2. **`DE-02`**: Unificación de la expresión regular de filtrado en `CashService` (`isAbonoOrInvoicePaymentMovement`), reconociendo cualquier variante de `"Abono Factura"`, `"Abono a Factura"` o `"Pago Factura"`, garantizando que ningún abono en efectivo sea sumado doblemente en arqueos de caja.
+3. **`DE-03`**: Blindaje absoluto de la base de datos fiscal y contable en `UserService.deleteUser`. Se prohíbe la eliminación física de cualquier cuenta que tenga sesiones de caja, ventas, órdenes, créditos o gastos registrados (`statusCode = 400`), orientando a la desactivación del usuario (`isActive: false`).
+4. **`DE-04`**: Normalización de nombres de insumos con validación obligatoria y búsqueda case-insensitive (`mode: 'insensitive'`) en `IngredientService.createIngredient` y `updateIngredient`, además de sanitización estricta de `minStock` frente a números negativos o `NaN`.
+5. **`DE-05`**: Prevención de condiciones de carrera en `TableService.saveTableOrder` trasladando la consulta de la comanda activa (`activeOrder`) dentro del bloque atómico `prisma.$transaction`, impidiendo la creación concurrente de múltiples órdenes abiertas en una misma mesa.
+6. **`DE-06`**: Optimización de escalabilidad en `SaasService.getAllTenants`, acotando la agregación `prisma.sale.groupBy` con filtro `where: { tenantId: { in: tenantIds } }` únicamente para los establecimientos de la página activa.
+7. **`DE-07`**: Ponderación proporcional del costo en `ReportService.getSalesAndProfits`, aplicando el ratio de descuento efectivo (`finalAmount / totalAmount`) al subtotal de productos directos sin receta antes de estimar el margen, y redondeando importes monetarios.
+8. **`DE-08`**: Validación preventiva en `UserService.updateUser` y `createUser`, normalizando el correo electrónico (`trim().toLowerCase()`) y comprobando si ya se encuentra en uso por otra cuenta (`id: { not: id }`) antes de persistir, evitando errores 500 P2002.
+
+---
+
+## 20. Balance Global Consolidado Definitivo (Auditorías 1 a 10)
+
+| Auditoría | Rango de IDs | Total Hallazgos | Resueltos | Pendientes | Tasa de Resolución | Commits Asociados |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Fase 1 (Auditoría Inicial)** | `NF-01`..`NF-32` | 32 | 32 | 0 | 100% | `ba120e8`..`967f53b` (Commits 1–10) |
+| **Fase 2 (Re-Auditoría Profunda)** | `RA-01`..`RA-14` | 14 | 14 | 0 | 100% | `e4f353c`..`9a60762` (Commits 11–14) |
+| **Fase 3 (Tercera Auditoría)** | `TA-01`..`TA-08` | 8 | 8 | 0 | 100% | `58b336f`..`9918a22` (Commits 15–17) |
+| **Fase 4 (Cuarta Auditoría)** | `CA-01`..`CA-08` | 8 | 8 | 0 | 100% | `8b69fed`..`afc115d` (Commits 18–20) |
+| **Fase 5 (Quinta Auditoría)** | `QA-01`..`QA-08` | 8 | 8 | 0 | 100% | `4e314a7`..`7399a97` (Commits 21–23) |
+| **Fase 6 (Sexta Auditoría)** | `SA-01`..`SA-08` | 8 | 8 | 0 | 100% | `b15df71`..`d52a7f2` (Commits 24–25) |
+| **Fase 7 (Séptima Auditoría)** | `SE-01`..`SE-08` | 8 | 8 | 0 | 100% | `c456bf9`..`10e3ed0` (Commits 26–27) |
+| **Fase 8 (Octava Auditoría)** | `OC-01`..`OC-08` | 8 | 8 | 0 | 100% | `ee778fe`, `0c5ad3d`, `7847682` (Commits 28–30) |
+| **Fase 9 (Novena Auditoría)** | `NO-01`..`NO-08` | 8 | 8 | 0 | 100% | `3ec6464`, `53acd8c` (Commits 31–32) |
+| **Fase 10 (Décima Auditoría de Cierre)** | `DE-01`..`DE-08` | 8 | 8 | 0 | 100% | `ad90fae` (Commit 33) |
+| **TOTAL CONSOLIDADO DEFINITIVO** | **110 Hallazgos** | **110** | **110** | **0** | **100.0%** | **Auditorías 1 a 10 Completadas** |
+
+> [!NOTE]
+> Neofood alcanza una marca definitiva y récord de **110 hallazgos resueltos (100% de efectividad)** a lo largo de 10 auditorías profundas sucesivas. El sistema cuenta con aislamiento multi-tenant absoluto, inmutabilidad contable y fiscal irreprochable, concurrencia transaccional blindada y validaciones defensivas completas en todas sus capas.
