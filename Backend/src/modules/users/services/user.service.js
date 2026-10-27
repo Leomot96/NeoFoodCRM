@@ -322,6 +322,24 @@ class UserService {
       throw error;
     }
 
+    // Impedir eliminar al único Administrador activo del restaurante
+    const roleName = String(user.role?.name || '').trim().toLowerCase();
+    if (roleName === 'administrador' && user.tenantId && user.isActive) {
+      const remainingAdmins = await prisma.user.count({
+        where: {
+          tenantId: user.tenantId,
+          id: { not: user.id },
+          isActive: true,
+          role: { name: 'Administrador' }
+        }
+      });
+      if (remainingAdmins === 0) {
+        const error = new Error('No se puede eliminar al único Administrador activo del establecimiento.');
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     return await prisma.$transaction(async (tx) => {
       // 1. Logs de auditoría
       await tx.auditLog.deleteMany({ where: { userId: id } });

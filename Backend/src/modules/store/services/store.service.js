@@ -702,7 +702,7 @@ class StoreService {
     let activeSession = null;
     if (userId) {
       activeSession = await prisma.cashSession.findFirst({
-        where: { userId, status: 'OPEN' }
+        where: { userId, status: 'OPEN', ...(tenantId ? { tenantId } : {}) }
       });
     }
 

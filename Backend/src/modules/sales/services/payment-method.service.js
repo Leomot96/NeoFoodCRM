@@ -3,10 +3,23 @@ const { getTenantId } = require('../../../context/tenantContext');
 
 class PaymentMethodService {
   async createPaymentMethod(data) {
+    const trimmedName = String(data?.name || '').trim();
+    if (!trimmedName) {
+      throw Object.assign(new Error('El nombre del método de pago es requerido'), { statusCode: 400 });
+    }
     const tenantId = getTenantId();
+    const existing = await prisma.paymentMethod.findFirst({
+      where: {
+        name: { equals: trimmedName, mode: 'insensitive' },
+        ...(tenantId ? { tenantId } : {})
+      }
+    });
+    if (existing) {
+      throw Object.assign(new Error(`Ya existe un método de pago con el nombre "${trimmedName}" en este establecimiento`), { statusCode: 400 });
+    }
     return await prisma.paymentMethod.create({
       data: {
-        name: data.name,
+        name: trimmedName,
         isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
         ...(tenantId ? { tenantId } : {})
       }

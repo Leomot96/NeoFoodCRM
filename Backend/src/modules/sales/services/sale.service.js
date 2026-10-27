@@ -220,8 +220,12 @@ class SaleService {
       let order;
       if (orderId) {
         order = await tx.order.findFirst({
-          where: { id: orderId, ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) }
+          where: { id: orderId, ...(effectiveTenantId ? { tenantId: effectiveTenantId } : {}) },
+          include: { sale: { select: { id: true, invoiceNumber: true } } }
         });
+        if (order?.sale) {
+          throw Object.assign(new Error(`Esta comanda ya ha sido facturada previamente (Factura #${order.sale.invoiceNumber || order.sale.id})`), { statusCode: 400 });
+        }
         if (order) {
           await tx.orderDetail.deleteMany({ where: { orderId: order.id } });
           order = await tx.order.update({
